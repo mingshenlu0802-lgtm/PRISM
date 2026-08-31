@@ -497,7 +497,7 @@ export const article: Article = {
     { citationId: 'cit-funding-12', status: 'found', reason: '公开信正文与 47 家署名机构名单均可定位，核查逐条确认署名机构的联系方式字段完整。', checkedAt: '2026-08-25T21:42:00Z' },
     { citationId: 'cit-funding-13', status: 'found', reason: '核查逐段检视公开信第 4 至 6 段，确认三处涉及资金分配的指控均无脚注、附件或引用来源。', checkedAt: '2026-08-25T21:45:00Z' },
     { citationId: 'cit-funding-14', status: 'partial', reason: '报道正文与被批评方的回应段落均可定位；但影印件仅以低分辨率图片发布，核查的文本提取失败，无法比对报道所引段落与影印件内容是否一致。', checkedAt: '2026-08-25T21:50:00Z' },
-    { citationId: 'cit-funding-15', status: 'missing', reason: '核查无法验证两份纪要影印件的真实性：通讯社未做鉴定、未公布获取途径，图片无可提取文本，签署方也未公开确认。正文因此只把该来源用于「存在此类指控」，不用于指控内容本身。', checkedAt: '2026-08-25T21:53:00Z' },
+    { citationId: 'cit-funding-15', status: 'missing', reason: '核查无法验证两份纪要影印件的真实性：通讯社未做鉴定、未公布获取途径，图片无可提取文本，签署方也未公开确认。正文因此只把该来源用于「存在此类指控」，不用于指控内容本身。', checkedAt: '2026-08-25T21:53:00Z', acknowledged: true, acknowledgedNote: '相关陈述已改为归因表述：影印件只用于说明「存在此类指控」，「不存在」形式的主张改为说明核查方式与其限度。', acknowledgedBy: '主编（你）' },
     { citationId: 'cit-funding-16', status: 'found', reason: '来函全文栏中双方文本均完整刊出，核查确认非节选。', checkedAt: '2026-08-25T21:57:00Z' },
     { citationId: 'cit-funding-17', status: 'found', reason: '编辑部说明中载明人员规模与未作独立核对，为该媒体自述。', checkedAt: '2026-08-25T21:58:00Z' },
     { citationId: 'cit-funding-18', status: 'found', reason: '航次记录与经费审计意见两份附件均可下载，核查确认审计意见由外部事务所出具。', checkedAt: '2026-08-25T22:02:00Z' },
@@ -510,7 +510,7 @@ export const article: Article = {
     { citationId: 'cit-funding-25', status: 'found', reason: '核查尝试为通讯所引三项统计定位出处，三项均无注明；其中一项与自治区公布的统计定义不一致，差异可在自治区公开定义文件中直接比对。', checkedAt: '2026-08-26T09:26:00Z' },
     { citationId: 'cit-funding-26', status: 'found', reason: '样本说明位于报告首页，滚雪球招募、两座城市与不可推及全国三点均为机构自述。', checkedAt: '2026-08-26T09:31:00Z' },
     { citationId: 'cit-funding-27', status: 'partial', reason: '问卷原文、回收率与未回复名单均可定位；但「未回复者可能等待更久」在原报告中是作者提出的推测而非发现，正文已按推测处理，核查仍标记以防后续引用时被升格。', checkedAt: '2026-08-26T09:35:00Z' },
-    { citationId: 'cit-funding-28', status: 'missing', reason: '这是一项「不存在」形式的主张，自动核查无法正向验证：核查确认问卷全文题项清单中没有申请成功率与评分相关题项，但无法排除该观察站以问卷之外的方式采集过这些数据，也无法证明资助方从未在别处公布评分表。正文已据此改写为「问卷全文中不含相关题项」与「本站未取得」，不写「该数据不存在」。', checkedAt: '2026-08-26T09:41:00Z' },
+    { citationId: 'cit-funding-28', status: 'missing', reason: '这是一项「不存在」形式的主张，自动核查无法正向验证：核查确认问卷全文题项清单中没有申请成功率与评分相关题项，但无法排除该观察站以问卷之外的方式采集过这些数据，也无法证明资助方从未在别处公布评分表。正文已据此改写为「问卷全文中不含相关题项」与「本站未取得」，不写「该数据不存在」。', checkedAt: '2026-08-26T09:41:00Z', acknowledged: true, acknowledgedNote: '相关陈述已改为归因表述：影印件只用于说明「存在此类指控」，「不存在」形式的主张改为说明核查方式与其限度。', acknowledgedBy: '主编（你）' },
   ],
 
   assetIds: ['img-funding-cover', 'img-funding-chart', 'img-funding-social'],

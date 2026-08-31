@@ -76,9 +76,14 @@
   --topic-movement:     var(--ink-400);
 
   /* --- Type ------------------------------------------------------------- */
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-  --font-serif: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC",
+  /* Latin from Inter, Chinese from Noto Sans SC — both loaded in index.html,
+     with the platform stacks kept behind them so the design still holds if
+     the fonts never arrive. */
+  --font-sans: "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* The journal voice. Noto Serif SC carries the Chinese; Georgia-class faces
+     carry the Latin that sits inside it. */
+  --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC",
     "Iowan Old Style", Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono",
     "Noto Sans Mono CJK SC", monospace;
@@ -214,13 +219,20 @@
 }
 
 /* A 1px refracted rule. Used at most once per view. */
+/* A refracted edge, not a rainbow band. The spectrum stays folded into the
+   indigo end and only opens toward coral at the very tail, so it reads as
+   light through glass rather than as a flag. */
 .prism-rule {
   height: 2px;
   border: 0;
   background: linear-gradient(90deg,
-    var(--prism-1) 0%, var(--prism-6) 22%, var(--prism-2) 42%,
-    var(--prism-3) 62%, var(--prism-4) 80%, var(--prism-5) 100%);
-  opacity: .55;
+    var(--ink-500) 0%,
+    var(--prism-1) 26%,
+    var(--prism-6) 48%,
+    var(--prism-2) 66%,
+    var(--prism-3) 82%,
+    var(--coral-500) 100%);
+  opacity: .38;
 }
 
 @media (prefers-reduced-motion: reduce) {

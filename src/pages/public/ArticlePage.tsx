@@ -322,6 +322,16 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
         </div>
       </header>
 
+      {/* The notice comes BEFORE the cover. A reader who needs it should meet
+          it first, not after scrolling past a full-width image. */}
+      {article.contentNotice ? (
+        <div className="apage__notice">
+          <div className="u-shell">
+            <ContentNotice text={article.contentNotice} topics={article.topics} />
+          </div>
+        </div>
+      ) : null}
+
       {cover ? (
         <div className="apage__coverwrap">
           <div className="u-shell">
@@ -336,16 +346,6 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
                 </p>
               ) : null}
             </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ----------------------------- content notice --------------------------- */}
-
-      {article.contentNotice ? (
-        <div className="apage__notice">
-          <div className="u-shell">
-            <ContentNotice text={article.contentNotice} topics={article.topics} />
           </div>
         </div>
       ) : null}

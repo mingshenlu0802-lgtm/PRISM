@@ -81,13 +81,21 @@ check('性暴力与未成年人内容强制二次确认', () => {
 })
 
 check('资源未找到的引用会阻断发布', () => {
-  const withFail = S0.articles.filter((a) => sel.failedChecks(a).length > 0)
-  assert(withFail.length > 0, '演示数据中没有资源未找到的条目')
-  for (const a of withFail) {
+  const blocking = S0.articles.filter((a) => sel.blockingChecks(a).length > 0)
+  const handled = S0.articles.filter(
+    (a) => sel.failedChecks(a).length > 0 && sel.blockingChecks(a).length === 0)
+  assert(blocking.length > 0, '演示数据中没有未处理的「资源未找到」条目')
+  assert(handled.length > 0, '演示数据中没有已记录处理说明的条目')
+  for (const a of blocking) {
     const g = sel.publishGate(a, S0)
-    assert(!g.ok, `${a.id} 有资源未找到的引用却未被阻断`)
+    assert(!g.ok, `${a.id} 有未处理的「资源未找到」却未被阻断`)
   }
-  return `${withFail.length} 篇被阻断`
+  for (const a of handled) {
+    const g = sel.publishGate(a, S0)
+    assert(!g.blockers.some((b) => b.includes('资源未找到')),
+      `${a.id} 的失败已记录处理说明，却仍被当作阻断项`)
+  }
+  return `${blocking.length} 篇被阻断 · ${handled.length} 篇已处理不再阻断`
 })
 
 /* ----------------------------- the global lock --------------------------- */
@@ -234,12 +242,12 @@ check('references 增删可被单独追踪', () => {
 })
 
 check('已记录处理说明的「资源未找到」不再阻断发布', () => {
-  const a = S0.articles.find((x) => sel.failedChecks(x).length > 0)
-  assert(a, '演示数据中没有资源未找到的条目')
+  const a = S0.articles.find((x) => sel.blockingChecks(x).length > 0)
+  assert(a, '演示数据中没有未处理的「资源未找到」条目')
   const before = sel.publishGate(a, S0)
   assert(before.blockers.some((b) => b.includes('资源未找到')), '资源未找到的引用未阻断发布')
   let s = S0
-  for (const c of sel.failedChecks(a)) {
+  for (const c of sel.blockingChecks(a)) {
     s = reducer(s, { type: 'ack-citation', articleId: a.id, citationId: c.citationId, note: '已改为归因表述' })
   }
   const a2 = s.articles.find((x) => x.id === a.id)

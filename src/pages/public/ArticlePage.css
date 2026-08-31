@@ -131,12 +131,12 @@
 
 @media (min-width: 720px) {
   .apage__hero { padding-top: var(--s-9); }
-  .apage__title { font-size: var(--fs-3xl); }
+  .apage__title { font-size: var(--fs-3xl); text-wrap: balance; }
   .apage__standfirst { font-size: var(--fs-lg); }
 }
 
 @media (min-width: 1080px) {
-  .apage__title { font-size: var(--fs-4xl); max-width: 20ch; }
+  .apage__title { font-size: var(--fs-4xl); max-width: 26ch; text-wrap: balance; }
 }
 
 .apage__bylinerow {

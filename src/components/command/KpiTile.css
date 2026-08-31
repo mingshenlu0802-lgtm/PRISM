@@ -64,15 +64,16 @@
 }
 
 .kpit__label {
+  /* A KPI label that ellipses is a KPI you cannot read. Let it wrap to a
+     second line instead; the tile has the room. */
   flex: 1 1 auto;
   min-width: 0;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--fg-muted);
   letter-spacing: .01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .kpit__state {
