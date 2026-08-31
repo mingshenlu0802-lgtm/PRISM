@@ -47,7 +47,7 @@ refresh, and it is gone. Your site never changed.
 | --- | --- |
 | Someone sees what the console looks like | Possible. Cannot be prevented on a static site (Part 5 fixes it) |
 | Someone changes your published site | **Not possible** without your GitHub token |
-| Someone spends your Claude credit | **Not possible** without the API key on your machine |
+| Someone spends money in your name | **Not possible.** The site holds no API key of any kind |
 | Someone steals reader data | There is none. The site collects nothing |
 
 So the ranking is: **de-personalise first** (Parts 1–4, cheap and irreversible
@@ -311,8 +311,8 @@ access control.
 > **One prerequisite.** The console currently lives at `#/console`. Everything
 > after `#` stays in the browser and is never sent to the server, so Cloudflare
 > cannot see it. The console has to be moved to a real path (`/console/`)
-> before rule 6 can match. This is a one-time code change — ask for it in the
-> console's Claude tab: *"把控制端拆成独立页面，好让 Cloudflare Access 能保护它"*.
+> before rule 6 can match. This is a one-time code change — ask for it in your
+> Claude Code chat: *"把控制端拆成独立页面，好让 Cloudflare Access 能保护它"*.
 > Until then, step 6's path rule will not match anything, and you should leave
 > Part 5.3 for later rather than protecting the whole site (which would lock
 > your readers out too).
@@ -335,8 +335,8 @@ do that — but it removes one avenue of inspection.
 These matter more day to day than anything above.
 
 1. **Never sign in to the console on a shared or borrowed computer.** Your
-   GitHub token and Claude API key live in the browser. This is the realistic
-   way they leak — far more likely than any attack.
+   GitHub token lives in the browser. This is the realistic way it leaks —
+   far more likely than any attack.
 2. **Give the GitHub token an expiry.** GitHub → **Settings** → **Developer
    settings** → **Personal access tokens** → **Fine-grained tokens** →
    **Generate new token**. Set **Expiration** to 90 days.
@@ -408,18 +408,17 @@ Access:
 
 ## Part 9 — Publishing changes after launch
 
-**Content, wording, appearance** — one sentence, no deployment:
-open the console → **编辑** → **Claude** → say what you want. It changes
-immediately, it is logged, and it can be undone.
+**Content, wording, appearance** — no deployment, no help needed:
+open the console → **编辑**. Under **内容**, **＋ 自己写一条** adds a new item
+and every existing item opens for editing, hiding or deletion. Under **外观**,
+you set the type size, theme, accent, and the site's own wording. Changes take
+effect immediately, are logged, and can be undone.
 
-**Code changes** — new sections, new pages, layout, features:
+**Code changes** — new sections, new pages, layout, features: say what you want
+in your Claude Code chat. It edits, commits and pushes; GitHub Actions rebuilds
+and republishes automatically — usually one to two minutes.
 
-1. Ask in the console's Claude tab. It will recognise that the request needs a
-   code change and write a full brief.
-2. Click **开成 GitHub issue**.
-3. Click **在 Claude Code 里打开仓库** and say: *"do issue #12"*.
-4. It edits, commits and pushes. GitHub Actions rebuilds and republishes
-   automatically — usually one to two minutes.
-
-Step 3 cannot be removed: a browser cannot edit source, run a build, or deploy.
-What the console can do is make the handover take one sentence.
+That step cannot happen inside the site: a browser cannot edit source, run a
+build, or deploy. The console used to carry a Claude tab, but it could only
+ever change content and appearance — which the 内容 and 外观 tabs already do —
+so it was removed rather than kept as a weaker copy.

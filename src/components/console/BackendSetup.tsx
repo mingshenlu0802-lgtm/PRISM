@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { usePrism } from '../../lib/store'
-import { inSandboxFrame, keyProblem, loadConfig, saveLocal, urlProblem, type BackendConfig } from '../../lib/backend'
+import {
+  inSandboxFrame, keyDanger, keyProblem, keyTyping, loadConfig, parsePasted, saveLocal,
+  urlProblem, urlTyping, type BackendConfig,
+} from '../../lib/backend'
 import { syncFile } from '../../lib/github'
 import { schemaSqlFor } from '../../lib/schemaSql'
 import { Icon, TextInput, toast } from '../common'
@@ -26,14 +29,60 @@ export function BackendSetup(): JSX.Element {
   const [saving, setSaving] = useState(false)
   const [published, setPublished] = useState<string | null>(null)
 
+  /*
+   * 已经配置过的话，把现有的值填回来，方便核对和修改。
+   *
+   * 但**绝不能覆盖站长正在打的字**：这个 fetch 是异步的，它可能在他已经
+   * 开始输入之后才回来。所以只在两个框都还是空的时候才填。
+   */
   useEffect(() => {
-    void loadConfig().then((c) => { if (c) setCfg(c) })
+    void loadConfig().then((c) => {
+      if (c) setCfg((cur) => (cur.url || cur.anonKey ? cur : c))
+    })
   }, [])
 
-  // 边填边说哪里不对。等按了按钮才报错，人已经不知道自己刚才做了什么了。
-  const urlErr = urlProblem(cfg.url)
-  const keyErr = keyProblem(cfg.anonKey)
-  const ready = Boolean(cfg.url.trim() && cfg.anonKey.trim()) && !urlErr && !keyErr
+  /**
+   * 粘贴：两行一起粘也认。
+   *
+   * 站长的原话：「我不能同时输入两行进输入框。」——单行输入框会把换行吃掉，
+   * 于是两串黏成一串，怎么填都不对。这里接管粘贴：不管粘在哪个框、粘的是
+   * 一行还是两行，认出来的各自归位。认不出来的就走浏览器的默认行为。
+   */
+  function onPaste(field: 'url' | 'anonKey') {
+    return (e: React.ClipboardEvent<HTMLInputElement>) => {
+      const text = e.clipboardData?.getData('text') ?? ''
+      if (!/[\s\n\r]/.test(text.trim())) return // 单独一串，交给浏览器
+      const found = parsePasted(text)
+      if (!found.url && !found.anonKey) return
+      e.preventDefault()
+      setCfg((c) => ({ url: found.url ?? c.url, anonKey: found.anonKey ?? c.anonKey }))
+      setTouched({ url: false, key: false })
+      if (found.url && found.anonKey) toast('两串都认出来了，各自填好了。', 'go')
+      else if (found[field]) toast('填好了。另一串还要单独粘一次。', 'info')
+      else toast('从你粘的内容里只认出了另一串，已经填到对应的框里。', 'info')
+    }
+  }
+
+  /*
+   * 什么时候说「这里不对」。
+   *
+   * 站长反馈：「我尝试给 publishable key enter anything 的时候就出现错误」——
+   * 因为原来每敲一个字符就完整校验一遍，才打了两个字母就被判「太短」。
+   * 打字中途本来就还没填对，那不是错误，那是打字。
+   *
+   * 所以分两档：
+   * - **危险的**（Secret key、service_role）一个字符都不等，立刻拦。
+   *   等按按钮才说就晚了——那时他可能已经点了「发布出去」。
+   * - **形状不对**（太短、开头不对）等他离开输入框再说。
+   */
+  const [touched, setTouched] = useState({ url: false, key: false })
+
+  const urlFull = urlProblem(cfg.url)
+  const keyFull = keyProblem(cfg.anonKey)
+  const urlErr = touched.url && !urlTyping(cfg.url) ? urlFull : null
+  const keyErr = keyDanger(cfg.anonKey)
+    ?? (touched.key && !keyTyping(cfg.anonKey) ? keyFull : null)
+  const ready = Boolean(cfg.url.trim() && cfg.anonKey.trim()) && !urlFull && !keyFull
 
   function connect() {
     if (!ready) { toast(urlErr ?? keyErr ?? '两串都要填。', 'warn'); return }
@@ -153,7 +202,7 @@ export function BackendSetup(): JSX.Element {
             )}
           </li>
           <li>
-            回 Supabase 拿两串字符，粘到下面两个框。它们在**两个不同的页面**上：
+            回 Supabase 拿两串字符，粘到下面两个框。它们在<strong>两个不同的页面</strong>上：
             <ul className="bke__where">
               <li>
                 <strong>Project URL</strong> —— 左下角齿轮 <strong>Settings</strong> →
@@ -180,20 +229,46 @@ export function BackendSetup(): JSX.Element {
           </li>
         </ol>
 
+        <p className="bke__pastehint">
+          <Icon name="info" size={13} />
+          <span>
+            <strong>两行可以一起粘。</strong>
+            把网址和 key 一起复制下来（中间隔一个换行或空格），
+            粘进<strong>任意一个</strong>框，它会自动认出哪个是哪个，各自填好。
+          </span>
+        </p>
+
         <div className="bke__fields">
           <TextInput
             placeholder="Project URL（https://你的项目ID.supabase.co）"
             value={cfg.url}
-            onChange={(e) => setCfg((c) => ({ ...c, url: e.currentTarget.value }))}
+            aria-label="Supabase Project URL"
+            aria-invalid={urlErr ? true : undefined}
+            onChange={(e) => {
+              setTouched((t) => ({ ...t, url: false }))
+              setCfg((c) => ({ ...c, url: e.currentTarget.value }))
+            }}
+            onBlur={() => setTouched((t) => ({ ...t, url: true }))}
+            onPaste={onPaste('url')}
           />
           {urlErr && <p className="bke__err">{urlErr}</p>}
 
           <TextInput
             placeholder="Publishable key（sb_publishable_… 开头）"
             value={cfg.anonKey}
-            onChange={(e) => setCfg((c) => ({ ...c, anonKey: e.currentTarget.value }))}
+            aria-label="Supabase Publishable key"
+            aria-invalid={keyErr ? true : undefined}
+            onChange={(e) => {
+              setTouched((t) => ({ ...t, key: false }))
+              setCfg((c) => ({ ...c, anonKey: e.currentTarget.value }))
+            }}
+            onBlur={() => setTouched((t) => ({ ...t, key: true }))}
+            onPaste={onPaste('anonKey')}
           />
           {keyErr && <p className="bke__err">{keyErr}</p>}
+          {!keyErr && cfg.anonKey.trim() && !keyFull && (
+            <p className="bke__ok"><Icon name="check" size={13} />这一串看起来没问题。</p>
+          )}
         </div>
 
         <div className="bke__acts">

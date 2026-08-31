@@ -9,8 +9,9 @@ import RegionPage from './pages/site/RegionPage'
 import TopicPage from './pages/site/TopicPage'
 import StudiesPage from './pages/site/StudiesPage'
 import AboutPage from './pages/site/AboutPage'
+import { SignInPage } from './components/site/SignInGate'
 
-// 控制端单独打包：读者不该为一个只有站长会打开的界面下载 Claude SDK。
+// 控制端单独打包：读者不该为一个只有站长会打开的界面下载后端 SDK。
 const ConsoleLayout = lazy(() => import('./components/console/ConsoleLayout'))
 const SearchPage = lazy(() => import('./pages/console/SearchPage'))
 const ManagePage = lazy(() => import('./pages/console/ManagePage'))
@@ -48,6 +49,15 @@ export default function App(): JSX.Element {
           <Route path="/studies" element={<StudiesPage />} />
           <Route path="/about" element={<AboutPage />} />
         </Route>
+
+        {/*
+          * 登录有自己的一页。
+          *
+          * 看内容不需要登录，所以这不是一道门——但它得有个能直接发给人的地址：
+          * 「你去 xxx/#/signin 登录一下，我把你设成编辑」比「点右上角那个按钮」
+          * 好说得多。页面自己会先说清楚「看内容不用登录」。
+          */}
+        <Route path="/signin" element={<SignInPage />} />
 
         <Route path="/console" element={<Suspense fallback={<Loading />}><ConsoleLayout /></Suspense>}>
           <Route index element={<Suspense fallback={<Loading />}><SearchPage /></Suspense>} />

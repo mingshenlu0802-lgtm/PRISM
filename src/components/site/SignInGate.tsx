@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
 import { sendLink } from '../../lib/session'
 import { PrismMark, TextInput, ToastHost, toast } from '../common'
@@ -59,10 +60,18 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
     <div className="gate__inner">
       <p className="gate__lede">用邮箱登录</p>
       <p className="gate__note">
-        <strong>看内容不需要登录。</strong>
-        登录是为了让{state.copy.title}知道你是谁——以后有更新可以通知你；
-        站长也可以把你设成编辑，让你能改内容。
+        <strong>看内容不需要登录</strong>——你现在看到的就是全部，
+        直接关掉这一页继续读也完全可以。
       </p>
+      <ul className="gate__why">
+        <li><strong>想收到更新通知</strong>：{state.copy.title}有新内容时给你发一封信。</li>
+        <li><strong>站长要给你编辑权限</strong>：登录一次之后，他才能在名单里找到你。</li>
+      </ul>
+      <ol className="gate__how">
+        <li>下面填你的邮箱，按<strong>发登录链接</strong>。</li>
+        <li>去邮箱收信（<strong>记得看垃圾邮件</strong>），点里面的链接。</li>
+        <li>自动跳回网站，就登录好了。<strong>不用设密码。</strong></li>
+      </ol>
       <div className="gate__row">
         <TextInput
           type="email"
@@ -82,13 +91,22 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
         </button>
       </div>
       <p className="gate__note gate__note--small">
-        不用设密码。邮箱只用来登录和给你发站点通知，别的成员看不到你的地址。
+        邮箱只用来登录和给你发站点通知。<strong>别的读者看不到你的地址</strong>——
+        成员名单在数据库里是锁着的，只有站长能看。
       </p>
     </div>
   )
 }
 
-/** 独立的一页，给「我想登录」的人。 */
+/**
+ * 独立的一页，给「我想登录」的人。
+ *
+ * 有自己的地址是有用的：站长可以直接说「你去这个链接登录一下，我把你设成编辑」，
+ * 比「点右上角那个按钮」好说得多。
+ *
+ * 这一页必须给一条**回去的路**。朋友多半是顺手点进来的，如果发现自己不需要登录，
+ * 却只剩一个输入框和一个按钮，那就是把人晾在这儿了。
+ */
 export function SignInPage(): JSX.Element {
   const { state } = usePrism()
   return (
@@ -97,6 +115,18 @@ export function SignInPage(): JSX.Element {
         <PrismMark size={44} />
         <h1 className="gate__title">{state.copy.title}</h1>
         <SignInPanel />
+
+        <div className="gate__after">
+          <p className="gate__afterhead">登录之后会怎样</p>
+          <ul className="gate__afterlist">
+            <li>网站看起来<strong>一模一样</strong>——登录不会解锁什么隐藏内容，本来就都给你看了。</li>
+            <li>{state.copy.title}有新内容时可以给你发信；不想收了随时跟站长说一声。</li>
+            <li>如果站长把你设成<strong>编辑</strong>，右上角会多出一个「控制端」入口。</li>
+            <li>你的邮箱<strong>别的读者看不到</strong>，成员名单在数据库里是锁着的。</li>
+          </ul>
+        </div>
+
+        <Link className="gate__back" to="/">先不登录，回去看内容 →</Link>
       </main>
       <ToastHost />
     </div>

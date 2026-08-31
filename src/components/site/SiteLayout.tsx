@@ -8,6 +8,7 @@ import { Icon, PrismMark, ToastHost } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
 import { AccountMenu } from './AccountMenu'
 import { SignInGate } from './SignInGate'
+import { SignInInvite } from './SignInInvite'
 import './SiteLayout.css'
 
 /**
@@ -152,6 +153,8 @@ export default function SiteLayout(): JSX.Element {
         </div>
       )}
 
+      <SignInInvite />
+
       {state.publicOffline && (
         <div className="slyt__offline" role="status">
           <Icon name="alert" size={15} />
@@ -183,6 +186,13 @@ export default function SiteLayout(): JSX.Element {
           <p className="slyt__footmeta">
             当前公开 {liveNews} 条新闻 · {state.studies.filter((s) => s.status === 'live').length} 项研究与数据
           </p>
+          {mode === 'shared' && !state.auth.email && (
+            <p className="slyt__footsign">
+              看内容不用登录。想收到更新通知，或者需要编辑权限，
+              <Link className="slyt__footlink" to="/signin">用邮箱登录一次</Link>
+              （不用设密码）。
+            </p>
+          )}
         </div>
       </footer>
 

@@ -353,3 +353,18 @@
 .mng__adminrole--member { background: transparent; color: var(--fg-subtle); border: var(--bw) dashed var(--line-strong); }
 .mng__adminempty { font-size: var(--fs-xs); color: var(--fg-faint); padding: var(--s-3); }
 .mng__admin select { font-size: var(--fs-2xs); padding: 3px 26px 3px 8px; }
+
+/* 「自己写一条」——搜集之外的另一条入口，得让人一眼看见。 */
+.mng__newrow {
+  display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap;
+  padding: var(--s-4);
+  border: var(--bw) dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  margin-bottom: var(--s-4);
+}
+.mng__newbtn { flex: none; }
+.mng__newnote {
+  flex: 1 1 240px; min-width: 0;
+  font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-muted);
+}

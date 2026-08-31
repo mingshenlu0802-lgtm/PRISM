@@ -48,3 +48,23 @@
   font-size: var(--fs-xs); line-height: 1.75; color: var(--fg);
 }
 .bke__sandbox svg { flex: none; margin-top: 3px; color: var(--warn); }
+
+/* 填对了也要说一声——一个人盯着没反应的输入框，是不知道自己成没成的。 */
+.bke__ok {
+  display: flex; align-items: center; gap: 5px;
+  margin: 0; padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--go-soft); color: var(--go);
+  font-size: var(--fs-2xs); line-height: 1.6;
+}
+
+/* 「两行可以一起粘」——站长试过把两串一起粘，被单行输入框吃掉了换行。 */
+.bke__pastehint {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: 0 0 var(--s-2); padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--chip-bg);
+  font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-muted);
+}
+.bke__pastehint > svg { flex: none; margin-top: 2px; }
+.bke__pastehint strong { color: var(--fg); font-weight: 640; }

@@ -9,20 +9,24 @@ import {
   Checkbox, EmptyState, Icon, Modal, Segmented, Select, TextArea, TextInput, toast,
 } from '../../components/common'
 import { NewsEditor } from '../../components/console/NewsEditor'
-import { ClaudePanel } from '../../components/console/ClaudePanel'
 import { BackendSetup } from '../../components/console/BackendSetup'
 import { SiteAddress } from '../../components/console/SiteAddress'
+import { blankNews, blankStudy } from '../../lib/blank'
 import './ManagePage.css'
 
-type Tab = 'content' | 'vibe' | 'look' | 'account'
+type Tab = 'content' | 'look' | 'account'
 
 const ROLE_LABEL: Record<Role, string> = { owner: '站长', editor: '编辑', member: '只能看' }
 
 /**
  * 「编辑」——控制端第二页。
  *
- * 四个标签，从最常用到最少用排：编辑内容 → 跟 Claude 说一句 → 手动调外观 →
- * 账号与同步。每个危险操作都有二次确认，每一次编辑都记在下面的「最近编辑」里。
+ * 三个标签，从最常用到最少用排：内容 → 外观 → 账号与同步。
+ * 每个危险操作都有二次确认，每一次编辑都记在下面的「最近编辑」里。
+ *
+ * 这里曾经有第四个标签，能用一句话让 Claude 改网站。站长把它去掉了——
+ * 他改网站是直接跟 Claude 说，不需要网站里再有一个功能弱一截的复制品。
+ * 少一个标签，也少一份把 API key 放进浏览器的理由。
  */
 export default function ManagePage(): JSX.Element {
   const { state, dispatch, reset, who, canEdit, isOwner } = usePrism()
@@ -40,17 +44,15 @@ export default function ManagePage(): JSX.Element {
       <Segmented<Tab>
         value={tab}
         onChange={setTab}
-        ariaLabel="编辑的四个部分"
+        ariaLabel="编辑的三个部分"
         options={[
           { value: 'content', label: '内容', count: state.news.length + state.studies.length },
-          { value: 'vibe', label: 'Claude' },
           { value: 'look', label: '外观' },
           { value: 'account', label: '账号与同步' },
         ]}
       />
 
       {tab === 'content' && <ContentTab />}
-      {tab === 'vibe' && <ClaudePanel />}
       {tab === 'look' && <LookTab />}
       {tab === 'account' && <AccountTab />}
 
@@ -112,6 +114,32 @@ function ContentTab(): JSX.Element {
   const [q, setQ] = useState('')
   const [only, setOnly] = useState<'all' | 'live' | 'hidden'>('all')
   const [kind, setKind] = useState<'news' | 'studies'>('news')
+  /** 刚新建的那一条：卡片自己展开，站长不用再找它在哪。 */
+  const [justMade, setJustMade] = useState<string | null>(null)
+
+  /*
+   * 自己写一条。
+   *
+   * 新建的条目一律先**下架**——一个只有「（未命名）」的空壳出现在首页上，
+   * 比没有这条更糟。写好了按「重新上线」，那是站长的决定，不是默认行为。
+   * 同时把筛选切到能看见它的那一档，否则按了按钮却什么都没出现。
+   */
+  function addBlank() {
+    if (kind === 'news') {
+      const item = blankNews()
+      dispatch({ type: 'news-add', items: [item], who, manual: true })
+      setJustMade(item.id)
+      toast('新建了一条，已经打开等你写。写好之后按「重新上线」才会给读者看。', 'go')
+    } else {
+      const item = blankStudy()
+      dispatch({ type: 'study-add', items: [item], who, manual: true })
+      setJustMade(item.id)
+      toast('新建了一项研究，先是下架状态。写好之后按「重新上线」。', 'go')
+    }
+    // 新条目是下架的，如果正停在「已上线」那一档就会看不见它。
+    if (only === 'live') setOnly('all')
+    setQ('')
+  }
 
   const news = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -138,6 +166,16 @@ function ContentTab(): JSX.Element {
         编辑完按「保存」。不想让别人看到就「下架」，下架随时能恢复；确定不要了才「永久删除」。
       </p>
 
+      <div className="mng__newrow">
+        <button type="button" className="mng__solid mng__newbtn" onClick={addBlank} disabled={!canEdit}>
+          <Icon name="plus" size={15} />自己写一{kind === 'news' ? '条新闻' : '项研究'}
+        </button>
+        <span className="mng__newnote">
+          不用等搜集——自己想写的直接加。新建的先是<strong>下架</strong>状态，
+          写好按「重新上线」才会出现在网站上。
+        </span>
+      </div>
+
       <div className="mng__filters">
         <TextInput
           type="search" placeholder="搜标题或内容…" value={q}
@@ -160,7 +198,7 @@ function ContentTab(): JSX.Element {
       {kind === 'news' ? (
         news.length === 0
           ? <EmptyState title="没有符合条件的新闻" hint="换个筛选，或去「找新闻」搜一批。" icon="search" />
-          : <div className="mng__items">{news.map((n) => <NewsEditor key={n.id} item={n} />)}</div>
+          : <div className="mng__items">{news.map((n) => <NewsEditor key={n.id} item={n} openAtFirst={n.id === justMade} />)}</div>
       ) : (
         studies.length === 0
           ? <EmptyState title="没有符合条件的研究" hint="换个筛选，或去「找新闻」搜一批。" icon="book" />
