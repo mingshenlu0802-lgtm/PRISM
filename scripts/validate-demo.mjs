@@ -54,11 +54,15 @@ for (const n of s.news) {
   if (!n.headline?.trim()) err(`${at}：没有标题`)
   if (!n.summary?.trim()) err(`${at}：没有总结`)
 
-  // The summary IS the article. Too long and it stops being a summary; too
-  // short and the reader learns nothing before clicking away.
+  // The summary IS the article, and it may run long. The only real floor is
+  // that the reader must learn something before deciding whether to click.
   const len = [...n.summary].length
   if (len < 60) err(`${at}：总结只有 ${len} 字，短到读者看不出发生了什么`)
-  if (len > 400) err(`${at}：总结 ${len} 字，已经不是「短篇总结」了`)
+  if (len > 6000) err(`${at}：总结 ${len} 字，长到一屏装不下，考虑拆成两条`)
+  // 长总结不分段会变成一堵墙。
+  if (len > 700 && !/\n/.test(n.summary.trim())) {
+    warn(`${at}：${len} 字却没有分段，读起来会像一堵墙（空一行就能分段）`)
+  }
 
   if (n.regions.length === 0) err(`${at}：没有地区标签`)
   if (n.topics.length === 0) err(`${at}：没有议题标签`)
@@ -89,6 +93,15 @@ for (const n of s.news) {
   if (!['live', 'hidden'].includes(n.status)) err(`${at}：status 不认识（${n.status}）`)
   if (!['auto', 'editor'].includes(n.origin)) err(`${at}：origin 不认识（${n.origin}）`)
   if (Number.isNaN(Date.parse(n.publishedAt))) err(`${at}：发布时间不是合法时间`)
+}
+
+// 涉及中国内地的条目，必须至少有一条可以对照的独立来源。只挂官方文件和官方
+// 媒体的条目，读者没有任何办法去核对第二种说法。
+for (const n of s.news.filter((x) => x.regions.includes('cn'))) {
+  const independent = n.links.filter((l) => !l.outletKind)
+  if (independent.length === 0) {
+    err(`新闻 ${n.id}：涉及中国内地却只有官方来源，读者没有可以对照的独立报道`)
+  }
 }
 
 // 头条只有一条，而且必须是能看见的那种。

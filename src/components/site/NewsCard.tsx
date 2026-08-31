@@ -1,16 +1,20 @@
 import { Link } from 'react-router-dom'
 import type { NewsItem } from '../../lib/types'
-import { cx, relTime } from '../../lib/util'
+import { cx, paragraphs, relTime, textLength } from '../../lib/util'
 import { Icon } from '../common'
 import { TagRow } from './Tags'
 import { LinkList } from './LinkList'
 import './NewsCard.css'
 
 /**
- * 一条新闻的完整呈现：标题、一段总结、要点、标签、以及报道它的媒体链接。
+ * 一条新闻的完整呈现：标题、总结、要点、标签、以及报道它的媒体链接。
  *
- * 这就是全部内容——没有「阅读全文」，因为总结本身就是全文。展开的只是链接。
+ * 总结可以写到几百上千字，空一行分段。长的总结在信息流里收起一半——
+ * 一屏放不下三条新闻的首页，读者是不会往下翻的——点进去看全文。
  */
+
+/** 信息流里收起的门槛：头条给得多些，因为它本来就该占位置。 */
+const CLAMP_AT = { feed: 240, lead: 480 }
 
 export interface NewsCardProps {
   item: NewsItem
@@ -22,6 +26,8 @@ export interface NewsCardProps {
 export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.Element {
   const full = variant === 'full'
   const lead = variant === 'lead'
+  const length = textLength(item.summary)
+  const clamped = !full && length > CLAMP_AT[lead ? 'lead' : 'feed']
   return (
     <article className={cx('ncard', full && 'ncard--full', lead && 'ncard--lead')}>
       <header className="ncard__head">
@@ -47,7 +53,16 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
         </p>
       )}
 
-      <p className="ncard__summary">{item.summary}</p>
+      <div className={cx('ncard__summary', clamped && 'ncard__summary--clamp')}>
+        {paragraphs(item.summary).map((p, i) => <p key={i}>{p}</p>)}
+      </div>
+
+      {clamped && (
+        <Link className="ncard__more" to={`/news/${item.slug}`}>
+          读全文（{length} 字）
+          <Icon name="arrow-right" size={13} />
+        </Link>
+      )}
 
       {item.bullets.length > 0 && (
         <ul className="ncard__bullets">

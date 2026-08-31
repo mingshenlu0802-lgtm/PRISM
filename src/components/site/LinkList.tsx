@@ -9,6 +9,10 @@ import './LinkList.css'
  * 这是网站的重点：总结只是让你知道发生了什么，链接才是让你自己去读的入口。
  * 真实链接渲染成可点击的外链；只有演示用的占位链接（保留域名 .invalid）
  * 不跳转，并明确标注。
+ *
+ * 官方文件和官方媒体各带一个标记。这不是打分，是给读者一个判断的依据：
+ * 在新闻不自由的地方，官方媒体是政府自己的说法，不是独立的第三方记述——
+ * 这一点值得读者在点开之前就知道，所以标出来而不是悄悄排到后面。
  */
 
 export interface LinkListProps {
@@ -51,7 +55,15 @@ function LinkRow({ link, primary }: { link: MediaLink; primary?: boolean }): JSX
   const placeholder = isPlaceholderUrl(link.url)
   const inner = (
     <>
-      <span className="lnk__outlet">{link.outlet}</span>
+      <span className="lnk__outlet">
+        {link.outlet}
+        {link.outletKind === 'official' && <span className="lnk__kind lnk__kind--official">官方文件</span>}
+        {link.outletKind === 'state' && (
+          <span className="lnk__kind lnk__kind--state" title="受国家控制的媒体。可以看它说了什么，但它不是独立信源。">
+            官方媒体
+          </span>
+        )}
+      </span>
       <span className="lnk__title">{link.title}</span>
       <span className="lnk__meta">
         <span className="lnk__lang">{link.lang}</span>

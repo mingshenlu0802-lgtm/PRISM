@@ -118,6 +118,71 @@ await test('换头条时，改动记录写清楚是哪一条让了位', () => {
   ok(s.changes[0].text.includes('让位'), `记录里没写让位：${s.changes[0].text}`)
 })
 
+/* ------------------------------ 取材规则 ------------------------------ */
+
+await test('打开「优先独立与境外媒体」后，官方媒体排在独立媒体后面', () => {
+  const s = fresh()
+  const r = collect({ ...s.collect, preferIndependent: true, regions: ['cn'], perRun: 10 }, [], [], 0)
+  for (const n of r.news) {
+    const kinds = n.links.map((l) => l.outletKind ?? 'independent')
+    const lastIndependent = kinds.lastIndexOf('independent')
+    const firstState = kinds.indexOf('state')
+    if (firstState >= 0 && lastIndependent >= 0) {
+      ok(firstState > lastIndependent, `「${n.headline}」里官方媒体排在了独立媒体前面`)
+    }
+  }
+})
+
+await test('原始文件永远排最前，不受取材规则影响', () => {
+  const s = fresh()
+  for (const pref of [true, false]) {
+    const r = collect({ ...s.collect, preferIndependent: pref, regions: ['cn'], perRun: 10 }, [], [], 0)
+    for (const n of r.news) {
+      const firstNonPrimary = n.links.findIndex((l) => !l.primary)
+      const lastPrimary = n.links.map((l) => Boolean(l.primary)).lastIndexOf(true)
+      if (firstNonPrimary >= 0 && lastPrimary >= 0) {
+        ok(lastPrimary < firstNonPrimary, `preferIndependent=${pref} 时原始文件没有排在最前`)
+      }
+    }
+  }
+})
+
+await test('官方媒体不会被丢掉，只是被标出来', () => {
+  const s = fresh()
+  const on = collect({ ...s.collect, preferIndependent: true, regions: ['cn'], perRun: 10 }, [], [], 0)
+  const off = collect({ ...s.collect, preferIndependent: false, regions: ['cn'], perRun: 10 }, [], [], 0)
+  const count = (r) => r.news.reduce((a, n) => a + n.links.length, 0)
+  eq(count(on), count(off), '开关不该改变链接总数——它只改顺序和标注')
+  const stateLinks = on.news.flatMap((n) => n.links).filter((l) => l.outletKind === 'state')
+  ok(stateLinks.length > 0, '演示数据里应当有官方媒体，否则这条规则没人验证得了')
+})
+
+await test('演示数据里的中国内地条目带得上境外或独立来源', () => {
+  const cn = fresh().news.filter((n) => n.regions.includes('cn'))
+  ok(cn.length > 0, '应当有内地条目')
+  for (const n of cn) {
+    const independent = n.links.filter((l) => !l.outletKind)
+    ok(independent.length > 0, `「${n.headline}」只有官方来源，没有可以对照的独立报道`)
+  }
+})
+
+/* ------------------------------ 长总结 ------------------------------ */
+
+await test('总结可以写长，空行分段会被切成自然段', () => {
+  const long = fresh().news.find((n) => [...n.summary].length > 700)
+  ok(long, '演示数据里应当有一条长总结，否则这个功能没人试得出来')
+  const paras = m.paragraphs(long.summary)
+  ok(paras.length >= 3, `应当分成多段，实际 ${paras.length} 段`)
+  ok(paras.every((p) => p.trim().length > 0), '不该出现空段落')
+})
+
+await test('分段不吃掉正文一个字', () => {
+  const text = '第一段。\n\n第二段。\n第三段。'
+  const paras = m.paragraphs(text)
+  eq(paras.length, 3, '段数')
+  eq(paras.join(''), '第一段。第二段。第三段。', '内容不该丢')
+})
+
 /* --------------------------- 谁能进控制端 --------------------------- */
 
 await test('还没接登录时控制端开着——否则站长进不去填客户端 ID 的那一页', () => {
@@ -126,6 +191,8 @@ await test('还没接登录时控制端开着——否则站长进不去填客�
   const a = accessOf(s)
   eq(a.consoleOpen, true, '应当放行')
   eq(a.consoleUnlocked, true, '应当标明这是「还没上锁」而不是「你是管理员」')
+  // 放进来却把每个按钮都禁掉，等于给了一间锁着所有抽屉的房间。
+  eq(a.canEdit, true, '放行了就要真的能用')
 })
 
 await test('接上登录之后，没登录的人进不去', () => {
@@ -149,6 +216,7 @@ await test('接上登录之后，站长和管理员进得去，别人进不去',
   const other = accessOf(reducer(base, { type: 'signin', email: 'stranger@gmail.com' }))
   eq(other.isAdmin, false, '陌生人不是管理员')
   eq(other.consoleOpen, false, '陌生人不该放行')
+  eq(other.canEdit, false, '陌生人也不该能改')
 })
 
 await test('邮箱大小写不影响身份判断', () => {

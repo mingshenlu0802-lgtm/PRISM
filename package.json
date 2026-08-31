@@ -13,10 +13,12 @@
     "smoke": "node scripts/smoke.mjs",
     "check": "tsc --noEmit && node scripts/validate-demo.mjs && node scripts/smoke.mjs",
     "ui-check": "node scripts/ui-check.mjs",
-    "single": "npm run build && node scripts/build-single-file.mjs",
-    "artifact": "npm run build && node scripts/build-artifact.mjs"
+    "single": "npm run build:single && node scripts/build-single-file.mjs",
+    "artifact": "npm run build:single && node scripts/build-artifact.mjs",
+    "build:single": "PRISM_ONE_FILE=1 vite build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.122.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0"

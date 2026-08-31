@@ -15,7 +15,7 @@ import './NewsEditor.css'
  * 改坏了有「还原」。任何字段都能改——总结、要点、标签、每一个媒体链接。
  */
 export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
-  const { dispatch, who, isAdmin } = usePrism()
+  const { dispatch, who, canEdit } = usePrism()
   const [open, setOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [draft, setDraft] = useState({
@@ -99,17 +99,19 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
           <TextInput
             id={`h-${item.id}`} value={draft.headline}
             onChange={(e) => setDraft((d) => ({ ...d, headline: e.currentTarget.value }))}
-            disabled={!isAdmin}
+            disabled={!canEdit}
           />
 
           <label className="nedit__label" htmlFor={`s-${item.id}`}>
             总结
-            <span className="nedit__hint">两到四句就好。当前 {textLength(draft.summary)} 字。</span>
+            <span className="nedit__hint">
+              想写多长写多长，几百上千字都行。空一行分段。当前 {textLength(draft.summary)} 字。
+            </span>
           </label>
           <TextArea
-            id={`s-${item.id}`} rows={5} value={draft.summary}
+            id={`s-${item.id}`} rows={14} value={draft.summary}
             onChange={(e) => setDraft((d) => ({ ...d, summary: e.currentTarget.value }))}
-            disabled={!isAdmin}
+            disabled={!canEdit}
           />
 
           <label className="nedit__label" htmlFor={`b-${item.id}`}>
@@ -119,7 +121,7 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
           <TextArea
             id={`b-${item.id}`} rows={3} value={draft.bullets}
             onChange={(e) => setDraft((d) => ({ ...d, bullets: e.currentTarget.value }))}
-            disabled={!isAdmin}
+            disabled={!canEdit}
           />
 
           <label className="nedit__label" htmlFor={`e-${item.id}`}>
@@ -129,12 +131,12 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
           <TextArea
             id={`e-${item.id}`} rows={2} value={draft.editorNote}
             onChange={(e) => setDraft((d) => ({ ...d, editorNote: e.currentTarget.value }))}
-            disabled={!isAdmin}
+            disabled={!canEdit}
           />
 
           {dirty && (
             <div className="nedit__saverow">
-              <button type="button" className="nedit__save" onClick={save} disabled={!isAdmin}>
+              <button type="button" className="nedit__save" onClick={save} disabled={!canEdit}>
                 <Icon name="check" size={14} />保存
               </button>
               <button type="button" className="nedit__revert" onClick={revert}>还原</button>
@@ -147,7 +149,7 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
               <button
                 key={r.key}
                 type="button"
-                disabled={!isAdmin}
+                disabled={!canEdit}
                 className={cx('nedit__tag', item.regions.includes(r.key) && 'nedit__tag--on')}
                 aria-pressed={item.regions.includes(r.key)}
                 onClick={() => dispatch({ type: 'news-edit', id: item.id, who, patch: { regions: toggleTag(item.regions, r.key) as RegionKey[] } })}
@@ -163,7 +165,7 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
               <button
                 key={t.key}
                 type="button"
-                disabled={!isAdmin}
+                disabled={!canEdit}
                 className={cx('nedit__tag', item.topics.includes(t.key) && 'nedit__tag--on')}
                 aria-pressed={item.topics.includes(t.key)}
                 onClick={() => dispatch({ type: 'news-edit', id: item.id, who, patch: { topics: toggleTag(item.topics, t.key) as TopicKey[] } })}
@@ -187,7 +189,7 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
                 <button
                   type="button"
                   className="nedit__linkdel"
-                  disabled={!isAdmin}
+                  disabled={!canEdit}
                   aria-label={`删除 ${l.outlet} 的链接`}
                   onClick={() => {
                     dispatch({ type: 'news-link-remove', id: item.id, linkId: l.id, who })
@@ -202,41 +204,41 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
 
           <div className="nedit__addlink">
             <TextInput placeholder="媒体名称，例：端传媒" value={newLink.outlet}
-              onChange={(e) => setNewLink((l) => ({ ...l, outlet: e.currentTarget.value }))} disabled={!isAdmin} />
+              onChange={(e) => setNewLink((l) => ({ ...l, outlet: e.currentTarget.value }))} disabled={!canEdit} />
             <TextInput placeholder="标题（可留空）" value={newLink.title}
-              onChange={(e) => setNewLink((l) => ({ ...l, title: e.currentTarget.value }))} disabled={!isAdmin} />
+              onChange={(e) => setNewLink((l) => ({ ...l, title: e.currentTarget.value }))} disabled={!canEdit} />
             <TextInput placeholder="https://…" value={newLink.url}
-              onChange={(e) => setNewLink((l) => ({ ...l, url: e.currentTarget.value }))} disabled={!isAdmin} />
-            <button type="button" className="nedit__addbtn" onClick={addLink} disabled={!isAdmin}>
+              onChange={(e) => setNewLink((l) => ({ ...l, url: e.currentTarget.value }))} disabled={!canEdit} />
+            <button type="button" className="nedit__addbtn" onClick={addLink} disabled={!canEdit}>
               <Icon name="plus" size={14} />加链接
             </button>
           </div>
 
           <div className="nedit__actions">
             {item.featured ? (
-              <button type="button" className="nedit__act nedit__act--lead" disabled={!isAdmin}
+              <button type="button" className="nedit__act nedit__act--lead" disabled={!canEdit}
                 onClick={() => { dispatch({ type: 'news-feature', id: item.id, on: false, who }); toast('已取消头条。首页会用最新的一条顶上。', 'info') }}>
                 <Icon name="star" size={14} />取消头条
               </button>
             ) : (
-              <button type="button" className="nedit__act" disabled={!isAdmin || item.status !== 'live'}
+              <button type="button" className="nedit__act" disabled={!canEdit || item.status !== 'live'}
                 title={item.status !== 'live' ? '下架的条目不能当头条，先重新上线' : undefined}
                 onClick={() => { dispatch({ type: 'news-feature', id: item.id, on: true, who }); toast('已设为头条，原来的头条自动让位。', 'go') }}>
                 <Icon name="star" size={14} />设为头条
               </button>
             )}
             {item.status === 'live' ? (
-              <button type="button" className="nedit__act" disabled={!isAdmin}
+              <button type="button" className="nedit__act" disabled={!canEdit}
                 onClick={() => { dispatch({ type: 'news-hide', id: item.id, who }); toast('已下架，公众站看不到了。随时可以恢复。', 'info') }}>
                 <Icon name="eye-off" size={14} />下架（可恢复）
               </button>
             ) : (
-              <button type="button" className="nedit__act nedit__act--go" disabled={!isAdmin}
+              <button type="button" className="nedit__act nedit__act--go" disabled={!canEdit}
                 onClick={() => { dispatch({ type: 'news-restore', id: item.id, who }); toast('已重新上线。', 'go') }}>
                 <Icon name="eye" size={14} />重新上线
               </button>
             )}
-            <button type="button" className="nedit__act nedit__act--danger" disabled={!isAdmin}
+            <button type="button" className="nedit__act nedit__act--danger" disabled={!canEdit}
               onClick={() => setConfirmDelete(true)}>
               <Icon name="trash" size={14} />永久删除
             </button>

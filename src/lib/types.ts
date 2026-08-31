@@ -4,7 +4,8 @@
  * The site publishes SHORT summaries plus the links to the outlets that
  * reported the story. It does not publish long essays, and it does not
  * publish verification conclusions of its own — the summary tells you what
- * happened, the links let you go read it yourself.
+ * happened, the links let you go read it yourself. A summary can run to a few
+ * paragraphs when the story needs it; blank lines separate paragraphs.
  *
  * Everything shipped in this repository is demo data. Demo sources sit on the
  * reserved `.invalid` domain and can never resolve; real links render as real
@@ -57,6 +58,18 @@ export interface MediaLink {
   date?: ISODate
   /** Marks the document the story rests on (a ruling, a bill, a dataset). */
   primary?: boolean
+  /**
+   * What kind of outlet this is, so a reader can weigh it.
+   *
+   * `official` is the primary document itself — a gazette, a court, a
+   * ministry. `state` is a media outlet under state control. Anything
+   * unmarked is treated as independent. The distinction matters most for
+   * coverage of places where the press is not free: a state outlet is a
+   * legitimate source for *what a government said*, and not an independent
+   * source for *whether it is true*. The site labels both rather than
+   * hiding them, so the reader can tell which they are reading.
+   */
+  outletKind?: 'official' | 'state'
   /** Editor's one-line note about this link. */
   note?: string
 }
@@ -156,6 +169,16 @@ export interface CollectConfig {
   perRun: number
   /** Skip anything whose headline closely matches something already live. */
   dedupe: boolean
+  /**
+   * Sourcing policy: prefer independent and overseas outlets for reporting.
+   *
+   * Where the press is state-controlled, an official outlet is not an
+   * independent account of a story — it is the government's own account.
+   * With this on, retrieval reaches for independent and overseas reporting
+   * first; official documents are still collected, but as primary material
+   * and labelled as such, never as the outlet that "reported" it.
+   */
+  preferIndependent: boolean
 }
 
 export type RunStage = 'search' | 'dedupe' | 'summarise' | 'links' | 'publish'

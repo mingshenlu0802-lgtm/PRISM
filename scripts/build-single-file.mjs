@@ -14,7 +14,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const DIST = join(process.cwd(), 'dist')
+const DIST = join(process.cwd(), 'dist-single')
 const OUT = join(process.cwd(), 'PRISM-prototype.html')
 
 let html = await readFile(join(DIST, 'index.html'), 'utf8')

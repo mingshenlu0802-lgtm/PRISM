@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { OWNER_EMAIL } from '../../lib/types'
 import { usePrism } from '../../lib/store'
-import { runVibe, VIBE_EXAMPLES } from '../../lib/vibe'
 import { downloadSnapshot, syncToGitHub } from '../../lib/github'
 import { googleSignOut, renderGoogleButton } from '../../lib/google'
 import { ACCENTS, FONT_STEPS, THEMES } from '../../lib/constants'
@@ -10,6 +9,7 @@ import {
   Checkbox, EmptyState, Icon, Modal, Segmented, TextArea, TextInput, toast,
 } from '../../components/common'
 import { NewsEditor } from '../../components/console/NewsEditor'
+import { ClaudePanel } from '../../components/console/ClaudePanel'
 import './ManagePage.css'
 
 type Tab = 'content' | 'vibe' | 'look' | 'account'
@@ -17,11 +17,11 @@ type Tab = 'content' | 'vibe' | 'look' | 'account'
 /**
  * 「编辑」——控制端第二页。
  *
- * 四个标签，从最常用到最少用排：编辑内容 → 一句话调整外观 → 手动调外观 →
+ * 四个标签，从最常用到最少用排：编辑内容 → 跟 Claude 说一句 → 手动调外观 →
  * 账号与同步。每个危险操作都有二次确认，每一次编辑都记在下面的「最近编辑」里。
  */
 export default function ManagePage(): JSX.Element {
-  const { state, dispatch, reset, who, isAdmin, isOwner } = usePrism()
+  const { state, dispatch, reset, who, canEdit, isOwner } = usePrism()
   const [tab, setTab] = useState<Tab>('content')
 
   return (
@@ -39,14 +39,14 @@ export default function ManagePage(): JSX.Element {
         ariaLabel="编辑的四个部分"
         options={[
           { value: 'content', label: '内容', count: state.news.length + state.studies.length },
-          { value: 'vibe', label: '一句话调整' },
+          { value: 'vibe', label: 'Claude' },
           { value: 'look', label: '外观' },
           { value: 'account', label: '账号与同步' },
         ]}
       />
 
       {tab === 'content' && <ContentTab />}
-      {tab === 'vibe' && <VibeTab />}
+      {tab === 'vibe' && <ClaudePanel />}
       {tab === 'look' && <LookTab />}
       {tab === 'account' && <AccountTab />}
 
@@ -92,7 +92,7 @@ export default function ManagePage(): JSX.Element {
               {state.publicOffline ? '恢复显示' : '暂停显示'}
             </button>
           </div>
-          <ResetRow onReset={reset} disabled={!isAdmin} />
+          <ResetRow onReset={reset} disabled={!canEdit} />
         </section>
       )}
     </div>
@@ -104,7 +104,7 @@ export default function ManagePage(): JSX.Element {
  * ------------------------------------------------------------------ */
 
 function ContentTab(): JSX.Element {
-  const { state, dispatch, who, isAdmin } = usePrism()
+  const { state, dispatch, who, canEdit } = usePrism()
   const [q, setQ] = useState('')
   const [only, setOnly] = useState<'all' | 'live' | 'hidden'>('all')
   const [kind, setKind] = useState<'news' | 'studies'>('news')
@@ -171,17 +171,17 @@ function ContentTab(): JSX.Element {
                   <p className="mng__studysum">{s.summary}</p>
                   <div className="mng__studyacts">
                     {s.status === 'live' ? (
-                      <button type="button" disabled={!isAdmin}
+                      <button type="button" disabled={!canEdit}
                         onClick={() => { dispatch({ type: 'study-hide', id: s.id, who }); toast('已下架。', 'info') }}>
                         <Icon name="eye-off" size={13} />下架
                       </button>
                     ) : (
-                      <button type="button" disabled={!isAdmin}
+                      <button type="button" disabled={!canEdit}
                         onClick={() => { dispatch({ type: 'study-restore', id: s.id, who }); toast('已重新上线。', 'go') }}>
                         <Icon name="eye" size={13} />重新上线
                       </button>
                     )}
-                    <button type="button" className="mng__studydel" disabled={!isAdmin}
+                    <button type="button" className="mng__studydel" disabled={!canEdit}
                       onClick={() => { dispatch({ type: 'study-delete', id: s.id, who }); toast('已永久删除。', 'info') }}>
                       <Icon name="trash" size={13} />永久删除
                     </button>
@@ -191,90 +191,6 @@ function ContentTab(): JSX.Element {
             </div>
           )
       )}
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ *
- * Vibe
- * ------------------------------------------------------------------ */
-
-function VibeTab(): JSX.Element {
-  const { state, dispatch, who, isAdmin } = usePrism()
-  const [text, setText] = useState('')
-  const [preview, setPreview] = useState<ReturnType<typeof runVibe> | null>(null)
-  const [before, setBefore] = useState<{ appearance: typeof state.appearance; copy: typeof state.copy } | null>(null)
-
-  const tryIt = () => {
-    const outcome = runVibe(text, state)
-    setPreview(outcome)
-    if (!outcome.understood) return
-    setBefore({ appearance: { ...state.appearance }, copy: { ...state.copy } })
-    for (const c of outcome.changes) {
-      if (c.appearance) dispatch({ type: 'appearance', patch: c.appearance, who })
-      if (c.copy) dispatch({ type: 'copy', patch: c.copy, who })
-    }
-    toast('调好了。不喜欢就按「撤销」。', 'go')
-  }
-
-  const undo = () => {
-    if (!before) return
-    dispatch({ type: 'appearance', patch: before.appearance, who })
-    dispatch({ type: 'copy', patch: before.copy, who })
-    setBefore(null); setPreview(null); setText('')
-    toast('已撤销，回到调整之前。', 'info')
-  }
-
-  return (
-    <div className="mng__panel">
-      <p className="mng__panelnote">
-        用一句大白话说你想要什么，比如「字大一点」。它调的是网站的样子和上面写的字，
-        不会动新闻内容，也不会动代码——最坏的情况就是你不喜欢，按撤销回去。
-      </p>
-
-      <div className="mng__vibebox">
-        <TextArea
-          rows={3}
-          value={text}
-          placeholder="例：字大一点，换成深色"
-          onChange={(e) => setText(e.currentTarget.value)}
-          disabled={!isAdmin}
-        />
-        <div className="mng__viberow">
-          <button type="button" className="mng__vibego" onClick={tryIt} disabled={!isAdmin || !text.trim()}>
-            <Icon name="sparkle" size={15} />试试看
-          </button>
-          {before && (
-            <button type="button" className="mng__vibeundo" onClick={undo}>
-              <Icon name="refresh" size={14} />撤销刚才这次
-            </button>
-          )}
-        </div>
-      </div>
-
-      {preview && (
-        <div className={cx('mng__viberesult', !preview.understood && 'mng__viberesult--no')}>
-          {preview.understood ? (
-            <>
-              <p className="mng__vibehead"><Icon name="check" size={14} />已经调整了这些：</p>
-              <ul className="mng__vibelist">
-                {preview.changes.map((c) => <li key={c.what}>{c.what}</li>)}
-              </ul>
-            </>
-          ) : (
-            <p className="mng__vibemiss"><Icon name="info" size={14} />{preview.suggestion}</p>
-          )}
-        </div>
-      )}
-
-      <div className="mng__examples">
-        <p className="mng__exampleslabel">可以直接点这些试：</p>
-        <div className="mng__examplechips">
-          {VIBE_EXAMPLES.map((e) => (
-            <button key={e} type="button" className="mng__examplechip" onClick={() => setText(e)}>{e}</button>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
@@ -381,7 +297,7 @@ function LookTab(): JSX.Element {
  * ------------------------------------------------------------------ */
 
 function AccountTab(): JSX.Element {
-  const { state, dispatch, who, isOwner, isAdmin } = usePrism()
+  const { state, dispatch, who, isOwner, canEdit } = usePrism()
   const [newAdmin, setNewAdmin] = useState('')
   const [syncing, setSyncing] = useState(false)
   const [showToken, setShowToken] = useState(false)
@@ -587,7 +503,7 @@ function AccountTab(): JSX.Element {
         </div>
 
         <div className="mng__ghrow">
-          <button type="button" className="mng__solid" onClick={doSync} disabled={syncing || !isAdmin}>
+          <button type="button" className="mng__solid" onClick={doSync} disabled={syncing || !canEdit}>
             <Icon name="send" size={14} />{syncing ? '同步中…' : '同步到 GitHub'}
           </button>
           <button type="button" className="mng__ghost" onClick={() => { void downloadSnapshot(state).then((r) => toast(r.message, r.ok ? 'go' : 'info')) }}>

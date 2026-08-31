@@ -113,3 +113,16 @@ export function byNewest<T extends { publishedAt?: string; date?: string }>(item
 export function isLive(item: NewsItem | StudyItem): boolean {
   return item.status === 'live'
 }
+
+/**
+ * 把一段总结切成自然段。
+ *
+ * 空行分段是最不用教的写法——站长在文本框里怎么打，页面上就怎么显示。
+ * 单个换行也当作分段，因为大多数人按一次回车就是想换段。
+ */
+export function paragraphs(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+}

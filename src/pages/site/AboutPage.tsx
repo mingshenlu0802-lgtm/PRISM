@@ -26,6 +26,19 @@ export default function AboutPage(): JSX.Element {
         </ol>
       </section>
 
+      <section className="about__how" aria-labelledby="about-source">
+        <h2 className="about__h2" id="about-source">来源怎么选</h2>
+        <p className="about__note">
+          报道部分优先采用独立与境外媒体。判决书、法案、统计表这类原始文件照常收录，
+          排在最前面，并标为「官方文件」。
+        </p>
+        <p className="about__note">
+          在新闻不自由的地方，官方媒体是政府自己的说法，不是独立的第三方记述。
+          这类来源不会被删掉——它说了什么本身就是信息——但会标成「官方媒体」，
+          由你自己判断怎么读。
+        </p>
+      </section>
+
       <section className="about__grid" aria-labelledby="about-cover">
         <h2 className="about__h2" id="about-cover">覆盖范围</h2>
         <div className="about__tags">

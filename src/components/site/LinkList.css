@@ -47,3 +47,18 @@ a.lnk__row:hover .lnk__icon { color: var(--accent); }
   margin: var(--s-2) 0 0 var(--s-7);
   font-size: var(--fs-2xs); line-height: 1.6; color: var(--fg-subtle);
 }
+
+/* 来源性质标记。不用红色警告色——这是给读者的信息，不是错误。 */
+.lnk__kind {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-full);
+  font-size: 10px; font-weight: 640;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.lnk__kind--official { background: var(--chip-bg); color: var(--fg-subtle); }
+.lnk__kind--state {
+  background: var(--warn-soft); color: var(--warn);
+  border: var(--bw) solid color-mix(in srgb, var(--warn) 30%, transparent);
+}

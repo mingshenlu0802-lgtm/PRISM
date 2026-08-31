@@ -51,10 +51,28 @@
   font-size: var(--fs-md);
   line-height: var(--lh-prose);
   color: var(--fg);
+  display: grid; gap: .85em;
 }
 :root[data-body="serif"] .ncard__summary { font-family: var(--font-serif); }
 .ncard--full .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
 .ncard--lead .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
+
+/* 收起长总结。下沿渐隐是在说「还有」，紧跟着的「读全文」说的是「往哪走」。 */
+.ncard__summary--clamp {
+  max-height: 9.2em;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+}
+.ncard--lead .ncard__summary--clamp { max-height: 12.5em; }
+
+.ncard__more {
+  justify-self: start;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-xs); font-weight: 640;
+  color: var(--accent); text-decoration: none;
+}
+.ncard__more:hover { text-decoration: underline; }
 
 .ncard__bullets { list-style: none; display: grid; gap: var(--s-2); }
 .ncard__bullets > li {

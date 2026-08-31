@@ -1,8 +1,7 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import SiteLayout from './components/site/SiteLayout'
-import ConsoleLayout from './components/console/ConsoleLayout'
 
 import HomePage from './pages/site/HomePage'
 import NewsPage from './pages/site/NewsPage'
@@ -11,8 +10,10 @@ import TopicPage from './pages/site/TopicPage'
 import StudiesPage from './pages/site/StudiesPage'
 import AboutPage from './pages/site/AboutPage'
 
-import SearchPage from './pages/console/SearchPage'
-import ManagePage from './pages/console/ManagePage'
+// 控制端单独打包：读者不该为一个只有站长会打开的界面下载 Claude SDK。
+const ConsoleLayout = lazy(() => import('./components/console/ConsoleLayout'))
+const SearchPage = lazy(() => import('./pages/console/SearchPage'))
+const ManagePage = lazy(() => import('./pages/console/ManagePage'))
 
 /** 换页时回到顶部——否则从长列表点进一条新闻会停在半空中。 */
 function ScrollToTop(): null {
@@ -23,6 +24,11 @@ function ScrollToTop(): null {
     else window.scrollTo({ top: 0 })
   }, [pathname])
   return null
+}
+
+/** 控制端那一小块代码还在路上时占个位，别让屏幕空着。 */
+function Loading(): JSX.Element {
+  return <p style={{ padding: 40, textAlign: 'center', color: 'var(--fg-faint)' }}>正在打开控制端…</p>
 }
 
 /**
@@ -43,9 +49,9 @@ export default function App(): JSX.Element {
           <Route path="/about" element={<AboutPage />} />
         </Route>
 
-        <Route path="/console" element={<ConsoleLayout />}>
-          <Route index element={<SearchPage />} />
-          <Route path="manage" element={<ManagePage />} />
+        <Route path="/console" element={<Suspense fallback={<Loading />}><ConsoleLayout /></Suspense>}>
+          <Route index element={<Suspense fallback={<Loading />}><SearchPage /></Suspense>} />
+          <Route path="manage" element={<Suspense fallback={<Loading />}><ManagePage /></Suspense>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

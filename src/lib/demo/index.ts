@@ -26,6 +26,7 @@ export function buildInitialState(): PrismState {
       engine: 'qwen-open',
       perRun: 6,
       dedupe: true,
+      preferIndependent: true,
     },
     appearance: { ...DEFAULT_APPEARANCE },
     auth: {

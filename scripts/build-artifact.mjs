@@ -15,7 +15,7 @@
 import { readFile, writeFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 
-const DIST = join(process.cwd(), 'dist')
+const DIST = join(process.cwd(), 'dist-single')
 const OUT = join(process.cwd(), 'artifact', 'prism.html')
 
 const assets = await readdir(join(DIST, 'assets'))

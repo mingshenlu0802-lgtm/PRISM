@@ -6,3 +6,4 @@ dist/
 .ui-check/
 artifact/
 .art-test/
+dist-single/

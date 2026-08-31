@@ -17,7 +17,7 @@ import './SearchPage.css'
  * 那个按钮。每个选项旁边都用一句大白话说明它会造成什么后果。
  */
 export default function SearchPage(): JSX.Element {
-  const { state, dispatch, who, isAdmin } = usePrism()
+  const { state, dispatch, who, canEdit } = usePrism()
   const cfg = state.collect
   const [running, setRunning] = useState(false)
   const [stepIndex, setStepIndex] = useState(-1)
@@ -94,7 +94,7 @@ export default function SearchPage(): JSX.Element {
 
       {/* ------------------------------ the button ------------------------------ */}
       <section className="srch__go">
-        <button type="button" className="srch__gobtn" onClick={start} disabled={running || !isAdmin}>
+        <button type="button" className="srch__gobtn" onClick={start} disabled={running || !canEdit}>
           {running ? (<><span className="srch__spinner" aria-hidden="true" />正在搜集…</>)
             : (<><Icon name="search" size={20} />开始搜集</>)}
         </button>
@@ -108,7 +108,7 @@ export default function SearchPage(): JSX.Element {
               ? '找到就直接上线，公众站马上能看到。你可以随时删掉。'
               : '找到后存为草稿，不会出现在公众站，等你去「编辑」里放行。'}
           </p>
-          {!isAdmin && <p className="srch__warn">需要先用站长或管理员的 Google 账号登录才能搜集。</p>}
+          {!canEdit && <p className="srch__warn">需要先用站长或管理员的 Google 账号登录才能搜集。</p>}
         </div>
       </section>
 
@@ -261,6 +261,13 @@ export default function SearchPage(): JSX.Element {
             onChange={(v) => setCfg({ dedupe: v })}
             label="自动跳过重复的"
             hint="标题和已有内容很像的就不再加一遍。被跳过的会列出原因，不会悄悄消失。"
+          />
+          <Checkbox
+            checked={cfg.preferIndependent}
+            onChange={(v) => setCfg({ preferIndependent: v })}
+            label="优先独立与境外媒体"
+            hint={'报道部分优先取独立与境外媒体；官方媒体不丢掉，往后排并在页面上标成「官方媒体」。'
+              + '判决书、法案、部门文件这类原始文件不受影响，始终排在最前。'}
           />
         </div>
       </section>

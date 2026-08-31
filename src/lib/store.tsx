@@ -391,6 +391,14 @@ export interface Access {
   consoleOpen: boolean
   /** 放行只是因为还没接上登录，而不是因为这个人是管理员。 */
   consoleUnlocked: boolean
+  /**
+   * 控制端里的按钮能不能按。
+   *
+   * 跟 consoleOpen 一样的道理，而且必须一样：还没接上登录时把人放进来、
+   * 又把每一个按钮都禁掉，等于给了一间锁着所有抽屉的房间——站长连接登录
+   * 之前想改点东西都做不到。开着就是真开着。
+   */
+  canEdit: boolean
 }
 
 /**
@@ -405,7 +413,8 @@ export function accessOf(state: PrismState): Access {
   const isOwner = email === OWNER_EMAIL
   const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email)
   const consoleUnlocked = !state.auth.clientId
-  return { isOwner, isAdmin, consoleOpen: isAdmin || consoleUnlocked, consoleUnlocked }
+  const consoleOpen = isAdmin || consoleUnlocked
+  return { isOwner, isAdmin, consoleOpen, consoleUnlocked, canEdit: consoleOpen }
 }
 
 /* ------------------------------------------------------------------ *
@@ -420,6 +429,8 @@ interface Ctx {
   who: string
   isOwner: boolean
   isAdmin: boolean
+  /** 控制端里的按钮能不能按。 */
+  canEdit: boolean
   /**
    * 控制端是否放行。
    *
@@ -460,14 +471,14 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const email = state.auth.email ?? ''
-  const { isOwner, isAdmin, consoleOpen, consoleUnlocked } = accessOf(state)
+  const { isOwner, isAdmin, consoleOpen, consoleUnlocked, canEdit } = accessOf(state)
 
   const value = useMemo<Ctx>(
     () => ({
       state, dispatch, reset, who: email || '未登录',
-      isOwner, isAdmin, consoleOpen, consoleUnlocked,
+      isOwner, isAdmin, canEdit, consoleOpen, consoleUnlocked,
     }),
-    [state, reset, email, isOwner, isAdmin, consoleOpen, consoleUnlocked],
+    [state, reset, email, isOwner, isAdmin, canEdit, consoleOpen, consoleUnlocked],
   )
   return <PrismContext.Provider value={value}>{children}</PrismContext.Provider>
 }

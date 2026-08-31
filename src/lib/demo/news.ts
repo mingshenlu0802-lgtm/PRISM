@@ -10,8 +10,12 @@ import type { NewsItem } from '../types'
 
 const L = (
   id: string, outlet: string, title: string, slug: string,
-  lang: string, date: string, primary = false, note?: string,
-) => ({ id, outlet, title, url: `https://demo.prism.invalid/${slug}`, lang, date, primary, note })
+  lang: string, date: string, primary = false,
+  outletKind?: 'official' | 'state', note?: string,
+) => ({
+  id, outlet, title, url: `https://demo.prism.invalid/${slug}`,
+  lang, date, primary, outletKind, note,
+})
 
 export const NEWS: NewsItem[] = [
   {
@@ -19,7 +23,28 @@ export const NEWS: NewsItem[] = [
     slug: 'cn-workplace-harassment-guideline',
     headline: '内地某省高院发布性骚扰案件审理指引，首次写入「职场从属关系」认定标准',
     summary:
-      '该指引于本周公开，用四条列举了在存在上下级从属关系时，如何认定「违背意愿」这一要件，并要求法院对当事人的陈述一致性作整体判断，而非因个别细节出入直接否定。指引同时明确用人单位在收到投诉后的举证责任。它是省级层面的审判指导文件，不具有全国效力，也不改变现行法律条文。',
+      '该指引于本周公开，用四条列举了在存在上下级从属关系时，如何认定「违背意愿」这一要件，'
+      + '并要求法院对当事人的陈述一致性作整体判断，而非因个别细节出入直接否定。'
+      + '指引同时明确用人单位在收到投诉后的举证责任。它是省级层面的审判指导文件，'
+      + '不具有全国效力，也不改变现行法律条文。\n\n'
+      + '四条标准里，第三款被多位受访律师认为是最实质的改动。它写明：当双方存在管理、'
+      + '考核或晋升上的从属关系时，法院在判断当事人是否表达了拒绝时，应当把这层关系'
+      + '本身纳入考量，而不能仅以当事人未当场明确拒绝、或事后仍与对方保持工作往来，'
+      + '推定其同意。指引举了三种常见情形作说明，包括当事人以沉默或回避方式回应、'
+      + '当事人在事后仍需依赖对方完成工作、以及当事人延迟报案。三种情形都被写明'
+      + '「不得单独作为否定要件的依据」。\n\n'
+      + '第四款处理的是陈述一致性。过去的裁判中，当事人前后陈述在时间、地点或次数上'
+      + '出现出入，常被作为整体不可信的理由。指引要求法院区分「核心事实」与「细节」，'
+      + '并对细节出入作出说明后再决定是否影响可信度。这一条呼应了近年多份学术研究的'
+      + '结论，但指引本身没有引用任何研究。\n\n'
+      + '关于用人单位的举证责任，指引写明：单位在收到投诉后，需要自证已采取合理措施，'
+      + '包括是否有可用的投诉渠道、是否在合理时限内启动处理、以及处理过程中是否'
+      + '采取了避免报复的安排。举证不能的，法院可在民事责任分配上作不利认定。'
+      + '指引没有规定具体时限，把「合理时限」留给个案判断。\n\n'
+      + '需要说明这份文件的效力边界。它是省高院面向本省各级法院的审判指导文件，'
+      + '不是司法解释，不具有全国效力，也不创设新的法律义务——它统一的是本省法院在'
+      + '适用现行条文时的裁判尺度。多位律师提到，指引能起多大作用，取决于基层法院'
+      + '在具体案件中如何援引；文件本身没有规定考核或监督机制。',
     bullets: [
       '适用范围：该省各级法院受理的性骚扰民事案件',
       '不改变法律条文，只统一裁判尺度',
@@ -33,9 +58,10 @@ export const NEWS: NewsItem[] = [
     origin: 'auto',
     contentNotice: '本条涉及性骚扰案件的审理程序。总结不描述任何具体案情。',
     links: [
-      L('l-001a', '省高级人民法院公报', '关于审理性骚扰案件若干问题的指引（全文）', 'cn-guideline-full', 'zh-Hans', '2026-08-29', true),
-      L('l-001b', '法治观察', '四条新标准如何改变举证结构', 'cn-guideline-analysis', 'zh-Hans', '2026-08-30'),
-      L('l-001c', '南方法律周刊', '律师：指引最实质的一条在第三款', 'cn-guideline-lawyers', 'zh-Hans', '2026-08-30'),
+      L('l-001a', '省高级人民法院公报', '关于审理性骚扰案件若干问题的指引（全文）', 'cn-guideline-full', 'zh-Hans', '2026-08-29', true, 'official'),
+      L('l-001b', 'Asia Legal Review', 'A provincial court redraws the burden of proof', 'cn-guideline-alr', 'en', '2026-08-30'),
+      L('l-001c', '法治观察（境外）', '四条新标准如何改变举证结构', 'cn-guideline-analysis', 'zh-Hant', '2026-08-30'),
+      L('l-001d', '某省级党报', '省高院出台指引统一裁判尺度', 'cn-guideline-state', 'zh-Hans', '2026-08-30', false, 'state'),
     ],
     demo: true,
     featured: true,
@@ -151,7 +177,7 @@ export const NEWS: NewsItem[] = [
     status: 'live',
     origin: 'auto',
     links: [
-      L('l-006a', 'State Department of Health', 'Annual access report + county dataset', 'us-state-report', 'en', '2026-08-27', true, '含可下载的分县数据表'),
+      L('l-006a', 'State Department of Health', 'Annual access report + county dataset', 'us-state-report', 'en', '2026-08-27', true, 'official', '含可下载的分县数据表'),
       L('l-006b', 'Capitol Health Desk', 'Rural counties drive the increase', 'us-health-desk', 'en', '2026-08-28'),
       L('l-006c', 'County Ledger', 'What the report leaves out', 'us-county-ledger', 'en', '2026-08-29'),
     ],
@@ -277,8 +303,9 @@ export const NEWS: NewsItem[] = [
     status: 'live',
     origin: 'auto',
     links: [
-      L('l-012a', '高校信息公开平台', '各校规定汇总页', 'cn-campus-index', 'zh-Hans', '2026-08-25', true),
-      L('l-012b', '教育观察', '时限之外，救济途径仍是空白', 'cn-edu-observer', 'zh-Hans', '2026-08-26'),
+      L('l-012a', '高校信息公开平台', '各校规定汇总页', 'cn-campus-index', 'zh-Hans', '2026-08-25', true, 'official'),
+      L('l-012b', 'Campus Rights Watch', 'Deadlines published, remedies still missing', 'cn-campus-crw', 'en', '2026-08-26'),
+      L('l-012c', '教育观察（境外）', '时限之外，救济途径仍是空白', 'cn-edu-observer', 'zh-Hant', '2026-08-26'),
     ],
     demo: true,
   },

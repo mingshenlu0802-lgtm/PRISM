@@ -90,6 +90,43 @@ export async function syncToGitHub(state: PrismState, message: string): Promise<
 }
 
 /* ------------------------------------------------------------------ *
+ * 把「要改代码」的需求开成 issue
+ * ------------------------------------------------------------------ */
+
+/**
+ * 代码改动走 GitHub，不走浏览器。
+ *
+ * 控制端能改内容和外观，改不了源码——静态站的页面是提前构建好的。所以当
+ * Claude 判断某件事必须改代码时，把需求原样开成一个 issue：站长在 Claude Code
+ * 里打开这个仓库就能接着做，推送之后 Actions 会自动重新发布。
+ */
+export async function openIssue(cfg: PrismState['github'], title: string, body: string): Promise<SyncResult> {
+  if (!cfg.token) return { ok: false, message: '还没有填 GitHub token，先在下面填一个。' }
+  if (!cfg.owner || !cfg.repo) return { ok: false, message: '仓库信息不完整。' }
+  try {
+    const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/issues`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${cfg.token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ title, body }),
+    })
+    if (!res.ok) {
+      if (res.status === 401) return { ok: false, message: 'token 无效或已过期，请换一个。' }
+      if (res.status === 403) return { ok: false, message: 'token 权限不足：开 issue 需要 Issues 的写权限。' }
+      if (res.status === 404) return { ok: false, message: '找不到这个仓库，或者仓库关掉了 Issues。' }
+      return { ok: false, message: `开 issue 失败（${res.status}）` }
+    }
+    const data = await res.json() as { html_url?: string; number?: number }
+    return { ok: true, message: `已开 issue #${data.number}。`, url: data.html_url }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? `开 issue 失败：${e.message}` : '开 issue 失败' }
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * 下载内容文件
  * ------------------------------------------------------------------ */
 

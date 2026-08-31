@@ -24,9 +24,17 @@ interface Seed {
   headline: string
   summary: string
   bullets: string[]
-  outlets: { outlet: string; title: string; lang: string; primary?: boolean }[]
+  outlets: Outlet[]
   notice?: string
 }
+
+/**
+ * `kind` 标出这条链接是什么性质的来源。
+ * official = 原始文件本身（公报、判决书、部门文件）；state = 受国家控制的媒体；
+ * 不标的按独立媒体处理。这个区分只在读者需要判断可信度时才有意义，所以它
+ * 会显示在页面上，而不是只用来排序。
+ */
+type Outlet = { outlet: string; title: string; lang: string; primary?: boolean; kind?: 'official' | 'state' }
 
 const SEEDS: Seed[] = [
   {
@@ -35,8 +43,10 @@ const SEEDS: Seed[] = [
     summary: '统计显示全年发出的告诫书数量较上年增加，但各区之间差距明显，最高与最低相差数倍。公布方说明差距主要来自受理与登记口径不同，不代表发生率差异。数据以表格形式公开，可按区查询。',
     bullets: ['首次按区分列', '区际差距主要来自登记口径', '数据可按区查询'],
     outlets: [
-      { outlet: '市公安局政务公开', title: '年度告诫书统计表', lang: 'zh-Hans', primary: true },
-      { outlet: '城市观察', title: '为什么各区数字差这么多', lang: 'zh-Hans' },
+      { outlet: '市公安局政务公开', title: '年度告诫书统计表', lang: 'zh-Hans', primary: true, kind: 'official' },
+      { outlet: 'Asia Rights Desk', title: 'What the district gap does and does not show', lang: 'en' },
+      { outlet: '端傳媒（示例）', title: '告诫书数字背后的登记口径', lang: 'zh-Hant' },
+      { outlet: '某省级党报', title: '全年告诫书数量稳步增长', lang: 'zh-Hans', kind: 'state' },
     ],
   },
   {
@@ -45,8 +55,9 @@ const SEEDS: Seed[] = [
     summary: '政策自下季度起执行，覆盖若干项常规辅助生殖技术项目，设年度支付上限与适应症限制。文件同时说明不覆盖的项目清单。执行细则由各市医保部门另行公布。',
     bullets: ['下季度起执行', '设年度支付上限', '不覆盖清单一并公布'],
     outlets: [
-      { outlet: '省医疗保障局', title: '政策文件全文', lang: 'zh-Hans', primary: true },
-      { outlet: '健康时报', title: '哪些项目在covered清单里', lang: 'zh-Hans' },
+      { outlet: '省医疗保障局', title: '政策文件全文', lang: 'zh-Hans', primary: true, kind: 'official' },
+      { outlet: 'Reproductive Policy Monitor', title: 'Coverage caps and what falls outside', lang: 'en' },
+      { outlet: '某中央级媒体', title: '多地将辅助生殖纳入医保', lang: 'zh-Hans', kind: 'state' },
     ],
   },
   {
@@ -55,7 +66,7 @@ const SEEDS: Seed[] = [
     summary: '调查显示曾经历职场性骚扰的受访者比例与三年前相若，但选择正式投诉的比例仍然偏低，主要顾虑是担心影响职业发展。报告建议雇主改善内部处理程序的透明度。',
     bullets: ['经历比例与三年前相若', '正式投诉比例仍偏低', '主要顾虑为职业发展'],
     outlets: [
-      { outlet: '平等机会委员会', title: '调查报告全文', lang: 'zh-Hant', primary: true },
+      { outlet: '平等机会委员会', title: '调查报告全文', lang: 'zh-Hant', primary: true, kind: 'official' },
       { outlet: '香港经济日报', title: '投诉率为何上不去', lang: 'zh-Hant' },
       { outlet: 'HK Standard', title: 'Complaint rate stays low', lang: 'en' },
     ],
@@ -66,7 +77,7 @@ const SEEDS: Seed[] = [
     summary: '判决认为要求手术作为变更登记的前提，对身体自主权的限制超过必要程度。主管机关表示尊重判决但未说明是否上诉，也未说明是否影响其他个案。此前已有数起类似判决。',
     bullets: ['以比例原则为理由', '主管机关未说明是否上诉', '此前已有类似判决'],
     outlets: [
-      { outlet: '司法院裁判书系统', title: '判决书全文', lang: 'zh-Hant', primary: true },
+      { outlet: '司法院裁判书系统', title: '判决书全文', lang: 'zh-Hant', primary: true, kind: 'official' },
       { outlet: '中央通讯社', title: '免术换证判决再添一例', lang: 'zh-Hant' },
     ],
   },
@@ -76,7 +87,7 @@ const SEEDS: Seed[] = [
     summary: '报告公开了举报量、处置量与处置时长分布，并首次附上分类标准。研究者指出，由于分类由平台自行判断且无外部审核，报告只能说明平台做了什么，不能说明问题的规模。',
     bullets: ['首次公开分类标准', '无外部审核', '只能说明平台行为，不能说明问题规模'],
     outlets: [
-      { outlet: 'Platform Transparency', title: '半期レポート', lang: 'ja', primary: true },
+      { outlet: 'Platform Transparency', title: '半期レポート', lang: 'ja', primary: true, kind: 'official' },
       { outlet: '技術と社会', title: '分類基準の限界', lang: 'ja' },
     ],
   },
@@ -86,7 +97,7 @@ const SEEDS: Seed[] = [
     summary: '法院签发临时禁制令，认为原告在程序问题上有胜诉可能，新规在正式审理前暂不执行。禁制令仅涉及程序，未对新规的实体合法性作判断。州方已表示将上诉。',
     bullets: ['临时禁制令，非实体判断', '正式审理前暂不执行', '州方将上诉'],
     outlets: [
-      { outlet: 'District Court', title: 'Order granting preliminary injunction', lang: 'en', primary: true },
+      { outlet: 'District Court', title: 'Order granting preliminary injunction', lang: 'en', primary: true, kind: 'official' },
       { outlet: 'State Legal Wire', title: 'Procedural, not substantive', lang: 'en' },
       { outlet: '国际法律观察', title: '临时禁制令说明了什么', lang: 'zh-Hans' },
     ],
@@ -97,7 +108,7 @@ const SEEDS: Seed[] = [
     summary: '修法把跟踪骚扰单列为独立罪名，并以次数与时间跨度两个要件界定持续性。批评意见认为门槛偏高，会把断续但长期的骚扰排除在外。法律自明年起生效。',
     bullets: ['单列为独立罪名', '以次数＋时间跨度界定', '批评：断续骚扰可能被排除'],
     outlets: [
-      { outlet: 'Official Journal', title: 'Text of the amendment', lang: 'en', primary: true },
+      { outlet: 'Official Journal', title: 'Text of the amendment', lang: 'en', primary: true, kind: 'official' },
       { outlet: 'European Law Brief', title: 'Where the threshold sits', lang: 'en' },
     ],
   },
@@ -107,7 +118,7 @@ const SEEDS: Seed[] = [
     summary: '新指引要求申请人提供更具体的时间地点信息，主管机关称此举为提高审查一致性。援助组织指出，创伤会影响记忆的时序性，该要求可能系统性地不利于真实申请人。指引已生效。',
     bullets: ['要求更具体的时间地点', '官方理由：审查一致性', '援助组织：不利于创伤当事人'],
     outlets: [
-      { outlet: 'Immigration Authority', title: 'Revised assessment guidance', lang: 'en', primary: true },
+      { outlet: 'Immigration Authority', title: 'Revised assessment guidance', lang: 'en', primary: true, kind: 'official' },
       { outlet: 'Refugee Legal Aid', title: 'Why memory does not work that way', lang: 'en' },
     ],
     notice: '本条涉及性别暴力相关的庇护审查程序。总结不描述任何具体案情。',
@@ -118,7 +129,7 @@ const SEEDS: Seed[] = [
     summary: '统计基于社保申报数据，覆盖正规部门雇员，得出未调整的中位数差距。统计处提醒该口径不包含非正规就业，而非正规就业占该国女性劳动力相当比例，因此实际差距可能被低估。',
     bullets: ['基于社保申报，覆盖正规部门', '未调整口径', '非正规就业不在内，差距可能被低估'],
     outlets: [
-      { outlet: 'National Statistics Office', title: 'First gender pay gap release', lang: 'en', primary: true },
+      { outlet: 'National Statistics Office', title: 'First gender pay gap release', lang: 'en', primary: true, kind: 'official' },
     ],
   },
   {
@@ -127,7 +138,7 @@ const SEEDS: Seed[] = [
     summary: '法院在一起公益诉讼中要求各邦在三个月内提交保护令的签发与执行数据，包括未执行的原因分类。法院表示将据此评估是否需要统一执行标准。',
     bullets: ['三个月内提交数据', '含未执行原因分类', '可能据此统一执行标准'],
     outlets: [
-      { outlet: 'Supreme Court Registry', title: 'Interim order', lang: 'en', primary: true },
+      { outlet: 'Supreme Court Registry', title: 'Interim order', lang: 'en', primary: true, kind: 'official' },
       { outlet: 'Law and Policy Review', title: 'What the data could show', lang: 'en' },
     ],
   },
@@ -137,7 +148,7 @@ const SEEDS: Seed[] = [
     summary: '法院认定政府未能在偏远地区提供最低限度的孕产照护，构成对健康权的侵犯，要求在一年内提交改善方案。判决未指定具体措施，把方案设计留给行政机关。',
     bullets: ['认定构成健康权侵犯', '一年内须提交方案', '未指定具体措施'],
     outlets: [
-      { outlet: 'Constitutional Court', title: 'Judgment', lang: 'en', primary: true },
+      { outlet: 'Constitutional Court', title: 'Judgment', lang: 'en', primary: true, kind: 'official' },
       { outlet: 'Health Rights Africa', title: 'A remedy with a deadline', lang: 'en' },
     ],
   },
@@ -147,7 +158,7 @@ const SEEDS: Seed[] = [
     summary: '修订后的规则提高了民间组织提起公益诉讼的资格要求，包括最低成立年限与成员规模。多家组织表示新规将使既有诉讼资格失效，主管机关未回应相关询问。',
     bullets: ['提高成立年限与规模要求', '既有诉讼资格可能失效', '主管机关未回应'],
     outlets: [
-      { outlet: 'Official Register', title: 'Amended registration rules', lang: 'ru', primary: true },
+      { outlet: 'Official Register', title: 'Amended registration rules', lang: 'ru', primary: true, kind: 'official' },
       { outlet: 'Civic Space Monitor', title: 'Groups say standing will lapse', lang: 'en' },
     ],
   },
@@ -162,7 +173,7 @@ interface StudySeed {
   summary: string
   limitation: string
   figures: StudyItem['figures']
-  outlets: { outlet: string; title: string; lang: string; primary?: boolean }[]
+  outlets: Outlet[]
   hasData?: boolean
 }
 
@@ -174,7 +185,7 @@ const STUDY_SEEDS: StudySeed[] = [
     summary: '按年度统计人身安全保护令的申请、签发与执行情况，并按申请事由分类。数据附有各基层法院的口径说明。',
     limitation: '只统计进入司法程序的案件，未申请者完全不在其中；「执行完毕」的判断标准各院不完全一致。',
     figures: [{ label: '签发率', value: '按年公布', note: '分母为申请数，不是发生数。' }],
-    outlets: [{ outlet: '法院研究室', title: '统计年报', lang: 'zh-Hans', primary: true }],
+    outlets: [{ outlet: '法院研究室', title: '统计年报', lang: 'zh-Hans', primary: true, kind: 'official' }],
     hasData: true,
   },
   {
@@ -184,7 +195,7 @@ const STUDY_SEEDS: StudySeed[] = [
     summary: '利用多国面板数据，估计「父亲专属配额」与实际使用率之间的关联，并区分政策设计与文化因素的作用。',
     limitation: '面板数据存在国家层面的遗漏变量；作者使用固定效应缓解，但不足以支持因果结论。',
     figures: [{ label: '覆盖国家', value: '18', note: '各国假期定义已做调和，调和方案本身是一项假设。' }],
-    outlets: [{ outlet: '期刊', title: '论文与复现资料', lang: 'en', primary: true }],
+    outlets: [{ outlet: '期刊', title: '论文与复现资料', lang: 'en', primary: true, kind: 'official' }],
     hasData: true,
   },
   {
@@ -194,7 +205,7 @@ const STUDY_SEEDS: StudySeed[] = [
     summary: '在三地各抽取受访者，比较网络性别暴力的经历类型、求助渠道与求助结果。三地问卷一致，可作横向比较。',
     limitation: '通过民间组织与线上渠道招募，倾向于已有求助意识者；不能推及一般人口。',
     figures: [{ label: '样本量', value: '三地共 2,100 人', note: '非随机抽样，不可推及总体。' }],
-    outlets: [{ outlet: '研究网络', title: '报告与问卷全文', lang: 'zh-Hant', primary: true }],
+    outlets: [{ outlet: '研究网络', title: '报告与问卷全文', lang: 'zh-Hant', primary: true, kind: 'official' }],
   },
   {
     regions: ['global'], topics: ['trans'], kind: 'systematic-review',
@@ -203,7 +214,7 @@ const STUDY_SEEDS: StudySeed[] = [
     summary: '系统检索并按统一标准评级现有长期随访研究，说明各研究的随访时长、失访率与结局指标差异。',
     limitation: '综述评的是证据强度，不是干预效果；随访时长普遍偏短，失访率报告方式不一致。',
     figures: [{ label: '纳入研究', value: '37 项', note: '检索策略与排除理由全部公开。' }],
-    outlets: [{ outlet: '期刊', title: '综述与检索策略', lang: 'en', primary: true }],
+    outlets: [{ outlet: '期刊', title: '综述与检索策略', lang: 'en', primary: true, kind: 'official' }],
   },
 ]
 
@@ -223,7 +234,13 @@ export function planSteps(config: CollectConfig): RunStep[] {
     { stage: 'search', label: '按议题筛选', detail: topics.join('、') || '未选择议题', done: false },
     { stage: 'dedupe', label: '合并重复报道', detail: config.dedupe ? '标题高度相似的条目只保留一条' : '已关闭去重', done: false },
     { stage: 'summarise', label: '生成简短总结', detail: '每条 2–4 句，不写长文', done: false },
-    { stage: 'links', label: '整理媒体链接', detail: '把报道同一件事的媒体列在一起', done: false },
+    {
+      stage: 'links', label: '整理媒体链接',
+      detail: config.preferIndependent
+        ? '原始文件排最前；报道部分独立与境外媒体优先，官方媒体往后排并标出来'
+        : '把报道同一件事的媒体列在一起，不区分来源性质',
+      done: false,
+    },
     {
       stage: 'publish', label: config.autoPublish ? '直接上线' : '存为待审',
       detail: config.autoPublish ? '上线后你随时可以修改或删除' : '不会出现在公众站，等你确认',
@@ -236,12 +253,22 @@ export function planSteps(config: CollectConfig): RunStep[] {
  * Producing items
  * ------------------------------------------------------------------ */
 
-function makeLinks(
-  outlets: { outlet: string; title: string; lang: string; primary?: boolean }[],
-  slug: string,
-  date: string,
-): MediaLink[] {
-  return outlets.map((o, i) => ({
+/**
+ * 取材顺序。
+ *
+ * 打开「优先独立与境外媒体」时，报道类链接里独立媒体排在受国家控制的媒体前面。
+ * 官方文件不参与这个排序——它是原始材料，本来就该排在最前，而且它的价值在于
+ * 「文件原文是什么」，不在于「谁报道了它」。受国家控制的媒体不会被丢掉，只是
+ * 往后排并且标出来，因为在新闻管制下它是政府自己的说法，不是独立的第三方记述。
+ */
+function orderOutlets(outlets: Outlet[], preferIndependent: boolean): Outlet[] {
+  if (!preferIndependent) return outlets
+  const rank = (o: Outlet) => (o.primary || o.kind === 'official' ? 0 : o.kind === 'state' ? 2 : 1)
+  return [...outlets].sort((a, b) => rank(a) - rank(b))
+}
+
+function makeLinks(outlets: Outlet[], slug: string, date: string, preferIndependent: boolean): MediaLink[] {
+  return orderOutlets(outlets, preferIndependent).map((o, i) => ({
     id: uid('l'),
     outlet: o.outlet,
     title: o.title,
@@ -249,6 +276,7 @@ function makeLinks(
     lang: o.lang,
     date,
     primary: Boolean(o.primary),
+    ...(o.kind ? { outletKind: o.kind } : {}),
   }))
 }
 
@@ -319,7 +347,7 @@ export function collect(
         status: config.autoPublish ? 'live' : 'hidden',
         origin: 'auto',
         contentNotice: seed.notice,
-        links: makeLinks(seed.outlets, slug, at.slice(0, 10)),
+        links: makeLinks(seed.outlets, slug, at.slice(0, 10), config.preferIndependent),
         demo: true,
       })
     }
@@ -350,7 +378,7 @@ export function collect(
         summary: seed.summary,
         limitation: seed.limitation,
         figures: seed.figures.map((f) => ({ ...f })),
-        links: makeLinks(seed.outlets, slug, at.slice(0, 10)),
+        links: makeLinks(seed.outlets, slug, at.slice(0, 10), config.preferIndependent),
         datasetUrl: seed.hasData ? `https://demo.prism.invalid/${slug}-data.csv` : undefined,
         status: config.autoPublish ? 'live' : 'hidden',
         origin: 'auto',
