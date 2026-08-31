@@ -37,7 +37,7 @@ export function buildInitialState(): PrismState {
     github: {
       owner: '',
       repo: 'PRISM',
-      branch: 'claude/prism-feminist-media-platform-2er8su',
+      branch: 'main',
       token: '',
       path: 'site-content.json',
     },

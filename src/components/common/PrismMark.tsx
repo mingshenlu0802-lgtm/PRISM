@@ -4,29 +4,47 @@ import './PrismMark.css'
 /**
  * PRISM 棱镜 — the wordless mark.
  *
- * A single thin beam enters a triangular prism from the left, bends once
- * inside it, and leaves as six restrained spectrum strokes. No rainbow
- * gradient, no gendered pictogram, no letterform: the whole idea of the
- * publication — one input, separated into its parts, examined — in six lines.
+ * One beam goes into a prism and comes out as the full spectrum. That is the
+ * idea of the publication and the claim of the movement it covers, in one
+ * drawing: no letterform, no gendered pictogram.
  *
- * The stroke weight is optically sized so the mark holds at 20px and at 96px.
+ * The spectrum is drawn as a **solid fan of touching bands**, not as separate
+ * rays. Six hairlines cannot survive the size this mark is actually used at —
+ * in the header it sits at 24px, where six strokes fall under a pixel apart
+ * and smear into grey. A solid fan reads as one confident shape at 20px and
+ * resolves into six distinct bands at 96px, which is the behaviour a mark
+ * needs. The fan widens left to right because that is what refraction does.
  */
 
-const FAN: { d: string; hue: string; opacity: number }[] = [
-  { d: 'M28.1 28.1 L46 21.5', hue: 'var(--prism-1)', opacity: 0.92 },
-  { d: 'M28.1 28.5 L46 24.5', hue: 'var(--prism-6)', opacity: 0.88 },
-  { d: 'M28.1 28.8 L46 27.5', hue: 'var(--prism-2)', opacity: 0.84 },
-  { d: 'M28.1 29.2 L46 30.5', hue: 'var(--prism-3)', opacity: 0.80 },
-  { d: 'M28.1 29.5 L46 33.5', hue: 'var(--prism-4)', opacity: 0.76 },
-  { d: 'M28.1 29.9 L46 36.5', hue: 'var(--prism-5)', opacity: 0.72 },
-]
+/* Geometry, stated once so the beam and the fan actually meet the glass. */
+const APEX = { x: 17, y: 8.5 }
+const FOOT = 39.5        // y of the base
+const HALF = 10.5        // half-width at the base
+const FAN_X0 = 24.2      // where the fan leaves the glass
+const FAN_X1 = 46        // where it ends
+const FAN_Y0 = [20.4, 27.6] // top and bottom of the fan where it leaves
+const FAN_Y1 = [8.8, 39.2]  // top and bottom where it ends
 
-function strokeFor(size: number): number {
-  if (size <= 22) return 3.1
-  if (size <= 32) return 2.8
-  if (size <= 48) return 2.4
-  if (size <= 72) return 2.1
-  return 1.9
+/** x of the left face at height y — where the incoming beam stops. */
+const leftFace = (y: number) => APEX.x - ((y - APEX.y) / (FOOT - APEX.y)) * HALF
+
+/**
+ * Pride order, top to bottom. These are the flag's own hues, nudged only
+ * where a band would otherwise vanish: the yellow is darkened enough to hold
+ * an edge against a paper background, and the green lightened enough not to
+ * read as black on a dark one. Recognisably the flag, legible on both grounds.
+ */
+const BANDS = ['#E03A2F', '#EE7B1B', '#E0A81B', '#1E8A4C', '#2860D8', '#7B3FA0']
+
+/** One band of the fan, as a quadrilateral from the glass to the outer edge. */
+function band(i: number): string {
+  const n = BANDS.length
+  const y0a = FAN_Y0[0] + ((FAN_Y0[1] - FAN_Y0[0]) * i) / n
+  const y0b = FAN_Y0[0] + ((FAN_Y0[1] - FAN_Y0[0]) * (i + 1)) / n
+  const y1a = FAN_Y1[0] + ((FAN_Y1[1] - FAN_Y1[0]) * i) / n
+  const y1b = FAN_Y1[0] + ((FAN_Y1[1] - FAN_Y1[0]) * (i + 1)) / n
+  return `M${FAN_X0} ${y0a.toFixed(2)} L${FAN_X1} ${y1a.toFixed(2)} `
+    + `L${FAN_X1} ${y1b.toFixed(2)} L${FAN_X0} ${y0b.toFixed(2)} Z`
 }
 
 export interface PrismMarkProps {
@@ -37,8 +55,8 @@ export interface PrismMarkProps {
 }
 
 export function PrismMark({ size = 28, className, muted = false }: PrismMarkProps): JSX.Element {
-  const sw = strokeFor(size)
-  const fanSw = sw * 0.86
+  // Below ~28px a hairline beam disappears, so it thickens to stay visible.
+  const beam = size < 28 ? 3.4 : 2.9
 
   return (
     <svg
@@ -50,46 +68,34 @@ export function PrismMark({ size = 28, className, muted = false }: PrismMarkProp
       aria-hidden="true"
       focusable="false"
     >
-      {/* the six separated strokes, drawn first so the prism body sits over them */}
-      <g strokeLinecap="round">
-        {FAN.map((ray) => (
+      {/* the spectrum, drawn first so the glass sits over its inner edge */}
+      <g>
+        {BANDS.map((hue, i) => (
           <path
-            key={ray.d}
-            d={ray.d}
-            stroke={muted ? 'currentColor' : ray.hue}
-            strokeOpacity={muted ? ray.opacity * 0.7 : ray.opacity}
-            strokeWidth={fanSw}
+            key={hue}
+            d={band(i)}
+            fill={muted ? 'currentColor' : hue}
+            fillOpacity={muted ? 0.28 + i * 0.06 : 1}
           />
         ))}
       </g>
 
-      {/* the incoming beam */}
+      {/* the beam going in, stopping where it meets the left face */}
       <path
-        d="M1.5 26 H11.7"
+        d={`M2 24 H${(leftFace(24) - 0.5).toFixed(2)}`}
         stroke="currentColor"
-        strokeOpacity="0.78"
-        strokeWidth={sw}
+        strokeWidth={beam}
         strokeLinecap="round"
+        strokeOpacity={0.85}
       />
 
-      {/* the prism */}
+      {/* the prism — a solid silhouette, so it holds at any size */}
       <path
-        d="M18 11 L29 37 H7 Z"
+        d={`M${APEX.x} ${APEX.y} L${APEX.x + HALF} ${FOOT} H${APEX.x - HALF} Z`}
         fill="currentColor"
-        fillOpacity={muted ? 0.04 : 0.06}
         stroke="currentColor"
-        strokeOpacity="0.92"
-        strokeWidth={sw}
+        strokeWidth={1.6}
         strokeLinejoin="round"
-      />
-
-      {/* the single bend inside the glass */}
-      <path
-        d="M11.7 26 L25.6 29"
-        stroke="currentColor"
-        strokeOpacity="0.5"
-        strokeWidth={fanSw}
-        strokeLinecap="round"
       />
     </svg>
   )

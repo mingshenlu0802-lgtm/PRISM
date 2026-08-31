@@ -144,8 +144,11 @@ key 只存在这台电脑的浏览器里，跟 GitHub token 一样，随时可�
 
 ## 安全与隐私
 
-完整操作手册在 **[docs/SECURITY.md](docs/SECURITY.md)**，两部分：真正的门禁怎么做，
-以及怎么让公开的地方不出现你的姓名和账号。
+- **[docs/DEPLOY.md](docs/DEPLOY.md)（英文）** — 从零到上线的完整操作流程：
+  去个人化的账号与组织、发布、自有域名、Cloudflare Access、Google 登录、token 权限。
+  按钮名称与英文界面一致，照着点即可。
+- **[docs/SECURITY.md](docs/SECURITY.md)（中文）** — 讲清楚每一步在防什么，
+  以及哪些事其实不用担心。
 
 一句话版本：控制端的登录是**界面上的**判断，懂技术的人能绕过去看到界面；
 但他改不了你发布的网站——真正更新内容需要 GitHub token，那串东西只在你的浏览器里，
