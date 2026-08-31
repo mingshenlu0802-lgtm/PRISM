@@ -52,3 +52,14 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+      # 第一次跑的时候这一步多半会失败，因为仓库还没打开 Pages。
+      # 与其留一个看不懂的 404，不如直接把该点哪里写出来。
+      - if: failure()
+        run: |
+          echo "::error::还没打开 GitHub Pages，所以发布不了。"
+          echo ""
+          echo "去仓库的 Settings → Pages，把 Source 选成 GitHub Actions，"
+          echo "然后回到 Actions 页面按 Re-run jobs 重跑一次就好。"
+          echo ""
+          echo "设置页面：https://github.com/${{ github.repository }}/settings/pages"
