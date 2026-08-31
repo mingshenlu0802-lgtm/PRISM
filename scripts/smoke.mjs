@@ -29,8 +29,8 @@ const { buildInitialState, reducer, collect, planSteps, runVibe, VIBE_EXAMPLES,
         contentSnapshot, OWNER_EMAIL, PRIORITY_REGIONS } = m
 
 const results = []
-const test = (name, fn) => {
-  try { fn(); results.push([true, name, '']) }
+const test = async (name, fn) => {
+  try { await fn(); results.push([true, name, '']) }
   catch (e) { results.push([false, name, e.message]) }
 }
 const eq = (a, b, msg) => { if (a !== b) throw new Error(`${msg}：期望 ${b}，实际 ${a}`) }
@@ -41,7 +41,7 @@ const ME = 'mingshen.lu0802@gmail.com'
 
 /* --------------------- 删掉的东西真的没了，下架的还在 --------------------- */
 
-test('下架只是不给别人看，内容还在', () => {
+await test('下架只是不给别人看，内容还在', () => {
   const s0 = fresh()
   const id = s0.news[0].id
   const s1 = reducer(s0, { type: 'news-hide', id, who: ME })
@@ -51,7 +51,7 @@ test('下架只是不给别人看，内容还在', () => {
   eq(s2.news.find((n) => n.id === id).status, 'live', '恢复后状态')
 })
 
-test('永久删除是永久的', () => {
+await test('永久删除是永久的', () => {
   const s0 = fresh()
   const id = s0.news[0].id
   const s1 = reducer(s0, { type: 'news-delete', id, who: ME })
@@ -59,7 +59,7 @@ test('永久删除是永久的', () => {
   eq(s1.news.some((n) => n.id === id), false, '删掉的条目不该还在')
 })
 
-test('删一个媒体链接只删那一个', () => {
+await test('删一个媒体链接只删那一个', () => {
   const s0 = fresh()
   const n = s0.news.find((x) => x.links.length >= 2)
   const linkId = n.links[0].id
@@ -70,7 +70,7 @@ test('删一个媒体链接只删那一个', () => {
   eq(s1.news.length, s0.news.length, '删链接不该动条目')
 })
 
-test('改总结之后标记成人工编辑过', () => {
+await test('改总结之后标记成人工编辑过', () => {
   const s0 = fresh()
   const id = s0.news[0].id
   const s1 = reducer(s0, { type: 'news-edit', id, patch: { summary: '改过的总结。' }, who: ME })
@@ -82,13 +82,13 @@ test('改总结之后标记成人工编辑过', () => {
 
 /* ------------------------------ 谁能改 ------------------------------ */
 
-test('站长不能被移除——否则控制端会没人能管', () => {
+await test('站长不能被移除——否则控制端会没人能管', () => {
   const s0 = fresh()
   const s1 = reducer(s0, { type: 'admin-remove', email: OWNER_EMAIL, who: ME })
   ok(s1.auth.admins.some((a) => a.email === OWNER_EMAIL && a.role === 'owner'), '站长仍应在名单里')
 })
 
-test('加进来的是管理员，不是第二个站长', () => {
+await test('加进来的是管理员，不是第二个站长', () => {
   const s1 = reducer(fresh(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
   const a = s1.auth.admins.find((x) => x.email === 'friend@gmail.com')
   ok(a, '新管理员应在名单里')
@@ -96,7 +96,7 @@ test('加进来的是管理员，不是第二个站长', () => {
   eq(s1.auth.admins.filter((x) => x.role === 'owner').length, 1, '站长人数')
 })
 
-test('同一个邮箱不会被加两遍', () => {
+await test('同一个邮箱不会被加两遍', () => {
   let s = reducer(fresh(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
   s = reducer(s, { type: 'admin-add', email: 'FRIEND@gmail.com', who: ME })
   eq(s.auth.admins.filter((x) => x.email.toLowerCase() === 'friend@gmail.com').length, 1, '重复加应只留一条')
@@ -104,14 +104,14 @@ test('同一个邮箱不会被加两遍', () => {
 
 /* ------------------------------ 搜集 ------------------------------ */
 
-test('搜集不会凭空造链接：每条新闻都带得走的链接', () => {
+await test('搜集不会凭空造链接：每条新闻都带得走的链接', () => {
   const s = fresh()
   const r = collect(s.collect, [], [], 0)
   ok(r.news.length > 0, '应该搜到东西')
   for (const n of r.news) ok(n.links.length > 0, `「${n.headline}」没有链接`)
 })
 
-test('搜集尊重「找到就直接上线」这个开关', () => {
+await test('搜集尊重「找到就直接上线」这个开关', () => {
   const s = fresh()
   const on = collect({ ...s.collect, autoPublish: true }, [], [], 0)
   const off = collect({ ...s.collect, autoPublish: false }, [], [], 0)
@@ -119,7 +119,7 @@ test('搜集尊重「找到就直接上线」这个开关', () => {
   ok(off.news.every((n) => n.status === 'hidden'), '关掉时应存草稿')
 })
 
-test('跳过重复的会说明原因，不会悄悄消失', () => {
+await test('跳过重复的会说明原因，不会悄悄消失', () => {
   const s = fresh()
   const first = collect({ ...s.collect, dedupe: true }, [], [], 0)
   const again = collect({ ...s.collect, dedupe: true }, first.news, first.studies, 0)
@@ -131,7 +131,7 @@ test('跳过重复的会说明原因，不会悄悄消失', () => {
   ok(again.skipped.some((x) => seen.has(x.headline)), '跳过的应当正是第一次已经收过的那些')
 })
 
-test('关掉去重就真的不去重（开关是有用的）', () => {
+await test('关掉去重就真的不去重（开关是有用的）', () => {
   const s = fresh()
   const first = collect({ ...s.collect, dedupe: false }, [], [], 0)
   const again = collect({ ...s.collect, dedupe: false }, first.news, first.studies, 0)
@@ -139,14 +139,14 @@ test('关掉去重就真的不去重（开关是有用的）', () => {
   ok(again.news.some((n) => seen.has(n.headline)), '关掉去重后应当允许重复')
 })
 
-test('只选一个地区就只搜那个地区', () => {
+await test('只选一个地区就只搜那个地区', () => {
   const s = fresh()
   const r = collect({ ...s.collect, regions: ['cn'], perRun: 10 }, [], [], 0)
   ok(r.news.length > 0, '应该搜到东西')
   ok(r.news.every((n) => n.regions.includes('cn')), '不该出现别的地区')
 })
 
-test('撤销一次搜集，会把这次加的全部收回', () => {
+await test('撤销一次搜集，会把这次加的全部收回', () => {
   const s0 = fresh()
   const r = collect(s0.collect, s0.news, s0.studies, 1)
   const run = {
@@ -164,7 +164,7 @@ test('撤销一次搜集，会把这次加的全部收回', () => {
   eq(back.studies.length, s0.studies.length, '撤销后研究条数')
 })
 
-test('搜集步骤是有名有姓的，不是一个转圈的图标', () => {
+await test('搜集步骤是有名有姓的，不是一个转圈的图标', () => {
   const steps = planSteps(fresh().collect)
   ok(steps.length >= 4, '步骤太少，等待时看不出在干什么')
   ok(steps.every((x) => x.label.trim() && x.detail.trim()), '每步都要有说明')
@@ -172,7 +172,7 @@ test('搜集步骤是有名有姓的，不是一个转圈的图标', () => {
 
 /* ------------------------------ 一句话改样子 ------------------------------ */
 
-test('每个示例句子都真的能被看懂', () => {
+await test('每个示例句子都真的能被看懂', () => {
   const s = fresh()
   for (const ex of VIBE_EXAMPLES) {
     const r = runVibe(ex, s)
@@ -181,7 +181,7 @@ test('每个示例句子都真的能被看懂', () => {
   }
 })
 
-test('看不懂就直说，并给一句建议——不瞎改', () => {
+await test('看不懂就直说，并给一句建议——不瞎改', () => {
   const s = fresh()
   const r = runVibe('把首页做成一个能自动交易的比特币面板', s)
   eq(r.understood, false, '不该假装看懂')
@@ -189,14 +189,14 @@ test('看不懂就直说，并给一句建议——不瞎改', () => {
   ok((r.suggestion ?? '').trim().length > 0, '应该给一句建议')
 })
 
-test('同一句话说两遍，结果一样（没有随机）', () => {
+await test('同一句话说两遍，结果一样（没有随机）', () => {
   const s = fresh()
   const a = runVibe('字大一点，换成深色', s)
   const b = runVibe('字大一点，换成深色', s)
   eq(JSON.stringify(a), JSON.stringify(b), '两次结果应完全一致')
 })
 
-test('改样子不会碰到新闻内容', () => {
+await test('改样子不会碰到新闻内容', () => {
   const s = fresh()
   const r = runVibe('换成深色，字大一点', s)
   for (const c of r.changes) {
@@ -206,14 +206,20 @@ test('改样子不会碰到新闻内容', () => {
 
 /* ------------------------------ 同步 ------------------------------ */
 
-test('同步到 GitHub 的文件里没有 token', () => {
+await test('同步到 GitHub 的文件里没有 token', () => {
   let s = fresh()
   s = reducer(s, { type: 'github', patch: { token: 'ghp_secret_do_not_ship' } })
   const text = JSON.stringify(contentSnapshot(s))
   eq(text.includes('ghp_secret_do_not_ship'), false, 'token 不该出现在同步内容里')
 })
 
-test('同步的是内容，不是代码', () => {
+await test('下载在拿不到保存通道时会说话，不会假装成功', async () => {
+  // 无 window.claude、也无 document 的环境：走不了链接，也走不了宿主保存。
+  const r = await m.downloadSnapshot(fresh()).catch((e) => ({ ok: false, message: e.message }))
+  ok(typeof r.message === 'string' && r.message.trim().length > 0, '任何结果都要给一句话')
+})
+
+await test('同步的是内容，不是代码', () => {
   const snap = contentSnapshot(fresh())
   ok(Array.isArray(snap.news), '应包含新闻')
   ok(Array.isArray(snap.studies), '应包含研究')
@@ -222,12 +228,12 @@ test('同步的是内容，不是代码', () => {
 
 /* ------------------------------ 默认设置 ------------------------------ */
 
-test('默认就先搜站长点名的六个地区', () => {
+await test('默认就先搜站长点名的六个地区', () => {
   const s = fresh()
   for (const r of PRIORITY_REGIONS) ok(s.collect.regions.includes(r), `默认没有包含优先地区 ${r}`)
 })
 
-test('暂停对外显示不会删任何东西', () => {
+await test('暂停对外显示不会删任何东西', () => {
   const s0 = fresh()
   const s1 = reducer(s0, { type: 'public-offline', off: true, who: ME })
   eq(s1.publicOffline, true, '开关状态')
@@ -235,7 +241,7 @@ test('暂停对外显示不会删任何东西', () => {
   eq(reducer(s1, { type: 'public-offline', off: false, who: ME }).publicOffline, false, '应能恢复')
 })
 
-test('每一步改动都记进「最近改动」', () => {
+await test('每一步改动都记进「最近改动」', () => {
   const s0 = fresh()
   const s1 = reducer(s0, { type: 'news-hide', id: s0.news[0].id, who: ME })
   ok(s1.changes.length > s0.changes.length, '改动没有被记下来')

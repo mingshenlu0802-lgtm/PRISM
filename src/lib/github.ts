@@ -89,9 +89,38 @@ export async function syncToGitHub(state: PrismState, message: string): Promise<
   }
 }
 
-/** A local download, for when you would rather not hand a token to the browser. */
-export function downloadSnapshot(state: PrismState): void {
-  const blob = new Blob([JSON.stringify(contentSnapshot(state), null, 2)], { type: 'application/json' })
+/* ------------------------------------------------------------------ *
+ * 下载内容文件
+ * ------------------------------------------------------------------ */
+
+export interface SaveOutcome {
+  ok: boolean
+  message: string
+}
+
+/**
+ * Two places this site runs, two ways a browser will hand over a file.
+ *
+ * On a normal static host (GitHub Pages, or the single-file copy opened from
+ * disk) an `<a download>` is the whole story. Inside the claude.ai artifact
+ * viewer that link is inert — the frame is not allowed to start a download —
+ * and the page has to ask the host to save the file instead. Feature-detect,
+ * and never leave the owner staring at a button that quietly did nothing.
+ */
+interface ClaudeHost {
+  use?: (name: string) => Promise<{ save?: (r: { filename: string; data: string }) => Promise<unknown> } | null>
+}
+
+// Start resolving at load so pressing the button is instant. On a plain static
+// host there is no such object and this settles to null right away.
+const hostSaver = (async () => {
+  const host = (globalThis as { claude?: ClaudeHost }).claude
+  if (!host?.use) return null
+  try { return await host.use('downloads') } catch { return null }
+})()
+
+function saveViaLink(text: string): SaveOutcome {
+  const blob = new Blob([text], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -100,4 +129,22 @@ export function downloadSnapshot(state: PrismState): void {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+  return { ok: true, message: '已下载 site-content.json。' }
+}
+
+/** Hand the owner a copy of everything, for when they would rather not give the browser a token. */
+export async function downloadSnapshot(state: PrismState): Promise<SaveOutcome> {
+  const text = JSON.stringify(contentSnapshot(state), null, 2)
+  const saver = await hostSaver
+  if (!saver?.save) return saveViaLink(text)
+  try {
+    await saver.save({ filename: 'site-content.json', data: text })
+    return { ok: true, message: '已保存 site-content.json。' }
+  } catch (e) {
+    const code = (e as { code?: string })?.code
+    if (code === 'declined') return { ok: false, message: '你取消了保存。' }
+    if (code === 'rate_limited') return { ok: false, message: '刚刚已经在保存了，等一下再按。' }
+    // The host cannot save here; the plain link is still worth a try.
+    return saveViaLink(text)
+  }
 }

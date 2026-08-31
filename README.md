@@ -119,6 +119,7 @@ npm run build      # 类型检查 + 构建到 dist/
 npm run check      # 类型检查 + 数据检查 + 23 项行为测试
 npm run ui-check   # 用真实浏览器走 9 条路由 × 3 个视口
 npm run single     # 生成单文件 PRISM-prototype.html
+npm run artifact   # 打包成一页，用于 claude.ai artifact
 ```
 
 `npm run check` 是真正的门槛，不是摆设。它会挡住这些事：

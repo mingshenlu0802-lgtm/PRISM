@@ -537,7 +537,7 @@ function AccountTab(): JSX.Element {
           <button type="button" className="mng__solid" onClick={doSync} disabled={syncing || !isAdmin}>
             <Icon name="send" size={14} />{syncing ? '同步中…' : '同步到 GitHub'}
           </button>
-          <button type="button" className="mng__ghost" onClick={() => { downloadSnapshot(state); toast('已下载内容文件。', 'go') }}>
+          <button type="button" className="mng__ghost" onClick={() => { void downloadSnapshot(state).then((r) => toast(r.message, r.ok ? 'go' : 'info')) }}>
             <Icon name="download" size={14} />下载文件
           </button>
         </div>
