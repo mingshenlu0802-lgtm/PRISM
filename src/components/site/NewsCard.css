@@ -9,6 +9,19 @@
 }
 .ncard--full { border: 0; background: transparent; padding: 0; }
 
+/* 头条：站长指定的那一条。靠尺寸和一条实边把它抬起来，不靠颜色喊。 */
+.ncard--lead {
+  border-color: var(--fg);
+  border-width: 2px;
+  padding: var(--s-7) var(--s-6);
+  gap: var(--s-5);
+}
+@media (min-width: 900px) { .ncard--lead { padding: var(--s-8) var(--s-7); } }
+.ncard__lead {
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--accent);
+}
+
 .ncard__head { display: grid; gap: var(--s-3); }
 .ncard__title {
   font-size: var(--fs-xl);
@@ -17,6 +30,8 @@
   font-weight: 660;
 }
 .ncard--full .ncard__title { font-size: var(--fs-3xl); line-height: 1.3; }
+.ncard--lead .ncard__title { font-size: var(--fs-2xl); line-height: 1.25; font-weight: 700; }
+@media (min-width: 900px) { .ncard--lead .ncard__title { font-size: var(--fs-3xl); } }
 .ncard__title a { color: inherit; text-decoration: none; }
 .ncard__title a:hover { color: var(--accent); }
 .ncard__when { font-size: var(--fs-2xs); color: var(--fg-faint); display: flex; gap: 6px; }
@@ -39,6 +54,7 @@
 }
 :root[data-body="serif"] .ncard__summary { font-family: var(--font-serif); }
 .ncard--full .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
+.ncard--lead .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
 
 .ncard__bullets { list-style: none; display: grid; gap: var(--s-2); }
 .ncard__bullets > li {

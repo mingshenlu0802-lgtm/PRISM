@@ -23,6 +23,7 @@ export type Action =
   | { type: 'news-hide'; id: ID; who: string }
   | { type: 'news-restore'; id: ID; who: string }
   | { type: 'news-delete'; id: ID; who: string }
+  | { type: 'news-feature'; id: ID; on: boolean; who: string }
   | { type: 'news-link-add'; id: ID; link: MediaLink; who: string }
   | { type: 'news-link-edit'; id: ID; linkId: ID; patch: Partial<MediaLink>; who: string }
   | { type: 'news-link-remove'; id: ID; linkId: ID; who: string }
@@ -101,7 +102,10 @@ export function reducer(state: PrismState, action: Action): PrismState {
       if (!item) return state
       return {
         ...state,
-        news: state.news.map((n) => (n.id === action.id ? { ...n, status: 'hidden', updatedAt: nowIso() } : n)),
+        // 下架就不再是头条了——否则状态里会留着一个「看不见的头条」。
+        news: state.news.map((n) => (n.id === action.id
+          ? { ...n, status: 'hidden', featured: false, updatedAt: nowIso() }
+          : n)),
         changes: log(state, action.who, 'hidden', `下架了「${short(item.headline)}」，公众站不再显示`,
           { type: 'restore-news', id: action.id }),
       }
@@ -124,6 +128,26 @@ export function reducer(state: PrismState, action: Action): PrismState {
         ...state,
         news: state.news.filter((n) => n.id !== action.id),
         changes: log(state, action.who, 'deleted', `永久删除了「${short(item.headline)}」`),
+      }
+    }
+
+    /**
+     * 头条由站长指定，不是算法挑的。
+     * 一次只有一条——设了新的，旧的自动让位，并在改动记录里写清楚是哪一条让了位。
+     */
+    case 'news-feature': {
+      const item = state.news.find((n) => n.id === action.id)
+      if (!item) return state
+      const previous = action.on ? state.news.find((n) => n.featured && n.id !== action.id) : undefined
+      return {
+        ...state,
+        news: state.news.map((n) => {
+          if (n.id === action.id) return { ...n, featured: action.on, updatedAt: nowIso() }
+          return action.on && n.featured ? { ...n, featured: false } : n
+        }),
+        changes: log(state, action.who, 'edited', action.on
+          ? `把「${short(item.headline)}」设为头条${previous ? `，原来的头条「${short(previous.headline, 14)}」已让位` : ''}`
+          : `取消了「${short(item.headline)}」的头条`),
       }
     }
 
@@ -357,6 +381,34 @@ function persist(state: PrismState): void {
 }
 
 /* ------------------------------------------------------------------ *
+ * 谁能进控制端
+ * ------------------------------------------------------------------ */
+
+export interface Access {
+  isOwner: boolean
+  isAdmin: boolean
+  /** 控制端是否放行。 */
+  consoleOpen: boolean
+  /** 放行只是因为还没接上登录，而不是因为这个人是管理员。 */
+  consoleUnlocked: boolean
+}
+
+/**
+ * 规则只写一遍。
+ *
+ * 管理员放行。除此之外还有一种情况：网站还没接上 Google 登录时，根本没有
+ * 「谁」这个概念——这时候按身份拦人既拦不住谁，又会把站长锁在唯一能填
+ * 客户端 ID 的那一页外面。所以未接登录时控制端开着，界面上明说它开着。
+ */
+export function accessOf(state: PrismState): Access {
+  const email = (state.auth.email ?? '').toLowerCase()
+  const isOwner = email === OWNER_EMAIL
+  const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email)
+  const consoleUnlocked = !state.auth.clientId
+  return { isOwner, isAdmin, consoleOpen: isAdmin || consoleUnlocked, consoleUnlocked }
+}
+
+/* ------------------------------------------------------------------ *
  * Context
  * ------------------------------------------------------------------ */
 
@@ -368,6 +420,17 @@ interface Ctx {
   who: string
   isOwner: boolean
   isAdmin: boolean
+  /**
+   * 控制端是否放行。
+   *
+   * 管理员当然放行。除此之外还有一种情况：网站还没接上 Google 登录时，
+   * 根本没有「谁」这个概念——这时候按身份拦人既拦不住谁，又会把站长锁在
+   * 唯一能填客户端 ID 的那一页外面。所以未接登录时控制端开着，并在顶部
+   * 明说它现在是开着的。
+   */
+  consoleOpen: boolean
+  /** consoleOpen 只是因为还没接登录，而不是因为你是管理员。 */
+  consoleUnlocked: boolean
 }
 
 const PrismContext = createContext<Ctx | null>(null)
@@ -397,12 +460,14 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const email = state.auth.email ?? ''
-  const isOwner = email.toLowerCase() === OWNER_EMAIL
-  const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email.toLowerCase())
+  const { isOwner, isAdmin, consoleOpen, consoleUnlocked } = accessOf(state)
 
   const value = useMemo<Ctx>(
-    () => ({ state, dispatch, reset, who: email || '未登录', isOwner, isAdmin }),
-    [state, reset, email, isOwner, isAdmin],
+    () => ({
+      state, dispatch, reset, who: email || '未登录',
+      isOwner, isAdmin, consoleOpen, consoleUnlocked,
+    }),
+    [state, reset, email, isOwner, isAdmin, consoleOpen, consoleUnlocked],
   )
   return <PrismContext.Provider value={value}>{children}</PrismContext.Provider>
 }

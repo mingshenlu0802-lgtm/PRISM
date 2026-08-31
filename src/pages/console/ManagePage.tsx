@@ -15,10 +15,10 @@ import './ManagePage.css'
 type Tab = 'content' | 'vibe' | 'look' | 'account'
 
 /**
- * 「改网站」——控制端第二页。
+ * 「编辑」——控制端第二页。
  *
- * 四个标签，从最常用到最少用排：改内容 → 用一句话改样子 → 手动调外观 →
- * 账号与同步。每个危险操作都有二次确认，每个改动都记在下面的「最近改动」里。
+ * 四个标签，从最常用到最少用排：编辑内容 → 一句话调整外观 → 手动调外观 →
+ * 账号与同步。每个危险操作都有二次确认，每一次编辑都记在下面的「最近编辑」里。
  */
 export default function ManagePage(): JSX.Element {
   const { state, dispatch, reset, who, isAdmin, isOwner } = usePrism()
@@ -27,19 +27,19 @@ export default function ManagePage(): JSX.Element {
   return (
     <div className="mng">
       <header className="mng__head">
-        <h1 className="mng__title">改网站</h1>
+        <h1 className="mng__title">编辑</h1>
         <p className="mng__lede">
-          这里改的都是你和读者能看到的东西。改错了不要紧——下面每一步都有撤销或恢复。
+          这里编辑的都是你和读者能看到的东西。编辑错了不要紧——下面每一步都有撤销或恢复。
         </p>
       </header>
 
       <Segmented<Tab>
         value={tab}
         onChange={setTab}
-        ariaLabel="改网站的四个部分"
+        ariaLabel="编辑的四个部分"
         options={[
           { value: 'content', label: '内容', count: state.news.length + state.studies.length },
-          { value: 'vibe', label: '一句话改样子' },
+          { value: 'vibe', label: '一句话调整' },
           { value: 'look', label: '外观' },
           { value: 'account', label: '账号与同步' },
         ]}
@@ -51,9 +51,9 @@ export default function ManagePage(): JSX.Element {
       {tab === 'account' && <AccountTab />}
 
       <section className="mng__log" aria-labelledby="mng-log">
-        <h2 className="mng__logtitle" id="mng-log">最近改动</h2>
+        <h2 className="mng__logtitle" id="mng-log">最近编辑</h2>
         {state.changes.length === 0 ? (
-          <p className="mng__logempty">还没有任何改动。</p>
+          <p className="mng__logempty">还没有任何编辑。</p>
         ) : (
           <ul className="mng__loglist">
             {state.changes.slice(0, 12).map((c) => (
@@ -130,8 +130,8 @@ function ContentTab(): JSX.Element {
   return (
     <div className="mng__panel">
       <p className="mng__panelnote">
-        点开任意一条就能改：标题、总结、要点、标签，每一个媒体链接都能单独删掉，也能自己加。
-        改完按「保存修改」。不想让别人看到就「下架」，下架随时能恢复；确定不要了才「永久删除」。
+        点开任意一条就能编辑：标题、总结、要点、标签，每一个媒体链接都能单独删掉，也能自己加。
+        编辑完按「保存」。不想让别人看到就「下架」，下架随时能恢复；确定不要了才「永久删除」。
       </p>
 
       <div className="mng__filters">
@@ -214,7 +214,7 @@ function VibeTab(): JSX.Element {
       if (c.appearance) dispatch({ type: 'appearance', patch: c.appearance, who })
       if (c.copy) dispatch({ type: 'copy', patch: c.copy, who })
     }
-    toast('改好了。不喜欢就按「撤销」。', 'go')
+    toast('调好了。不喜欢就按「撤销」。', 'go')
   }
 
   const undo = () => {
@@ -222,13 +222,13 @@ function VibeTab(): JSX.Element {
     dispatch({ type: 'appearance', patch: before.appearance, who })
     dispatch({ type: 'copy', patch: before.copy, who })
     setBefore(null); setPreview(null); setText('')
-    toast('已撤销，回到改之前。', 'info')
+    toast('已撤销，回到调整之前。', 'info')
   }
 
   return (
     <div className="mng__panel">
       <p className="mng__panelnote">
-        用一句大白话说你想怎么改，比如「字大一点」。改的是网站的样子和上面写的字，
+        用一句大白话说你想要什么，比如「字大一点」。它调的是网站的样子和上面写的字，
         不会动新闻内容，也不会动代码——最坏的情况就是你不喜欢，按撤销回去。
       </p>
 
@@ -256,7 +256,7 @@ function VibeTab(): JSX.Element {
         <div className={cx('mng__viberesult', !preview.understood && 'mng__viberesult--no')}>
           {preview.understood ? (
             <>
-              <p className="mng__vibehead"><Icon name="check" size={14} />已经改了这些：</p>
+              <p className="mng__vibehead"><Icon name="check" size={14} />已经调整了这些：</p>
               <ul className="mng__vibelist">
                 {preview.changes.map((c) => <li key={c.what}>{c.what}</li>)}
               </ul>
@@ -457,7 +457,7 @@ function AccountTab(): JSX.Element {
         </p>
       </div>
 
-      <h3 className="mng__subtitle">谁能改这个网站</h3>
+      <h3 className="mng__subtitle">谁能编辑这个网站</h3>
       <ul className="mng__admins">
         {auth.admins.map((a) => (
           <li key={a.email} className="mng__admin">
@@ -556,7 +556,7 @@ function ResetRow({ onReset, disabled }: { onReset: () => void; disabled: boolea
     <div className="mng__dangerrow">
       <div>
         <p className="mng__dangername">全部恢复成初始演示内容</p>
-        <p className="mng__dangernote">你搜集的、改过的、删掉的，全都会没有。这个操作撤不回来。</p>
+        <p className="mng__dangernote">你搜集的、编辑过的、删掉的，全都会没有。这个操作撤不回来。</p>
       </div>
       <button type="button" className="mng__dangerbtn" onClick={() => { setSure(false); setOpen(true) }} disabled={disabled}>
         恢复初始
@@ -575,7 +575,7 @@ function ResetRow({ onReset, disabled }: { onReset: () => void; disabled: boolea
         }
       >
         <p className="mng__note">建议先用上面的「下载文件」备份一份，再做这个操作。</p>
-        <Checkbox checked={sure} onChange={setSure} label="我明白这会清空我做过的所有改动" />
+        <Checkbox checked={sure} onChange={setSure} label="我明白这会清空我做过的所有编辑" />
       </Modal>
     </div>
   )

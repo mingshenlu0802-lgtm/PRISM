@@ -91,6 +91,15 @@ for (const n of s.news) {
   if (Number.isNaN(Date.parse(n.publishedAt))) err(`${at}：发布时间不是合法时间`)
 }
 
+// 头条只有一条，而且必须是能看见的那种。
+const featured = s.news.filter((n) => n.featured)
+if (featured.length > 1) {
+  err(`有 ${featured.length} 条同时是头条：${featured.map((n) => n.headline.slice(0, 14)).join('、')}`)
+}
+if (featured.length === 1 && featured[0].status !== 'live') {
+  err(`头条「${featured[0].headline.slice(0, 18)}」是下架状态，读者看不到`)
+}
+
 /* -------------------------- studies -------------------------------- */
 
 const studySlugs = new Set()
@@ -146,6 +155,7 @@ const linkCount = s.news.reduce((a, n) => a + n.links.length, 0)
 console.log('PRISM 演示数据检查')
 console.log('—'.repeat(64))
 console.log(`  新闻 ${s.news.length} 条 · 媒体链接 ${linkCount} 条 · 研究与数据 ${s.studies.length} 项`)
+console.log(`  头条：${featured[0] ? featured[0].headline.slice(0, 24) : '未指定（首页会用最新的一条）'}`)
 console.log(`  覆盖地区 ${new Set(s.news.flatMap((n) => n.regions)).size} 个 · 议题 ${new Set(s.news.flatMap((n) => n.topics)).size} 个`)
 console.log('—'.repeat(64))
 for (const w of warnings) console.log(`  提醒  ${w}`)

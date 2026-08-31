@@ -6,6 +6,7 @@ import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
 import { Icon, PrismMark, ToastHost } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
+import { AccountMenu } from './AccountMenu'
 import './SiteLayout.css'
 
 /**
@@ -15,7 +16,7 @@ import './SiteLayout.css'
  * 各有十几个——把它们平铺在顶部会把导航挤成一堵墙。
  */
 export default function SiteLayout(): JSX.Element {
-  const { state } = usePrism()
+  const { state, consoleOpen } = usePrism()
   const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'mobile'>('none')
   const loc = useLocation()
 
@@ -57,18 +58,9 @@ export default function SiteLayout(): JSX.Element {
               </button>
               {menu === 'region' && (
                 <div className="slyt__panel slyt__panel--region" role="menu">
-                  <p className="slyt__panelhead">优先搜索</p>
+                  {/* 读者要的是「有哪些地区」，不是网站内部怎么排搜集顺序。 */}
                   <div className="slyt__panelgrid">
-                    {REGIONS.filter((r) => r.priority === 1).map((r) => (
-                      <Link key={r.key} className="slyt__panelitem" to={`/region/${r.key}`} role="menuitem">
-                        <span className="slyt__paneldot" style={{ background: r.hue }} aria-hidden="true" />
-                        {r.zh}
-                      </Link>
-                    ))}
-                  </div>
-                  <p className="slyt__panelhead">其他地区</p>
-                  <div className="slyt__panelgrid">
-                    {REGIONS.filter((r) => r.priority !== 1).map((r) => (
+                    {REGIONS.map((r) => (
                       <Link key={r.key} className="slyt__panelitem" to={`/region/${r.key}`} role="menuitem">
                         <span className="slyt__paneldot" style={{ background: r.hue }} aria-hidden="true" />
                         {r.zh}
@@ -111,10 +103,7 @@ export default function SiteLayout(): JSX.Element {
 
           <div className="slyt__tools">
             <AppearanceMenu />
-            <Link className="slyt__console" to="/console">
-              <Icon name="lock" size={13} />
-              <span className="slyt__consoletext">控制端</span>
-            </Link>
+            <AccountMenu />
             <button
               type="button"
               className="slyt__burger"
@@ -152,7 +141,7 @@ export default function SiteLayout(): JSX.Element {
             <div className="slyt__sheetgrid">
               <Link className="slyt__sheetitem" to="/studies">研究与数据</Link>
               <Link className="slyt__sheetitem" to="/about">关于</Link>
-              <Link className="slyt__sheetitem" to="/console">控制端</Link>
+              {consoleOpen && <Link className="slyt__sheetitem" to="/console">控制端</Link>}
             </div>
           </div>
         </div>

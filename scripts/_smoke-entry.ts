@@ -1,6 +1,6 @@
 // esbuild entry for the behaviour tests — one file so the bundle is built once.
 export { buildInitialState } from '../src/lib/demo/index'
-export { reducer } from '../src/lib/store'
+export { reducer, accessOf } from '../src/lib/store'
 export { collect, planSteps } from '../src/lib/collect'
 export { runVibe, VIBE_EXAMPLES } from '../src/lib/vibe'
 export { contentSnapshot, downloadSnapshot } from '../src/lib/github'

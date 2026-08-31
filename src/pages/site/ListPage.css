@@ -5,11 +5,6 @@
 .lpage__gem { width: 14px; height: 14px; border-radius: 2px; transform: rotate(45deg); flex: none; }
 .lpage__title { font-size: var(--fs-2xl); letter-spacing: -0.015em; }
 .lpage__en { font-size: var(--fs-2xs); color: var(--fg-faint); font-family: var(--font-mono); }
-.lpage__badge {
-  padding: 3px 10px; border-radius: var(--r-full);
-  background: var(--accent-soft); color: var(--accent);
-  font-size: var(--fs-2xs); font-weight: 660;
-}
 .lpage__scope { font-size: var(--fs-sm); line-height: 1.75; color: var(--fg-muted); max-width: 62ch; }
 .lpage__count { font-size: var(--fs-xs); color: var(--fg-subtle); }
 .lpage__feed { display: grid; gap: var(--s-4); margin-top: var(--s-2); }

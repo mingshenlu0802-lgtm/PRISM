@@ -33,13 +33,12 @@ export default function RegionPage(): JSX.Element {
           <h1 className="lpage__title">{region.zh}</h1>
           <p className="lpage__en">{region.en}</p>
         </div>
-        {region.priority === 1 && <span className="lpage__badge">优先搜索地区</span>}
       </header>
       <p className="lpage__scope">{region.scope}</p>
       <p className="lpage__count">{news.length} 条新闻 · {studies.length} 项研究与数据</p>
 
       {news.length === 0 && studies.length === 0 ? (
-        <EmptyState title="这个地区暂时还没有内容" hint="搜集器会按优先级持续扫描，有了就会出现在这里。" icon="globe" />
+        <EmptyState title="这个地区暂时还没有内容" hint="有新的内容会出现在这里。" icon="globe" />
       ) : (
         <>
           {news.length > 0 && (

@@ -25,7 +25,7 @@ await build({
 })
 
 const m = await import(pathToFileURL(bundle).href)
-const { buildInitialState, reducer, collect, planSteps, runVibe, VIBE_EXAMPLES,
+const { buildInitialState, reducer, accessOf, collect, planSteps, runVibe, VIBE_EXAMPLES,
         contentSnapshot, OWNER_EMAIL, PRIORITY_REGIONS } = m
 
 const results = []
@@ -78,6 +78,83 @@ await test('改总结之后标记成人工编辑过', () => {
   eq(n.summary, '改过的总结。', '总结')
   eq(n.editedByHuman, true, '应标记为人工编辑过')
   ok(n.updatedAt >= s0.news[0].updatedAt, '更新时间应往后走')
+})
+
+/* ------------------------------ 头条 ------------------------------ */
+
+await test('头条只有一条：设了新的，旧的自动让位', () => {
+  const s0 = fresh()
+  const a = s0.news[0].id
+  const b = s0.news[1].id
+  let s = reducer(s0, { type: 'news-feature', id: a, on: true, who: ME })
+  eq(s.news.filter((n) => n.featured).length, 1, '头条数量')
+  s = reducer(s, { type: 'news-feature', id: b, on: true, who: ME })
+  eq(s.news.filter((n) => n.featured).length, 1, '设第二条之后的头条数量')
+  eq(s.news.find((n) => n.featured).id, b, '头条应当是后设的那条')
+})
+
+await test('取消头条之后就没有头条了', () => {
+  const s0 = fresh()
+  const id = s0.news[0].id
+  let s = reducer(s0, { type: 'news-feature', id, on: true, who: ME })
+  s = reducer(s, { type: 'news-feature', id, on: false, who: ME })
+  eq(s.news.some((n) => n.featured), false, '不该还有头条')
+})
+
+await test('把头条下架，它就不再是头条', () => {
+  const s0 = fresh()
+  const id = s0.news[0].id
+  let s = reducer(s0, { type: 'news-feature', id, on: true, who: ME })
+  s = reducer(s, { type: 'news-hide', id, who: ME })
+  const n = s.news.find((x) => x.id === id)
+  eq(n.status, 'hidden', '状态')
+  eq(Boolean(n.featured), false, '看不见的东西不能当头条')
+})
+
+await test('换头条时，改动记录写清楚是哪一条让了位', () => {
+  const s0 = fresh()
+  let s = reducer(s0, { type: 'news-feature', id: s0.news[0].id, on: true, who: ME })
+  s = reducer(s, { type: 'news-feature', id: s0.news[1].id, on: true, who: ME })
+  ok(s.changes[0].text.includes('让位'), `记录里没写让位：${s.changes[0].text}`)
+})
+
+/* --------------------------- 谁能进控制端 --------------------------- */
+
+await test('还没接登录时控制端开着——否则站长进不去填客户端 ID 的那一页', () => {
+  const s = fresh()
+  eq(s.auth.clientId, '', '演示状态下不该预填客户端 ID')
+  const a = accessOf(s)
+  eq(a.consoleOpen, true, '应当放行')
+  eq(a.consoleUnlocked, true, '应当标明这是「还没上锁」而不是「你是管理员」')
+})
+
+await test('接上登录之后，没登录的人进不去', () => {
+  let s = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
+  const a = accessOf(s)
+  eq(a.consoleOpen, false, '不该放行')
+  eq(a.isAdmin, false, '未登录不是管理员')
+})
+
+await test('接上登录之后，站长和管理员进得去，别人进不去', () => {
+  let base = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
+  base = reducer(base, { type: 'admin-add', email: 'friend@gmail.com', who: ME })
+
+  const owner = accessOf(reducer(base, { type: 'signin', email: OWNER_EMAIL }))
+  eq(owner.isOwner, true, '站长'); eq(owner.consoleOpen, true, '站长应放行')
+
+  const admin = accessOf(reducer(base, { type: 'signin', email: 'friend@gmail.com' }))
+  eq(admin.isOwner, false, '管理员不是站长')
+  eq(admin.isAdmin, true, '管理员'); eq(admin.consoleOpen, true, '管理员应放行')
+
+  const other = accessOf(reducer(base, { type: 'signin', email: 'stranger@gmail.com' }))
+  eq(other.isAdmin, false, '陌生人不是管理员')
+  eq(other.consoleOpen, false, '陌生人不该放行')
+})
+
+await test('邮箱大小写不影响身份判断', () => {
+  let s = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
+  s = reducer(s, { type: 'signin', email: OWNER_EMAIL.toUpperCase() })
+  eq(accessOf(s).isOwner, true, '大写的站长邮箱也应认得')
 })
 
 /* ------------------------------ 谁能改 ------------------------------ */
@@ -196,7 +273,7 @@ await test('同一句话说两遍，结果一样（没有随机）', () => {
   eq(JSON.stringify(a), JSON.stringify(b), '两次结果应完全一致')
 })
 
-await test('改样子不会碰到新闻内容', () => {
+await test('调整外观不会碰到新闻内容', () => {
   const s = fresh()
   const r = runVibe('换成深色，字大一点', s)
   for (const c of r.changes) {
@@ -241,11 +318,11 @@ await test('暂停对外显示不会删任何东西', () => {
   eq(reducer(s1, { type: 'public-offline', off: false, who: ME }).publicOffline, false, '应能恢复')
 })
 
-await test('每一步改动都记进「最近改动」', () => {
+await test('每一步编辑都记进「最近编辑」', () => {
   const s0 = fresh()
   const s1 = reducer(s0, { type: 'news-hide', id: s0.news[0].id, who: ME })
-  ok(s1.changes.length > s0.changes.length, '改动没有被记下来')
-  ok(s1.changes[0].text.trim().length > 0, '改动记录应当有一句人话')
+  ok(s1.changes.length > s0.changes.length, '这次编辑没有被记下来')
+  ok(s1.changes[0].text.trim().length > 0, '编辑记录应当有一句人话')
   eq(s1.changes[0].who, ME, '应记下是谁改的')
 })
 

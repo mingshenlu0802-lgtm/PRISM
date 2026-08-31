@@ -83,9 +83,10 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
           <span className="nedit__headline">{item.headline}</span>
         </button>
         <div className="nedit__badges">
+          {item.featured && <span className="nedit__badge nedit__badge--lead">头条</span>}
           {item.status === 'hidden' && <span className="nedit__badge nedit__badge--off">已下架</span>}
           {item.origin === 'auto' && !item.editedByHuman && <span className="nedit__badge">AI 自动</span>}
-          {item.editedByHuman && <span className="nedit__badge nedit__badge--edited">你改过</span>}
+          {item.editedByHuman && <span className="nedit__badge nedit__badge--edited">你编辑过</span>}
           <span className="nedit__linkn">{item.links.length} 链接</span>
         </div>
       </header>
@@ -134,7 +135,7 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
           {dirty && (
             <div className="nedit__saverow">
               <button type="button" className="nedit__save" onClick={save} disabled={!isAdmin}>
-                <Icon name="check" size={14} />保存修改
+                <Icon name="check" size={14} />保存
               </button>
               <button type="button" className="nedit__revert" onClick={revert}>还原</button>
             </div>
@@ -212,6 +213,18 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
           </div>
 
           <div className="nedit__actions">
+            {item.featured ? (
+              <button type="button" className="nedit__act nedit__act--lead" disabled={!isAdmin}
+                onClick={() => { dispatch({ type: 'news-feature', id: item.id, on: false, who }); toast('已取消头条。首页会用最新的一条顶上。', 'info') }}>
+                <Icon name="star" size={14} />取消头条
+              </button>
+            ) : (
+              <button type="button" className="nedit__act" disabled={!isAdmin || item.status !== 'live'}
+                title={item.status !== 'live' ? '下架的条目不能当头条，先重新上线' : undefined}
+                onClick={() => { dispatch({ type: 'news-feature', id: item.id, on: true, who }); toast('已设为头条，原来的头条自动让位。', 'go') }}>
+                <Icon name="star" size={14} />设为头条
+              </button>
+            )}
             {item.status === 'live' ? (
               <button type="button" className="nedit__act" disabled={!isAdmin}
                 onClick={() => { dispatch({ type: 'news-hide', id: item.id, who }); toast('已下架，公众站看不到了。随时可以恢复。', 'info') }}>

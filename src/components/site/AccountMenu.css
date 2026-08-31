@@ -1,0 +1,69 @@
+.acct { position: relative; }
+
+.acct__btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  max-width: 160px;
+  padding: var(--s-2) var(--s-4);
+  border: var(--bw) solid var(--line-strong);
+  border-radius: var(--r-full);
+  background: var(--bg-raised);
+  font-size: var(--fs-xs); color: var(--fg);
+}
+.acct__btn:hover { border-color: var(--accent); }
+.acct__avatar { border-radius: 50%; flex: none; }
+
+/* 手机上收起名字，只留头像/图标——按钮自己带 aria-label，读屏不受影响。 */
+.acct__label { display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 640px) { .acct__label { display: inline; } }
+
+.acct__panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
+  width: min(300px, calc(100vw - var(--s-8)));
+  padding: var(--s-4);
+  border: var(--bw) solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
+  display: grid; gap: var(--s-3);
+}
+
+.acct__me { display: flex; align-items: center; gap: var(--s-3); }
+.acct__meavatar { border-radius: 50%; flex: none; }
+.acct__meavatar--blank { width: 36px; height: 36px; background: var(--chip-bg); }
+.acct__meinfo { min-width: 0; }
+.acct__mename {
+  font-size: var(--fs-sm); font-weight: 660;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.acct__memail {
+  font-size: var(--fs-2xs); color: var(--fg-subtle);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.acct__role {
+  justify-self: start;
+  padding: 2px 10px; border-radius: var(--r-full);
+  background: var(--chip-bg); color: var(--fg-muted);
+  font-size: var(--fs-2xs); font-weight: 640;
+}
+.acct__role--owner { background: var(--accent); color: var(--accent-fg); }
+
+.acct__console {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--fg); color: var(--bg);
+  font-size: var(--fs-xs); font-weight: 640; text-decoration: none;
+}
+.acct__console:hover { background: var(--accent); color: var(--accent-fg); }
+
+.acct__out {
+  justify-self: start;
+  font-size: var(--fs-xs); color: var(--fg-subtle);
+}
+.acct__out:hover { color: var(--accent); text-decoration: underline; }
+
+.acct__lede { font-size: var(--fs-sm); font-weight: 620; }
+.acct__gbtn { min-height: 44px; display: grid; justify-items: start; }
+.acct__note { font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-subtle); }
+.acct__note--small { color: var(--fg-faint); }

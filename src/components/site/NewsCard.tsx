@@ -14,16 +14,18 @@ import './NewsCard.css'
 
 export interface NewsCardProps {
   item: NewsItem
-  /** 'feed' 折叠链接，'full' 直接展开 */
-  variant?: 'feed' | 'full'
+  /** 'feed' 折叠链接，'full' 直接展开，'lead' 是首页头条 */
+  variant?: 'feed' | 'full' | 'lead'
   today?: string
 }
 
 export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.Element {
   const full = variant === 'full'
+  const lead = variant === 'lead'
   return (
-    <article className={cx('ncard', full && 'ncard--full')}>
+    <article className={cx('ncard', full && 'ncard--full', lead && 'ncard--lead')}>
       <header className="ncard__head">
+        {lead && <p className="ncard__lead">头条</p>}
         <TagRow regions={item.regions} topics={item.topics} size="sm" />
         {full ? (
           <h1 className="ncard__title">{item.headline}</h1>
@@ -65,7 +67,7 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
           <Icon name="link" size={13} />
           {item.links.length} 家媒体报道了这条
         </p>
-        <LinkList links={item.links} compact={!full} />
+        <LinkList links={item.links} compact={!full && !lead} />
       </div>
 
       {!full && (

@@ -17,6 +17,7 @@ export type IconName =
   | 'lock' | 'unlock' | 'sparkle' | 'refresh' | 'send' | 'archive' | 'trash' | 'flag' | 'users'
   | 'quote' | 'layers' | 'diff' | 'play' | 'download' | 'mail' | 'menu' | 'sun' | 'moon' | 'info'
   | 'history' | 'pin' | 'target' | 'database' | 'branch' | 'grid' | 'list' | 'arrow-right' | 'arrow-up-right'
+  | 'star'
 
 /* Drawing helpers — every primitive carries `vector-effect="non-scaling-stroke"`
    so the weight stays honest at 14px and at 40px. */
@@ -225,6 +226,8 @@ const GLYPHS: Record<IconName, ReactNode> = {
   pin: <>{p('M12 20.8c4-4.4 6.1-7.8 6.1-10.5A6.1 6.1 0 0 0 5.9 10.3c0 2.7 2.1 6.1 6.1 10.5Z')}{c(12, 10.2, 2.4)}</>,
 
   target: <>{c(12, 12, 8.4)}{c(12, 12, 4.2)}{p('M12 12h.01')}</>,
+
+  star: p('m12 3.6 2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8Z'),
 
   database: (
     <>

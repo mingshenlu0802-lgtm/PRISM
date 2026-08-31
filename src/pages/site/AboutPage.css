@@ -32,7 +32,6 @@
 .about__tag:hover { border-color: var(--accent); color: var(--fg); }
 .about__dot { width: 8px; height: 8px; border-radius: 50%; }
 .about__gem { width: 8px; height: 8px; border-radius: 1px; transform: rotate(45deg); }
-.about__pri { font-size: 10px; color: var(--accent); font-weight: 660; }
 
 .about__demo {
   padding: var(--s-5); border: var(--bw) solid var(--accent);

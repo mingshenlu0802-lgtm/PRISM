@@ -28,13 +28,11 @@ export default function AboutPage(): JSX.Element {
 
       <section className="about__grid" aria-labelledby="about-cover">
         <h2 className="about__h2" id="about-cover">覆盖范围</h2>
-        <p className="about__note">优先搜索前六个地区，其余地区持续扫描。</p>
         <div className="about__tags">
           {REGIONS.map((r) => (
             <Link key={r.key} className="about__tag" to={`/region/${r.key}`}>
               <span className="about__dot" style={{ background: r.hue }} aria-hidden="true" />
               {r.zh}
-              {r.priority === 1 && <span className="about__pri">优先</span>}
             </Link>
           ))}
         </div>

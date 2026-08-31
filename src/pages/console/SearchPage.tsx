@@ -77,7 +77,7 @@ export default function SearchPage(): JSX.Element {
       const total = result.news.length + result.studies.length
       if (total === 0) toast('这次没有找到新内容——素材都已经在站上了。', 'info')
       else if (cfg.autoPublish) toast(`找到 ${total} 条，已经直接上线。不满意可以随时删。`, 'go')
-      else toast(`找到 ${total} 条，已存为草稿，去「改网站」里看。`, 'go')
+      else toast(`找到 ${total} 条，已存为草稿，去「编辑」里看。`, 'go')
     }, gap * (run.steps.length + 1)))
   }
 
@@ -106,7 +106,7 @@ export default function SearchPage(): JSX.Element {
           <p className={cx('srch__mode', cfg.autoPublish && 'srch__mode--live')}>
             {cfg.autoPublish
               ? '找到就直接上线，公众站马上能看到。你可以随时删掉。'
-              : '找到后存为草稿，不会出现在公众站，等你去「改网站」里放行。'}
+              : '找到后存为草稿，不会出现在公众站，等你去「编辑」里放行。'}
           </p>
           {!isAdmin && <p className="srch__warn">需要先用站长或管理员的 Google 账号登录才能搜集。</p>}
         </div>

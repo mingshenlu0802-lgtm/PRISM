@@ -15,20 +15,7 @@
 .home__stats dt { font-size: var(--fs-2xs); color: var(--fg-subtle); }
 .home__stats dd { margin: 2px 0 0; font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.home__priority { display: grid; gap: var(--s-2); }
-.home__prioritylabel { font-size: var(--fs-2xs); font-weight: 660; color: var(--fg-faint); }
-.home__prioritychips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.home__prioritychip {
-  display: inline-flex; align-items: center; gap: var(--s-2);
-  padding: var(--s-2) var(--s-4);
-  border: var(--bw) solid var(--line); border-radius: var(--r-full);
-  background: var(--bg-raised); text-decoration: none; color: var(--fg);
-  font-size: var(--fs-xs);
-}
-.home__prioritychip:hover { border-color: var(--accent); }
-.home__prioritydot { width: 8px; height: 8px; border-radius: 50%; }
-.home__priorityname { font-weight: 620; }
-.home__prioritynum { font-variant-numeric: tabular-nums; color: var(--fg-faint); }
+.home__lead { display: grid; }
 
 .home__count { font-size: var(--fs-xs); color: var(--fg-subtle); }
 

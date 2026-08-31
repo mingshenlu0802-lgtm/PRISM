@@ -280,7 +280,7 @@
 @media (min-width: 620px) { .mng__ghgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .mng__ghrow { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; }
 
-/* ------------------------------ 最近改动 -------------------------------- */
+/* ------------------------------ 最近编辑 -------------------------------- */
 
 .mng__log {
   display: grid; gap: var(--s-3);

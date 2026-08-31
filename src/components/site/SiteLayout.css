@@ -66,16 +66,6 @@
 .slyt__panelblurb { display: block; font-size: 10px; line-height: 1.5; color: var(--fg-faint); margin-top: 2px; }
 
 .slyt__tools { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; flex: none; }
-.slyt__console {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: var(--s-2) var(--s-4);
-  border: var(--bw) solid var(--line-strong);
-  border-radius: var(--r-full);
-  font-size: var(--fs-xs); text-decoration: none; color: var(--fg);
-}
-.slyt__console:hover { border-color: var(--accent); color: var(--accent); }
-@media (max-width: 620px) { .slyt__consoletext { display: none; } }
-
 .slyt__burger { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r-sm); color: var(--fg); }
 @media (min-width: 900px) { .slyt__burger { display: none; } }
 

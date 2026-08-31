@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
-import { PRIORITY_REGIONS, REGION_MAP } from '../../lib/regions'
 import { usePrism } from '../../lib/store'
 import { byNewest, fmtDate, unique } from '../../lib/util'
 import { EmptyState, Icon } from '../../components/common'
@@ -12,8 +11,11 @@ import { FilterBar } from '../../components/site/FilterBar'
 import './HomePage.css'
 
 /**
- * 今日。一条一条的短总结，每条下面是报道它的媒体链接。
- * 上面是筛选，因为「我只想看香港的」是最常见的需求。
+ * 今日。最上面是站长指定的头条，下面是一条一条的短总结。
+ *
+ * 头条由站长在编辑页指定，不是算法挑的。没有指定时用最新的一条顶上，
+ * 这样首页永远不会开着一个空位。筛选之后就不再显示头条——那时读者要的是
+ * 「香港的全部」，把一条不属于这个筛选的新闻架在最上面只会碍事。
  */
 export default function HomePage(): JSX.Element {
   const { state } = usePrism()
@@ -33,11 +35,16 @@ export default function HomePage(): JSX.Element {
     return { regions: r, topics: t }
   }, [live])
 
+  const filtering = regions.length + topics.length > 0
+
   const shown = useMemo(() => live.filter((n) => {
     const okR = regions.length === 0 || n.regions.some((k) => regions.includes(k))
     const okT = topics.length === 0 || n.topics.some((k) => topics.includes(k))
     return okR && okT
   }), [live, regions, topics])
+
+  const lead = filtering ? undefined : (live.find((n) => n.featured) ?? live[0])
+  const rest = lead ? shown.filter((n) => n.id !== lead.id) : shown
 
   const coveredRegions = unique(live.flatMap((n) => n.regions))
 
@@ -55,22 +62,11 @@ export default function HomePage(): JSX.Element {
         </dl>
       </section>
 
-      <section className="home__priority" aria-label="优先关注地区">
-        <p className="home__prioritylabel">优先关注</p>
-        <div className="home__prioritychips">
-          {PRIORITY_REGIONS.map((k) => {
-            const meta = REGION_MAP[k]
-            const n = counts.regions[k] ?? 0
-            return (
-              <Link key={k} className="home__prioritychip" to={`/region/${k}`}>
-                <span className="home__prioritydot" style={{ background: meta.hue }} aria-hidden="true" />
-                <span className="home__priorityname">{meta.zh}</span>
-                <span className="home__prioritynum">{n}</span>
-              </Link>
-            )
-          })}
-        </div>
-      </section>
+      {lead && (
+        <section className="home__lead" aria-label="头条">
+          <NewsCard item={lead} variant="lead" today={`${state.today}T23:59:00Z`} />
+        </section>
+      )}
 
       <FilterBar
         regions={regions}
@@ -81,20 +77,23 @@ export default function HomePage(): JSX.Element {
       />
 
       <p className="home__count">
-        {regions.length + topics.length > 0
+        {filtering
           ? `筛选后 ${shown.length} 条（共 ${live.length} 条）`
           : `共 ${live.length} 条`}
       </p>
 
-      {shown.length === 0 ? (
+      {shown.length === 0 && (
         <EmptyState
           title="这个筛选下暂时没有内容"
           hint="换一组地区或议题试试，或者清除筛选看全部。"
           icon="search"
         />
-      ) : (
+      )}
+
+      {/* 只有一条时它已经在头条位上了，下面不再开一个空列表。 */}
+      {rest.length > 0 && (
         <div className="home__feed">
-          {shown.map((n) => <NewsCard key={n.id} item={n} today={`${state.today}T23:59:00Z`} />)}
+          {rest.map((n) => <NewsCard key={n.id} item={n} today={`${state.today}T23:59:00Z`} />)}
         </div>
       )}
 
