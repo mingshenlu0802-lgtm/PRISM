@@ -8,6 +8,7 @@ import { usePrism } from '../../lib/store'
 import { collect, planSteps } from '../../lib/collect'
 import { cx, fmtDateTime, nowIso, relTime, uid } from '../../lib/util'
 import { Checkbox, Icon, Modal, toast } from '../../components/common'
+import { Coverage } from '../../components/console/Coverage'
 import './SearchPage.css'
 
 /**
@@ -165,6 +166,8 @@ export default function SearchPage(): JSX.Element {
       )}
 
       {/* ------------------------------- settings ------------------------------- */}
+      <Coverage />
+
       <section className="srch__block">
         <div className="srch__blockhead">
           <h2 className="srch__blocktitle">搜哪些地区</h2>

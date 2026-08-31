@@ -1,0 +1,54 @@
+.cov {
+  display: grid; gap: var(--s-3);
+  padding: var(--s-5);
+  border: var(--bw) solid var(--line); border-radius: var(--r-lg);
+  background: var(--bg-raised);
+}
+.cov__head { display: grid; gap: var(--s-2); }
+.cov__title { font-size: var(--fs-md); font-weight: 680; }
+.cov__lede { font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-subtle); max-width: 62ch; }
+
+.cov__alert {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--warn);
+  background: var(--warn-soft); border-radius: var(--r-xs) var(--r-md) var(--r-md) var(--r-xs);
+  font-size: var(--fs-xs); line-height: 1.7; color: var(--fg);
+}
+.cov__alert svg { flex: none; margin-top: 3px; color: var(--warn); }
+
+.cov__group {
+  font-size: var(--fs-2xs); font-weight: 660; color: var(--fg-subtle);
+  margin-top: var(--s-2);
+}
+.cov__list { list-style: none; display: grid; gap: 2px; }
+
+.cov__row {
+  display: grid; align-items: center; gap: var(--s-3);
+  grid-template-columns: 10px minmax(88px, auto) minmax(0, 1fr) 2.5em auto;
+  padding: 5px var(--s-2);
+  border-radius: var(--r-xs);
+  font-size: var(--fs-2xs);
+}
+.cov__row:hover { background: var(--bg-sunken); }
+.cov__dot { width: 8px; height: 8px; border-radius: 50%; }
+.cov__name { display: flex; align-items: baseline; gap: 5px; color: var(--fg); white-space: nowrap; }
+.cov__pri {
+  font-size: 9px; font-weight: 700; color: var(--accent);
+  letter-spacing: .04em;
+}
+.cov__bar { height: 6px; border-radius: var(--r-full); background: var(--bg-inset); overflow: hidden; }
+.cov__fill { display: block; height: 100%; border-radius: var(--r-full); opacity: .8; }
+.cov__num { text-align: right; color: var(--fg-muted); font-weight: 620; }
+.cov__when { color: var(--fg-faint); white-space: nowrap; }
+
+/* 安静太久的，把时间那一列点出来——问题在「多久没动」，不在「有几条」。 */
+.cov__row--quiet .cov__when { color: var(--warn); font-weight: 640; }
+.cov__row--empty .cov__name { color: var(--fg-faint); }
+.cov__row--empty .cov__when { color: var(--fg-faint); font-weight: 400; }
+
+@media (max-width: 620px) {
+  .cov__row { grid-template-columns: 10px minmax(0, 1fr) 2.5em; }
+  .cov__bar { display: none; }
+  .cov__when { grid-column: 2 / -1; }
+}
