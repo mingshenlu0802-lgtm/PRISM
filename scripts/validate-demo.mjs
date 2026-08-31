@@ -148,7 +148,13 @@ for (const v of LADDER) if (!used.has(v)) warn(`verdict '${v}' is never used any
 for (const sig of s.signals) {
   if (sig.linkedArticleId && !articleIds.has(sig.linkedArticleId)) err(`signal ${sig.id}: unknown linkedArticleId ${sig.linkedArticleId}`)
   if (sig.reportCount < sig.mergedFrom.length) err(`signal ${sig.id}: reportCount ${sig.reportCount} < mergedFrom ${sig.mergedFrom.length}`)
-  if (sig.corroboration === 'multi-source' && sig.independentSourceCount < 3) err(`signal ${sig.id}: multi-source needs >= 3 independent sources`)
+  // Multi-source means corroborated by more than one independent source —
+  // two is the editorial floor. Three is a strength, not the definition.
+  if (sig.corroboration === 'multi-source' && sig.independentSourceCount < 2) err(`signal ${sig.id}: multi-source needs >= 2 independent sources`)
+  if (sig.corroboration === 'unverified' && sig.primarySourceCount > 0) err(`signal ${sig.id}: unverified cannot carry a primary source`)
+  if (sig.primarySourceCount > sig.independentSourceCount && sig.independentSourceCount > 0) err(`signal ${sig.id}: more primary than independent sources`)
+  if (sig.status === 'declined' && !sig.declineReason) err(`signal ${sig.id}: a spiked signal must keep its reason`)
+  if (sig.linkedArticleId && sig.status !== 'drafted') err(`signal ${sig.id}: links an article but is not marked drafted`)
   if (sig.corroboration === 'single-source' && sig.independentSourceCount !== 1) err(`signal ${sig.id}: single-source must have exactly 1 independent source`)
 }
 

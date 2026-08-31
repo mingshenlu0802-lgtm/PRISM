@@ -370,6 +370,7 @@
 .reflist__checkchip--pass { color: var(--v-supported); }
 .reflist__checkchip--warn { color: var(--risk-medium); }
 .reflist__checkchip--fail { color: var(--risk-critical); }
+.reflist__checkchip--acked { color: var(--fg-subtle); border-style: dashed; }
 
 /* --------------------------------- link ----------------------------------- */
 

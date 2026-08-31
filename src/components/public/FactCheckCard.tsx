@@ -2,10 +2,10 @@ import { Link } from 'react-router-dom'
 
 import type { Article, FactCheck } from '../../lib/types'
 import { VERDICT_MAP } from '../../lib/constants'
-import { citationNumbers, cx, fmtDate } from '../../lib/util'
+import { citationNumbers, cx, fmtDate, stripCitations } from '../../lib/util'
 import { usePrism } from '../../lib/store'
 
-import { Badge, DemoTag, Icon, VerdictBadge } from '../common'
+import { Badge, DemoTag, Icon, RichText, VerdictBadge } from '../common'
 
 import './FactCheckCard.css'
 
@@ -24,6 +24,8 @@ export interface FactCheckCardProps {
   article?: Article
   compact?: boolean
   link?: boolean
+  /** Opens the source drawer from a citation marker inside the reasoning. */
+  onCite?: (citationId: string) => void
 }
 
 export function FactCheckCard({
@@ -31,6 +33,7 @@ export function FactCheckCard({
   article,
   compact = false,
   link = false,
+  onCite,
 }: FactCheckCardProps): JSX.Element {
   const { state } = usePrism()
   const host = article ?? state.articles.find((a) => a.id === check.articleId)
@@ -45,13 +48,15 @@ export function FactCheckCard({
     })
     .filter((c) => Boolean(c.citation))
 
+  /* Inside a link the citation buttons cannot be nested, so the linked form of
+     the claim drops the markers; unlinked, they stay live. */
   const claimNode = link
     ? (
       <Link className="fcheck__claimlink" to={`/fact-checks/${check.id}`}>
-        {check.claim}
+        {stripCitations(check.claim)}
       </Link>
     )
-    : check.claim
+    : <RichText text={check.claim} numbers={numbers} onCite={onCite} />
 
   return (
     <article
@@ -85,18 +90,24 @@ export function FactCheckCard({
         </p>
       ) : null}
 
-      <p className="fcheck__summary">{check.summary}</p>
+      <p className="fcheck__summary">
+        <RichText text={check.summary} numbers={numbers} onCite={onCite} />
+      </p>
 
       {!compact ? (
         <>
           <div className="fcheck__grid">
             <section className="fcheck__field">
               <p className="fcheck__key">说法来源</p>
-              <p className="fcheck__val">{check.claimOrigin}</p>
+              <p className="fcheck__val">
+                <RichText text={check.claimOrigin} numbers={numbers} onCite={onCite} />
+              </p>
             </section>
             <section className="fcheck__field">
               <p className="fcheck__key">传播情况</p>
-              <p className="fcheck__val">{check.spreadNote}</p>
+              <p className="fcheck__val">
+                <RichText text={check.spreadNote} numbers={numbers} onCite={onCite} />
+              </p>
             </section>
           </div>
 
@@ -107,7 +118,9 @@ export function FactCheckCard({
                 {check.reasoning.map((step, i) => (
                   <li key={`${check.id}-r${i}`} className="fcheck__step">
                     <span className="fcheck__stepn u-num" aria-hidden="true">{i + 1}</span>
-                    <span className="fcheck__steptext">{step}</span>
+                    <span className="fcheck__steptext">
+                      <RichText text={step} numbers={numbers} onCite={onCite} />
+                    </span>
                   </li>
                 ))}
               </ol>
@@ -141,7 +154,9 @@ export function FactCheckCard({
               <Icon name="refresh" size={13} />
               <span>什么样的新证据会改变这个结论</span>
             </p>
-            <p className="fcheck__changetext">{check.whatWouldChangeIt}</p>
+            <p className="fcheck__changetext">
+              <RichText text={check.whatWouldChangeIt} numbers={numbers} onCite={onCite} />
+            </p>
           </section>
 
           {check.history && check.history.length > 0 ? (
@@ -152,7 +167,9 @@ export function FactCheckCard({
                   <li key={`${check.id}-h${i}`} className="fcheck__historyitem">
                     <time className="fcheck__historydate u-num" dateTime={h.at}>{fmtDate(h.at)}</time>
                     <VerdictBadge verdict={h.verdict} size="sm" />
-                    <span className="fcheck__historynote">{h.note}</span>
+                    <span className="fcheck__historynote">
+                      <RichText text={h.note} numbers={numbers} onCite={onCite} />
+                    </span>
                   </li>
                 ))}
               </ol>

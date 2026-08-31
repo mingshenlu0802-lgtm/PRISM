@@ -1,3 +1,127 @@
-/** PLACEHOLDER — replaced by the editorial content wave. */
+/**
+ * 操作、审批与发布记录。
+ *
+ * The log has one job: make it possible to reconstruct how every published
+ * entry got approved, and by whom. Every publish event in this record has a
+ * human actor, because the automated desk cannot publish.
+ */
 import type { AuditEntry } from '../types'
-export const AUDIT: AuditEntry[] = []
+
+let n = 0
+function e(
+  at: string, actorKind: AuditEntry['actorKind'], action: AuditEntry['action'],
+  target: string, detail: string, articleId?: string,
+): AuditEntry {
+  n += 1
+  return {
+    id: `aud-${String(n).padStart(3, '0')}`,
+    at,
+    actor: actorKind === 'editor' ? '主编（你）' : actorKind === 'ai-desk' ? 'PRISM 自动编辑台' : '系统',
+    actorKind,
+    action,
+    articleId,
+    target,
+    detail,
+  }
+}
+
+/** Newest first. */
+export const AUDIT: AuditEntry[] = [
+  e('2026-08-31T06:40:00Z', 'system', 'brief-sent', 'Daily Editorial Brief · 2026-08-31',
+    '简报已送至 editor@demo.prism.invalid：仅含摘要与安全链接，不含任何可发布内容的操作。'),
+  e('2026-08-31T06:38:00Z', 'ai-desk', 'ai-review', '自动编辑台 · 2026-08-31 运行',
+    '移交 3 篇草稿、11 件素材与 24 个信号聚类；本次运行未公开任何内容，编辑台无发布权限。'),
+  e('2026-08-31T06:36:00Z', 'ai-desk', 'ai-review', '马兰群岛报道边界 · 法律检查',
+    '涉及进行中的司法程序与报道限制令，标记为极高风险；发布前需逐项确认。', 'art-maran'),
+  e('2026-08-31T06:35:00Z', 'ai-desk', 'ai-review', '阿米拉特可信度评估 · 隐私检查',
+    '3 处细节组合后可能识别当事人，标记为高风险，未自动删改。', 'art-amirat'),
+  e('2026-08-31T06:34:00Z', 'ai-desk', 'ai-review', '马兰群岛报道边界 · 框架检查',
+    '2 处被动句可能弱化施害方，已标出待人工判断。', 'art-maran'),
+  e('2026-08-31T06:32:00Z', 'ai-desk', 'ai-review', '2026-08-31 草稿 · 引用检查',
+    '61 条引用中 4 条无法验证，已逐条写明未能验证的具体内容。'),
+  e('2026-08-31T06:31:00Z', 'ai-desk', 'image-generated', '社交素材 · 2026-08-31',
+    '生成 4 张社交素材：不含案情描述，仅含标题与核查结论，均标注为概念插图。'),
+  e('2026-08-31T06:24:00Z', 'ai-desk', 'image-generated', '马兰群岛报道边界 · 封面图',
+    '按性暴力与未成年人风险标记，禁用任何人形与场所元素，改用抽象棱镜折射构图。', 'art-maran'),
+  e('2026-08-31T06:18:00Z', 'ai-desk', 'drafted', '图兰协同骚扰网络',
+    '一手来源仅 1 份，未达 2 份下限，草稿状态标记为「需补充来源」。', 'art-turan'),
+  e('2026-08-31T06:09:00Z', 'ai-desk', 'drafted', '马兰群岛报道边界',
+    '按报道限制令范围删去排期与地点细节后完成起草。', 'art-maran'),
+  e('2026-08-31T05:58:00Z', 'ai-desk', 'drafted', '阿米拉特可信度评估',
+    '20 条引用，其中 2 条无法回溯一手记录，草稿中已相应降低表述强度。', 'art-amirat'),
+  e('2026-08-31T05:48:00Z', 'editor', 'vibe-instruction', '马兰群岛报道边界',
+    '指令：重新检查每一处「指控」与「认定」的用词是否被混用。已生成版本提案，等待确认。', 'art-maran'),
+  e('2026-08-31T05:41:00Z', 'ai-desk', 'ai-review', '2026-08-31 交叉核实',
+    '24 个聚类中 15 个达到一手材料门槛；3 个未获证实，不进入起草。'),
+  e('2026-08-31T05:30:00Z', 'editor', 'vibe-instruction', '阿米拉特可信度评估',
+    '指令：把可能拼合出申请人身份的细节再筛一遍，宁可牺牲具体性。已生成版本提案，等待确认。', 'art-amirat'),
+  e('2026-08-31T05:10:00Z', 'ai-desk', 'discovered', '通函截图聚类（sig-019）',
+    '无法回溯到任何可查的原始记录，标记为 unverified，转入可疑说法观察。'),
+  e('2026-08-31T04:52:00Z', 'ai-desk', 'discovered', '2026-08-31 信号去重',
+    '1,842 条原始条目合并为 24 个聚类；6 个聚类的「独立来源」实为同一通讯社供稿，已下调计数。'),
+  e('2026-08-31T00:05:00Z', 'ai-desk', 'discovered', '自动编辑台 · 2026-08-31 运行启动',
+    '11 个语种、11 个辖区、47 个订阅源。'),
+
+  e('2026-08-30T22:40:00Z', 'editor', 'archived', '公众人物访谈争议',
+    '不予采用：无可核查的事实主张、无制度后果；报道只会放大言论本身。'),
+  e('2026-08-30T21:05:00Z', 'editor', 'scheduled', '韦拉性别平等课程法案',
+    '批准并排程至 2026-09-01T22:00:00Z，与法案二读表决同步。发布前将再次校验。', 'art-curriculum'),
+  e('2026-08-30T20:50:00Z', 'editor', 'version-adopted', '韦拉性别平等课程法案 · v3',
+    '采用「加入法律与历史背景」版本：补回权力结构分析与三项可核查说法的逐条对照。', 'art-curriculum'),
+  e('2026-08-30T18:20:00Z', 'editor', 'returned-for-research', '东埃斯特里亚跨性别医疗指南修订',
+    '退回重新研究：证据分级的两种立场目前只有一方有书面材料，需取得另一方的完整提交文件后再议。', 'art-estria'),
+  e('2026-08-30T17:30:00Z', 'editor', 'published', '北屿薪酬透明法三年评估',
+    '经发布前确认后公开：3 项警告已逐条阅读，2 项引用检查未通过项已记录处理说明。', 'art-norhold'),
+  e('2026-08-30T17:12:00Z', 'editor', 'approved', '北屿薪酬透明法三年评估',
+    '批准发布：一手来源 4 份、独立来源 6 家，未调整差距的口径问题已在正文中说明。', 'art-norhold'),
+  e('2026-08-30T16:40:00Z', 'editor', 'edited', '北屿薪酬透明法三年评估 · cit-norhold-21',
+    '引用检查未通过项已记录处理说明：无法复现的两个百分比改为归因表述，不再作为事实陈述。', 'art-norhold'),
+  e('2026-08-30T15:05:00Z', 'editor', 'lock-released', 'Global Publishing Lock',
+    '发布已恢复：来源库同步问题已确认不影响既有引用。'),
+  e('2026-08-30T11:20:00Z', 'editor', 'lock-engaged', 'Global Publishing Lock',
+    '暂停全站公开发布：来源库出现一批 URL 同步异常，需先确认既有引用未受影响。'),
+  e('2026-08-30T09:40:00Z', 'editor', 'image-approved', '卡利桑家暴数据 · 封面图',
+    '通过：抽象光圈构图，不呈现任何人物、场所或事件现场。', 'art-kalisan'),
+  e('2026-08-30T09:32:00Z', 'editor', 'image-rejected', '卡利桑家暴数据 · 封面图（初版）',
+    '退回：初版包含类人剪影，可能被读作当事人形象。要求改为纯几何构图。', 'art-kalisan'),
+  e('2026-08-30T08:15:00Z', 'ai-desk', 'ai-review', '2026-08-30 草稿 · 引用检查',
+    '40 条引用中 1 条无法验证；art-estria 中 1 处表述对一方临床立场带有贬抑色彩，已标出。'),
+  e('2026-08-30T06:22:00Z', 'ai-desk', 'drafted', '2026-08-30 运行移交',
+    '移交 2 篇草稿与 7 件素材；自动编辑台无发布权限，本次运行未公开任何内容。'),
+
+  e('2026-08-29T21:30:00Z', 'editor', 'published', '卡利桑邦家暴数据的两个世界',
+    '经发布前确认后公开：性暴力内容二次确认已完成，内容提示已设置，4 项警告逐条阅读。', 'art-kalisan'),
+  e('2026-08-29T21:10:00Z', 'editor', 'approved', '卡利桑邦家暴数据的两个世界',
+    '批准发布：不宣称任一口径为真值的处理方式已确认。', 'art-kalisan'),
+  e('2026-08-29T20:35:00Z', 'editor', 'version-adopted', '卡利桑邦家暴数据 · v4',
+    '采用「检查受害者有罪论框架」版本：改写 2 处被动句，逐条处置风险提示并记录处置说明。', 'art-kalisan'),
+  e('2026-08-29T19:50:00Z', 'editor', 'vibe-instruction', '卡利桑邦家暴数据的两个世界',
+    '指令：检查是否存在受害者有罪论。引擎标出 2 处被动句与 1 处因果暗示。', 'art-kalisan'),
+  e('2026-08-29T18:05:00Z', 'editor', 'more-sources-requested', '图兰协同骚扰网络',
+    '要求增加来源：需要平台层面的账号归属证据，或至少一份独立的技术分析。', 'art-turan'),
+  e('2026-08-29T16:20:00Z', 'editor', 'rejected', '某国际组织削减资助的说法',
+    '不予发表：唯一来源为匿名转述，原始预算文件不可得。已转入可疑说法观察。'),
+  e('2026-08-29T14:00:00Z', 'editor', 'updated', '塞尔瓦远程医疗堕胎的法律灰区',
+    '标记为需更新：出现新的法庭裁定，原文的三种解释框架需要重新评估。', 'art-selva'),
+  e('2026-08-29T10:25:00Z', 'editor', 'published', '泛洲基金分配争议',
+    '经发布前确认后公开：三种立场的证据强度标注与不等量看待的理由已确认。', 'art-funding'),
+  e('2026-08-29T10:02:00Z', 'editor', 'approved', '泛洲基金分配争议',
+    '批准发布：已确认没有把证据薄弱的立场与有扎实材料的立场并列呈现。', 'art-funding'),
+  e('2026-08-29T06:11:00Z', 'ai-desk', 'drafted', '2026-08-29 运行移交',
+    '移交 1 篇草稿与 4 件素材；批准与发布只能由主编在控制端完成。'),
+
+  e('2026-08-28T10:00:00Z', 'editor', 'published', '韦拉宪法法庭推翻强制医疗要件',
+    '经发布前确认后公开：身份暴露风险二次确认已完成。', 'art-veyra'),
+  e('2026-08-28T09:30:00Z', 'editor', 'approved', '韦拉宪法法庭推翻强制医疗要件',
+    '批准发布：判决「没有决定什么」的部分已在正文中明确列出。', 'art-veyra'),
+  e('2026-08-28T08:15:00Z', 'editor', 'edited', '韦拉宪法法庭推翻强制医疗要件 · cit-veyra-24',
+    '引用检查未通过项已记录处理说明：官方通稿仅用于说明官方口径，不支撑事实陈述。', 'art-veyra'),
+  e('2026-08-27T15:40:00Z', 'editor', 'version-adopted', '泛洲基金分配争议 · v3',
+    '采用「加入法律与历史背景」版本：补回三种公平观的历史脉络。', 'art-funding'),
+  e('2026-08-26T13:10:00Z', 'editor', 'updated', '北屿薪酬透明法三年评估',
+    '澄清：原文把「未调整差距」写成「同工不同酬幅度」，已更正并保留记录。', 'art-norhold'),
+  e('2026-08-25T11:45:00Z', 'editor', 'updated', '卡利桑邦家暴数据的两个世界',
+    '更正：核查结论由「有充分证据支持」修订为「具有误导性」，修订理由公开保留。', 'art-kalisan'),
+  e('2026-08-24T09:00:00Z', 'ai-desk', 'discovered', '自动编辑台 · 2026-08-24 运行',
+    '本周首次运行：建立 11 个辖区的订阅基线，识别出 3 个长期缺乏本地来源的辖区。'),
+]

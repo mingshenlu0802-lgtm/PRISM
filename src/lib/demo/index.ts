@@ -14,7 +14,7 @@ import { FACT_CHECKS } from './factchecks'
 import { ASSETS } from './assets'
 import { SIGNALS } from './signals'
 import { RESEARCH, SUSPICIOUS } from './research'
-import { buildVersions } from './versions'
+import { buildVersions, currentVersionIdFor } from './versions'
 import { buildBriefs } from './brief'
 import { PIPELINE_RUNS } from './pipeline'
 import { AUDIT } from './audit'
@@ -24,7 +24,9 @@ export const TODAY = '2026-08-31'
 export const NOW = '2026-08-31T06:40:00Z'
 
 export function buildInitialState(): PrismState {
-  const articles = ARTICLES.map((a) => ({ ...a }))
+  // Each entry points at the newest adopted version of itself; the generator
+  // owns that id so the two can never drift apart.
+  const articles = ARTICLES.map((a) => ({ ...a, currentVersionId: currentVersionIdFor(a) }))
   const versions = buildVersions(articles)
   return {
     articles,

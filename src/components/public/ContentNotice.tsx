@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 import type { TopicKey } from '../../lib/types'
 import { TOPIC_MAP } from '../../lib/constants'
 
@@ -38,6 +40,7 @@ export interface ContentNoticeProps {
 }
 
 export function ContentNotice({ text, topics }: ContentNoticeProps): JSX.Element {
+  const titleId = useId()
   const notes = topics
     .map((t) => TOPIC_NOTE[t])
     .filter((n): n is string => Boolean(n))
@@ -47,13 +50,13 @@ export function ContentNotice({ text, topics }: ContentNoticeProps): JSX.Element
     .join(' · ')
 
   return (
-    <aside className="cnotice" aria-labelledby="cnotice-title" role="note">
+    <aside className="cnotice" aria-labelledby={titleId} role="note">
       <div className="cnotice__bar" aria-hidden="true" />
 
       <div className="cnotice__body">
         <p className="cnotice__kicker">
           <span className="cnotice__icon" aria-hidden="true"><Icon name="shield" size={14} /></span>
-          <span className="cnotice__label" id="cnotice-title">内容提示</span>
+          <span className="cnotice__label" id={titleId}>内容提示</span>
           <span className="cnotice__en">Content notice</span>
         </p>
 

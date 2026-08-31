@@ -1,0 +1,591 @@
+/* ==========================================================================
+   FactCheckPage — 单条事实核查. Every selector scoped under `.fcpage`.
+   ========================================================================== */
+
+.fcpage {
+  display: block;
+  padding-bottom: var(--s-9);
+  --fcpage-tone: var(--v-unknown);
+}
+
+.fcpage--supported   { --fcpage-tone: var(--v-supported); }
+.fcpage--caution     { --fcpage-tone: var(--v-caution); }
+.fcpage--contested   { --fcpage-tone: var(--v-contested); }
+.fcpage--unsupported { --fcpage-tone: var(--v-unsupported); }
+.fcpage--false       { --fcpage-tone: var(--v-false); }
+.fcpage--unknown     { --fcpage-tone: var(--v-unknown); }
+
+.fcpage--missing { padding-top: var(--s-8); }
+
+.fcpage__btn {
+  display: inline-block;
+  padding: var(--s-2) var(--s-4);
+  font-size: var(--fs-sm);
+  font-weight: 620;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-radius: var(--r-sm);
+  text-decoration: none;
+}
+
+/* ---------------------------------------------------------------- crumbs -- */
+
+.fcpage__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-xs);
+  color: var(--fg-faint);
+}
+
+.fcpage__crumbs a {
+  color: var(--fg-subtle);
+  text-decoration: none;
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fcpage__crumbs a:hover { color: var(--fg); text-decoration: underline; }
+
+/* ------------------------------------------------------------------ head -- */
+
+.fcpage__head {
+  position: relative;
+  padding: var(--s-6) 0 var(--s-6);
+  background: var(--bg-raised);
+  border-bottom: var(--bw) solid var(--line);
+}
+
+.fcpage__head::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--fcpage-tone);
+}
+
+.fcpage__verdict-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.fcpage__rung {
+  padding: var(--s-1) var(--s-2);
+  color: var(--fg-subtle);
+  background: var(--chip-bg);
+  border-radius: var(--r-xs);
+  white-space: nowrap;
+}
+
+.fcpage__demotag { margin-left: auto; }
+
+.fcpage__standard {
+  max-width: 74ch;
+  margin-top: var(--s-5);
+  padding: var(--s-4);
+  background: var(--bg-sunken);
+  border: var(--bw) solid var(--line-soft);
+  border-left: 3px solid var(--fcpage-tone);
+  border-radius: var(--r-md);
+}
+
+.fcpage__standard-text {
+  margin-top: var(--s-2);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--fg);
+}
+
+.fcpage__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3) var(--s-5);
+  margin: var(--s-5) 0 0;
+  padding-top: var(--s-4);
+  border-top: var(--bw) solid var(--line-soft);
+}
+
+.fcpage__meta-item { min-width: 0; }
+
+.fcpage__meta dt {
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+}
+
+.fcpage__meta dd {
+  margin: var(--s-1) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 720px) {
+  .fcpage__head { padding: var(--s-7) 0; }
+  .fcpage__meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ------------------------------------------------------------------ body -- */
+
+.fcpage__body {
+  display: grid;
+  gap: var(--s-7);
+  padding-top: var(--s-7);
+  align-items: start;
+}
+
+.fcpage__main { min-width: 0; }
+
+@media (min-width: 1080px) {
+  .fcpage__body { grid-template-columns: minmax(0, 1fr) 320px; gap: var(--s-8); }
+}
+
+/* -------------------------------------------------------------- sections -- */
+
+.fcpage__section { margin-bottom: var(--s-8); }
+
+.fcpage__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.fcpage__h2 {
+  font-family: var(--font-serif);
+  font-size: var(--fs-xl);
+  font-weight: 620;
+  letter-spacing: .01em;
+}
+
+.fcpage__note {
+  margin-top: var(--s-3);
+  max-width: 70ch;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--fg-subtle);
+}
+
+/* ----------------------------------------------------------------- claim -- */
+
+.fcpage__claim {
+  margin: var(--s-4) 0 0;
+  padding: var(--s-5);
+  background: var(--bg-inset);
+  border-radius: var(--r-lg);
+}
+
+.fcpage__claim p {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.fcpage__claim-note {
+  margin-top: var(--s-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-faint);
+}
+
+.fcpage__claim-note strong { font-weight: 660; color: var(--fg-subtle); }
+
+.fcpage__summary {
+  margin-top: var(--s-5);
+  padding: var(--s-4);
+  background: var(--bg-raised);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.fcpage__summary-text {
+  margin-top: var(--s-2);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--fg);
+}
+
+@media (min-width: 720px) {
+  .fcpage__claim p { font-size: var(--fs-xl); }
+}
+
+/* ---------------------------------------------------------------- origin -- */
+
+.fcpage__origin-grid {
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.fcpage__origin-card {
+  padding: var(--s-4);
+  background: var(--bg-raised);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.fcpage__origin-k {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+}
+
+.fcpage__origin-text {
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--fg-muted);
+}
+
+@media (min-width: 720px) {
+  .fcpage__origin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ------------------------------------------------------------- reasoning -- */
+
+.fcpage__chain {
+  list-style: none;
+  margin-top: var(--s-5);
+  border-left: 2px solid var(--line);
+}
+
+.fcpage__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-3);
+  padding: 0 0 var(--s-5) var(--s-4);
+}
+
+.fcpage__step:last-child { padding-bottom: 0; }
+
+.fcpage__step-n {
+  align-self: start;
+  min-width: 26px;
+  padding: 2px var(--s-2);
+  text-align: center;
+  color: var(--fg-subtle);
+  background: var(--bg-inset);
+  border-radius: var(--r-xs);
+}
+
+.fcpage__step-text {
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--fg-muted);
+}
+
+/* -------------------------------------------------------------- evidence -- */
+
+.fcpage__evidence-count {
+  font-size: var(--fs-xs);
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+
+.fcpage__evidence {
+  list-style: none;
+  display: grid;
+  gap: var(--s-5);
+  margin-top: var(--s-5);
+}
+
+.fcpage__evidence-item {
+  padding: var(--s-4);
+  background: var(--bg-sunken);
+  border: var(--bw) solid var(--line-soft);
+  border-radius: var(--r-lg);
+}
+
+.fcpage__evidence-claim {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.fcpage__evidence-n {
+  align-self: start;
+  color: var(--accent);
+  font-weight: 620;
+}
+
+.fcpage__evidence-claim-body { min-width: 0; }
+
+.fcpage__evidence-text {
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--fg);
+}
+
+.fcpage__evidence-locator {
+  margin-top: var(--s-2);
+  color: var(--fg-faint);
+  overflow-wrap: anywhere;
+}
+
+.fcpage__evidence-missing,
+.fcpage__warn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+  background: var(--accent-soft);
+  border-radius: var(--r-sm);
+}
+
+.fcpage__warn { margin-top: var(--s-4); }
+
+/* ------------------------------------------------------- what changes it -- */
+
+.fcpage__change {
+  margin-bottom: var(--s-8);
+  padding: var(--s-5);
+  background: var(--bg-raised);
+  border: 2px solid var(--accent);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.fcpage__change-eyebrow { color: var(--accent); }
+
+.fcpage__change-h {
+  margin-top: var(--s-2);
+  font-family: var(--font-serif);
+  font-size: var(--fs-xl);
+  font-weight: 640;
+}
+
+.fcpage__change-text {
+  margin-top: var(--s-4);
+  max-width: 70ch;
+  font-size: var(--fs-md);
+  line-height: var(--lh-prose);
+  color: var(--fg);
+}
+
+.fcpage__change-foot {
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  max-width: 70ch;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--fg-subtle);
+  border-top: var(--bw) solid var(--line-soft);
+}
+
+@media (min-width: 720px) {
+  .fcpage__change { padding: var(--s-6); }
+}
+
+/* --------------------------------------------------------------- history -- */
+
+.fcpage__history {
+  list-style: none;
+  display: grid;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+.fcpage__history-item {
+  padding: var(--s-4);
+  background: var(--bg-raised);
+  border: var(--bw) solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--r-md);
+}
+
+.fcpage__history-item--now { border-left-color: var(--fcpage-tone); }
+
+.fcpage__history-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.fcpage__history-date {
+  font-size: var(--fs-xs);
+  color: var(--fg-faint);
+}
+
+.fcpage__history-note {
+  margin-top: var(--s-3);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--fg-muted);
+}
+
+/* ------------------------------------------------------------------ rail -- */
+
+.fcpage__rail {
+  display: grid;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.fcpage__rail-card {
+  padding: var(--s-4);
+  background: var(--bg-raised);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+.fcpage__rail-card--demo { background: var(--bg-sunken); }
+
+.fcpage__rail-title {
+  margin-top: var(--s-2);
+  font-family: var(--font-serif);
+  font-size: var(--fs-md);
+  font-weight: 640;
+  line-height: var(--lh-snug);
+}
+
+.fcpage__rail-title a { color: inherit; text-decoration: none; }
+.fcpage__rail-title a:hover { text-decoration: underline; }
+
+.fcpage__rail-standfirst {
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--fg-subtle);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fcpage__rail-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.fcpage__rail-meter { margin-top: var(--s-4); }
+
+.fcpage__rail-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+}
+
+.fcpage__rail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  font-size: var(--fs-xs);
+  font-weight: 620;
+  color: var(--link);
+  text-decoration: none;
+}
+
+.fcpage__rail-link:hover { text-decoration: underline; }
+
+.fcpage__rail-note {
+  margin-top: var(--s-3);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--fg-subtle);
+}
+
+.fcpage__sibs {
+  list-style: none;
+  display: grid;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.fcpage__sib {
+  display: block;
+  padding: var(--s-3);
+  background: var(--bg-sunken);
+  border: var(--bw) solid var(--line-soft);
+  border-radius: var(--r-sm);
+  text-decoration: none;
+  color: inherit;
+}
+
+.fcpage__sib:hover { border-color: var(--line-strong); }
+
+.fcpage__sib-claim {
+  display: -webkit-box;
+  margin-top: var(--s-2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fcpage__ladder {
+  list-style: none;
+  display: grid;
+  gap: var(--s-1);
+  margin-top: var(--s-3);
+}
+
+.fcpage__ladder-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  opacity: .62;
+}
+
+.fcpage__ladder-row--on {
+  opacity: 1;
+  background: var(--bg-inset);
+  outline: var(--bw) solid var(--line);
+}
+
+.fcpage__ladder-ord {
+  font-size: var(--fs-2xs);
+  color: var(--fg-faint);
+}
+
+.fcpage__ladder-link {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+}
+
+@media (min-width: 1080px) {
+  .fcpage__rail {
+    position: sticky;
+    top: calc(var(--header-h) + var(--s-4));
+    align-content: start;
+    max-height: calc(100vh - var(--header-h) - var(--s-6));
+    overflow-y: auto;
+    padding-right: var(--s-1);
+  }
+}

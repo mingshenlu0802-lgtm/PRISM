@@ -321,6 +321,7 @@
 .rvc__chk--pass { border-color: color-mix(in srgb, var(--v-supported) 45%, transparent); color: var(--v-supported); }
 .rvc__chk--warn { border-color: color-mix(in srgb, var(--risk-medium) 50%, transparent); color: var(--risk-medium); }
 .rvc__chk--fail { border-color: color-mix(in srgb, var(--coral-400) 55%, transparent); color: var(--coral-300); }
+.rvc__chk--acked { border-color: color-mix(in srgb, var(--prism-6) 50%, transparent); color: var(--prism-6); }
 
 .rvc__fails { list-style: none; display: flex; flex-direction: column; gap: var(--s-2); }
 
@@ -338,6 +339,29 @@
 }
 
 .rvc__fail--more { display: block; color: var(--fg-faint); }
+
+.rvc__fail--handled {
+  border-color: var(--line);
+  background: var(--bg-sunken);
+}
+.rvc__fail--handled .rvc__failn { color: var(--fg-faint); }
+
+.rvc__failtag {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 5px;
+  border-radius: var(--r-xs);
+  background: var(--chip-bg);
+  color: var(--fg-faint);
+  font-size: 10px;
+  font-weight: 660;
+}
+.rvc__failtag--stop {
+  background: color-mix(in srgb, var(--coral-500) 30%, transparent);
+  color: var(--coral-300);
+}
+
+.rvc__failnote { color: var(--fg-subtle); }
 
 .rvc__failn { color: var(--coral-300); }
 .rvc__failbody { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

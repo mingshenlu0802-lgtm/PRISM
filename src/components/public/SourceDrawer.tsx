@@ -210,6 +210,16 @@ export function SourceDrawer({
                       未通过的引用不得用于支撑事实陈述。正文中出现这条标记的地方，只用它说明「存在某种说法」。
                     </p>
                   ) : null}
+                  {check.acknowledged ? (
+                    <p className="sdrawer__checkacked">
+                      <Icon name="users" size={12} />
+                      <span>
+                        编辑已处理：{check.acknowledgedNote ?? '依赖这条引用的句子已被削弱或改为归因表述。'}
+                        {check.acknowledgedBy ? `（${check.acknowledgedBy}）` : ''}
+                        记录不被删除，只是不再阻断发布。
+                      </span>
+                    </p>
+                  ) : null}
                 </section>
               ) : (
                 <section className="sdrawer__check sdrawer__check--none">

@@ -280,6 +280,12 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
                   <dd><time dateTime={article.publishedAt}>{fmtDateTime(article.publishedAt)}</time></dd>
                 </div>
               ) : null}
+              {article.status === 'scheduled' && article.scheduledFor ? (
+                <div className="apage__stamp">
+                  <dt>排程发布</dt>
+                  <dd><time dateTime={article.scheduledFor}>{fmtDateTime(article.scheduledFor)}</time></dd>
+                </div>
+              ) : null}
               <div className="apage__stamp">
                 <dt>最后更新</dt>
                 <dd>
@@ -576,7 +582,13 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
 
                 <div className="apage__checks">
                   {checks.map((check) => (
-                    <FactCheckCard key={check.id} check={check} article={article} link />
+                    <FactCheckCard
+                      key={check.id}
+                      check={check}
+                      article={article}
+                      link
+                      onCite={setCitationId}
+                    />
                   ))}
                 </div>
               </section>
@@ -634,6 +646,13 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
                 </p>
               ) : (
                 <ol className="apage__corrections">
+                  <li className="apage__correctionsfoot">
+                    <Icon name="history" size={13} />
+                    <span>
+                      本文共 {article.corrections.length} 条记录，全部永久保留。
+                      <Link className="apage__inlinelink" to="/corrections">查看全站更正记录</Link>
+                    </span>
+                  </li>
                   {article.corrections.map((c) => (
                     <li key={c.id} className={cx('apage__correction', `apage__correction--${c.kind}`)}>
                       <div className="apage__correctionhead">
@@ -721,11 +740,16 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
                       >
                         <p className="apage__transhead">
                           <Badge
-                            tone={TRANSLATION_STATUS[translation.status].tone === 'go'
-                              ? 'go'
-                              : TRANSLATION_STATUS[translation.status].tone === 'warn' ? 'warn' : 'neutral'}
+                            tone={TRANSLATION_STATUS[translation.status].tone}
                             size="sm"
-                            icon={<Icon name={translation.status === 'human-reviewed' ? 'check' : translation.status === 'machine-draft' ? 'alert' : 'minus'} size={11} />}
+                            icon={(
+                              <Icon
+                                name={translation.status === 'human-reviewed'
+                                  ? 'check'
+                                  : translation.status === 'machine-draft' ? 'alert' : 'minus'}
+                                size={11}
+                              />
+                            )}
                           >
                             {TRANSLATION_STATUS[translation.status].zh}
                           </Badge>

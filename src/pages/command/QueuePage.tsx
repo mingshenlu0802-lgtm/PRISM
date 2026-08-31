@@ -79,8 +79,8 @@ const TABS: TabDef[] = [
     label: '引用失败',
     match: (a) => sel.failedChecks(a).length > 0 && !CLOSED.includes(a.status),
     empty: {
-      title: '所有引用检查都通过了',
-      hint: '任何一项引用未通过核查，条目都会出现在这里，并且在修复或移除相关陈述之前无法发布。',
+      title: '没有引用核查未通过的条目',
+      hint: '未通过的引用都会列在这里。尚未处理的直接阻断发布；已记录处理说明的降为警告，但仍然公开可见 —— 失败不会被抹掉。',
     },
   },
   {
@@ -202,6 +202,10 @@ export default function QueuePage(): JSX.Element {
     return sortBy(filtered, (a) => sortValue(a, sortKey), dir)
   }, [state.articles, activeTab, blockedOnly, gateIssues, query, sortKey, dir])
 
+  const blockingCiteCount = useMemo(
+    () => state.articles.filter((a) => !CLOSED.includes(a.status) && sel.blockingChecks(a).length > 0).length,
+    [state.articles],
+  )
   const pending = counts.all
   const blockedInView = list.filter((a) => gateIssues.has(a.id)).length
   const filtersOn = blockedOnly || query.trim().length > 0
@@ -210,7 +214,15 @@ export default function QueuePage(): JSX.Element {
     { key: 'pending', label: '待审条目', value: pending, hint: '需要你逐篇判断', tone: 'neutral' as const },
     { key: 'blocked', label: '发布被阻断', value: blockedForPublish.size, hint: '硬性下限未满足', tone: 'stop' as const },
     { key: 'risk', label: '高风险条目', value: counts.risk, hint: '含强制二次确认项', tone: 'warn' as const },
-    { key: 'cite', label: '引用未通过', value: counts.citations, hint: '相关陈述不得公开', tone: 'stop' as const },
+    {
+      key: 'cite',
+      label: '引用未通过并阻断',
+      value: blockingCiteCount,
+      hint: counts.citations > blockingCiteCount
+        ? `另有 ${counts.citations - blockingCiteCount} 条仅剩已处理的未通过项`
+        : '相关陈述在处理前不得公开',
+      tone: 'stop' as const,
+    },
   ]
 
   return (

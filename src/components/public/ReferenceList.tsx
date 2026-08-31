@@ -65,6 +65,29 @@ const CHECK_TONE: Record<CitationCheck['status'], { zh: string; cls: string }> =
   fail: { zh: '核查未通过', cls: 'fail' },
 }
 
+/**
+ * A failed check that the editor has handled stays visible as a failure — the
+ * chip says so — but it is drawn at the weight of a caution, because the
+ * sentence that rested on it has already been weakened or re-attributed.
+ */
+function CheckChip({ check }: { check: CitationCheck }): JSX.Element {
+  const acked = check.status === 'fail' && Boolean(check.acknowledged)
+  const cls = acked ? 'acked' : CHECK_TONE[check.status].cls
+  const zh = acked ? '未通过 · 已处理' : CHECK_TONE[check.status].zh
+  const icon = check.status === 'pass' ? 'check' : check.status === 'warn' ? 'alert' : 'x'
+  return (
+    <span
+      className={cx('reflist__checkchip', `reflist__checkchip--${cls}`)}
+      title={acked && check.acknowledgedNote ? `编辑处理：${check.acknowledgedNote}` : check.reason}
+    >
+      <span className="reflist__checkglyph" aria-hidden="true">
+        <Icon name={icon} size={11} />
+      </span>
+      {zh}
+    </span>
+  )
+}
+
 type Mode = 'tier' | 'order'
 
 interface Entry {
@@ -240,14 +263,7 @@ export function ReferenceList({
             <span className="reflist__claimbody">
               {c.locator ? <span className="reflist__claimloc">{c.locator}</span> : null}
               <span className="reflist__claimtext">{c.claim}</span>
-              {check ? (
-                <span className={cx('reflist__checkchip', `reflist__checkchip--${CHECK_TONE[check.status].cls}`)}>
-                  <span className="reflist__checkglyph" aria-hidden="true">
-                    <Icon name={check.status === 'pass' ? 'check' : check.status === 'warn' ? 'alert' : 'x'} size={11} />
-                  </span>
-                  {CHECK_TONE[check.status].zh}
-                </span>
-              ) : null}
+              {check ? <CheckChip check={check} /> : null}
             </span>
           </li>
         )
@@ -437,14 +453,7 @@ export function ReferenceList({
                       <Badge tone="neutral" size="sm">{TIER_META[source.tier].zh}</Badge>
                     )}
                     <Badge tone="neutral" size="sm">可信度 {source.credibility}</Badge>
-                    {check ? (
-                      <span className={cx('reflist__checkchip', `reflist__checkchip--${CHECK_TONE[check.status].cls}`)}>
-                        <span className="reflist__checkglyph" aria-hidden="true">
-                          <Icon name={check.status === 'pass' ? 'check' : check.status === 'warn' ? 'alert' : 'x'} size={11} />
-                        </span>
-                        {CHECK_TONE[check.status].zh}
-                      </span>
-                    ) : null}
+                    {check ? <CheckChip check={check} /> : null}
                   </div>
                   <DemoLink url={source.url} />
                 </div>

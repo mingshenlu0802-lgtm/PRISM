@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { Fragment, useCallback, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 
 import type {
@@ -608,15 +608,19 @@ function Section({ section, numbers, onCite, editable, onEditBlock, anchors }: S
               </div>
             )
             : (
-              <WideBlock
-                key={group.blocks[0].id}
-                block={group.blocks[0]}
-                sectionId={section.id}
-                numbers={numbers}
-                onCite={onCite}
-                editable={editable}
-                onEditBlock={onEditBlock}
-              />
+              <Fragment key={`${section.id}-g${gi}`}>
+                {group.blocks.map((block) => (
+                  <WideBlock
+                    key={block.id}
+                    block={block}
+                    sectionId={section.id}
+                    numbers={numbers}
+                    onCite={onCite}
+                    editable={editable}
+                    onEditBlock={onEditBlock}
+                  />
+                ))}
+              </Fragment>
             )
         ))}
       </div>
