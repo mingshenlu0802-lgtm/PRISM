@@ -222,10 +222,25 @@
 .mng__setup > summary:hover { color: var(--fg); }
 .mng__setup[open] > summary { margin-bottom: var(--s-3); }
 .mng__steps {
-  display: grid; gap: var(--s-2);
+  display: grid; gap: var(--s-3);
   padding-left: var(--s-5); margin-bottom: var(--s-3);
   font-size: var(--fs-xs); line-height: 1.75; color: var(--fg-muted);
 }
+.mng__steps > li::marker { color: var(--fg-faint); font-weight: 700; }
+.mng__steps strong { color: var(--fg); font-weight: 660; }
+.mng__steps a { font-weight: 600; }
+
+/* 「为什么要做这一步」——照做的人不需要读，但踩到坑的人需要。 */
+.mng__stepwhy {
+  display: block; margin-top: var(--s-2);
+  padding-left: var(--s-3); border-left: 2px solid var(--line-strong);
+  font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-subtle);
+}
+.mng__stepnote {
+  font-size: var(--fs-xs); line-height: 1.75; color: var(--fg-muted);
+  margin-bottom: var(--s-3);
+}
+.mng__stepnote:last-child { margin-bottom: 0; }
 .mng__steps code {
   font-family: var(--font-mono); font-size: .92em;
   padding: 1px 5px; border-radius: var(--r-xs); background: var(--bg-inset);

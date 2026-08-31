@@ -434,13 +434,47 @@ function AccountTab(): JSX.Element {
       )}
 
       <details className="mng__setup">
-        <summary>怎么拿到 Google 客户端 ID（第一次要做一遍）</summary>
+        <summary>怎么拿到 Google 客户端 ID（第一次要做一遍，约十分钟）</summary>
+        <p className="mng__stepnote">
+          做之前先确定你网站的正式网址（比如 GitHub Pages 给你的那个），
+          下面第 4 步要用到它，而且必须一字不差。
+        </p>
         <ol className="mng__steps">
-          <li>打开 Google Cloud Console，新建一个项目（名字随便取）。</li>
-          <li>左边选「API 和服务 → 凭据」，点「创建凭据 → OAuth 客户端 ID」。</li>
-          <li>类型选「Web 应用」，在「已获授权的 JavaScript 来源」里填上你网站的网址。</li>
-          <li>建好之后会给你一串以 <code>.apps.googleusercontent.com</code> 结尾的字符串，粘到下面。</li>
+          <li>
+            打开 <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer">Google Cloud Console</a>，
+            顶部点项目下拉框 → <strong>新建项目</strong>，名字随便取，创建。
+          </li>
+          <li>
+            左边菜单选「API 和服务 → <strong>OAuth 同意屏幕</strong>」。用户类型选<strong>外部</strong>，
+            填应用名称和两个联系邮箱，其余一路保存。
+          </li>
+          <li>
+            回到「OAuth 同意屏幕」，把发布状态从「测试」改成 <strong>发布应用</strong>。
+            <span className="mng__stepwhy">
+              不做这一步，就只有你手动加进「测试用户」名单的账号能登录，别人一律登不进来。
+              这里只用到姓名、邮箱、头像这类基本信息，属于非敏感权限，发布是立刻生效的，
+              不需要 Google 审核。
+            </span>
+          </li>
+          <li>
+            左边选「<strong>凭据</strong>」→「创建凭据 → OAuth 客户端 ID」，应用类型选 <strong>Web 应用</strong>。
+            在「已获授权的 JavaScript 来源」里填你网站的网址，
+            <strong>只填到域名为止</strong>：像 <code>https://你的用户名.github.io</code>，
+            不要带后面的路径，也不要结尾的斜杠。「已获授权的重定向 URI」可以留空。
+            <span className="mng__stepwhy">
+              想在自己电脑上试，可以再加一条 <code>http://localhost:5173</code>。
+            </span>
+          </li>
+          <li>
+            建好后弹出两串东西：<strong>客户端 ID</strong>（以
+            <code>.apps.googleusercontent.com</code> 结尾）复制到下面。
+            旁边的<strong>客户端密钥</strong>用不上，也不要填到网站里任何地方。
+          </li>
         </ol>
+        <p className="mng__stepnote">
+          填好之后，公众站右上角就会出现 Google 登录按钮，控制端也会从「对所有人开着」
+          变成只有你和管理员进得来。
+        </p>
         <TextInput
           placeholder="粘贴 Google 客户端 ID"
           value={auth.clientId}
