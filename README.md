@@ -164,14 +164,20 @@ Supabase 是按需加载的，本地模式下读者不会下载它。
 ## 开发
 
 ```bash
-npm run dev        # 开发服务器
-npm run build      # 类型检查 + 构建到 dist/
-npm run check      # 类型检查 + 数据检查 + 47 项行为测试
-npm run privacy    # 扫一遍构建产物，出现邮箱地址就不给发布
-npm run ui-check   # 用真实浏览器走 9 条路由 × 3 个视口
-npm run single     # 生成单文件 PRISM-prototype.html
-npm run artifact   # 打包成一页，用于 claude.ai artifact
+npm run dev           # 开发服务器
+npm run build         # 类型检查 + 构建到 dist/
+npm run check         # 类型检查 + 数据检查 + 59 项行为测试
+npm run privacy       # 扫一遍构建产物，出现邮箱地址就不给发布
+npm run ui-check      # 用真实浏览器走 10 条路由 × 3 个视口（要先 build）
+npm run console-check # 用真实浏览器在控制端里点和打字（要先 build）
+npm run single        # 生成单文件 PRISM-prototype.html
+npm run artifact      # 打包成一页，用于 claude.ai artifact
 ```
+
+`ui-check` 只把每条路由打开看有没有渲染，`check` 只测纯逻辑——两者中间有个洞：
+**没有人真的在输入框里打过字**。站长报的「给 publishable key 输入任何东西都出错」
+就掉在那个洞里（那不是校验提示，是整个控制端崩到错误页）。`console-check` 专门补这一段：
+像人一样一个键一个键地敲，然后确认没崩、东西真的存下来了、该拦的还拦着。
 
 `npm run check` 是真正的门槛，不是摆设。它会挡住这些事：
 

@@ -118,7 +118,7 @@ export function NewsEditor(
           {item.status === 'hidden' && <span className="nedit__badge nedit__badge--off">已下架</span>}
           {item.origin === 'editor' && <span className="nedit__badge nedit__badge--mine">你写的</span>}
           {item.origin === 'auto' && !item.editedByHuman && <span className="nedit__badge">AI 自动</span>}
-          {item.editedByHuman && <span className="nedit__badge nedit__badge--edited">你编辑过</span>}
+          {item.origin === 'auto' && item.editedByHuman && <span className="nedit__badge nedit__badge--edited">你编辑过</span>}
           <span className="nedit__linkn">{item.links.length} 链接</span>
         </div>
       </header>
@@ -130,7 +130,7 @@ export function NewsEditor(
           <label className="nedit__label" htmlFor={`h-${item.id}`}>标题</label>
           <TextInput
             id={`h-${item.id}`} value={draft.headline}
-            onChange={(e) => setDraft((d) => ({ ...d, headline: e.currentTarget.value }))}
+            onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, headline: v })) }}
             disabled={!canEdit}
           />
 
@@ -142,7 +142,7 @@ export function NewsEditor(
           </label>
           <TextArea
             id={`s-${item.id}`} rows={14} value={draft.summary}
-            onChange={(e) => setDraft((d) => ({ ...d, summary: e.currentTarget.value }))}
+            onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, summary: v })) }}
             disabled={!canEdit}
           />
 
@@ -152,7 +152,7 @@ export function NewsEditor(
           </label>
           <TextArea
             id={`b-${item.id}`} rows={3} value={draft.bullets}
-            onChange={(e) => setDraft((d) => ({ ...d, bullets: e.currentTarget.value }))}
+            onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, bullets: v })) }}
             disabled={!canEdit}
           />
 
@@ -162,7 +162,7 @@ export function NewsEditor(
           </label>
           <TextArea
             id={`e-${item.id}`} rows={2} value={draft.editorNote}
-            onChange={(e) => setDraft((d) => ({ ...d, editorNote: e.currentTarget.value }))}
+            onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, editorNote: v })) }}
             disabled={!canEdit}
           />
 
@@ -180,25 +180,25 @@ export function NewsEditor(
               <TextInput
                 placeholder="图片网址（https://…）"
                 value={draft.imageUrl}
-                onChange={(e) => setDraft((d) => ({ ...d, imageUrl: e.currentTarget.value }))}
+                onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, imageUrl: v })) }}
                 disabled={!canEdit}
               />
               <TextInput
                 placeholder="图片说明：图里有什么（给看不见图的人读）"
                 value={draft.imageAlt}
-                onChange={(e) => setDraft((d) => ({ ...d, imageAlt: e.currentTarget.value }))}
+                onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, imageAlt: v })) }}
                 disabled={!canEdit}
               />
               <TextInput
                 placeholder="来源署名：摄影师或机构"
                 value={draft.imageCredit}
-                onChange={(e) => setDraft((d) => ({ ...d, imageCredit: e.currentTarget.value }))}
+                onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, imageCredit: v })) }}
                 disabled={!canEdit}
               />
               <TextInput
                 placeholder="图片出处网址（可留空）"
                 value={draft.imageCreditUrl}
-                onChange={(e) => setDraft((d) => ({ ...d, imageCreditUrl: e.currentTarget.value }))}
+                onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, imageCreditUrl: v })) }}
                 disabled={!canEdit}
               />
             </div>
@@ -279,11 +279,11 @@ export function NewsEditor(
 
           <div className="nedit__addlink">
             <TextInput placeholder="媒体名称，例：端传媒" value={newLink.outlet}
-              onChange={(e) => setNewLink((l) => ({ ...l, outlet: e.currentTarget.value }))} disabled={!canEdit} />
+              onChange={(e) => { const v = e.currentTarget.value; setNewLink((l) => ({ ...l, outlet: v })) }} disabled={!canEdit} />
             <TextInput placeholder="标题（可留空）" value={newLink.title}
-              onChange={(e) => setNewLink((l) => ({ ...l, title: e.currentTarget.value }))} disabled={!canEdit} />
+              onChange={(e) => { const v = e.currentTarget.value; setNewLink((l) => ({ ...l, title: v })) }} disabled={!canEdit} />
             <TextInput placeholder="https://…" value={newLink.url}
-              onChange={(e) => setNewLink((l) => ({ ...l, url: e.currentTarget.value }))} disabled={!canEdit} />
+              onChange={(e) => { const v = e.currentTarget.value; setNewLink((l) => ({ ...l, url: v })) }} disabled={!canEdit} />
             <button type="button" className="nedit__addbtn" onClick={addLink} disabled={!canEdit}>
               <Icon name="plus" size={14} />加链接
             </button>

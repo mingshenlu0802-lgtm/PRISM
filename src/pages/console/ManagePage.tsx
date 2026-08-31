@@ -9,6 +9,7 @@ import {
   Checkbox, EmptyState, Icon, Modal, Segmented, Select, TextArea, TextInput, toast,
 } from '../../components/common'
 import { NewsEditor } from '../../components/console/NewsEditor'
+import { StudyEditor } from '../../components/console/StudyEditor'
 import { BackendSetup } from '../../components/console/BackendSetup'
 import { SiteAddress } from '../../components/console/SiteAddress'
 import { blankNews, blankStudy } from '../../lib/blank'
@@ -204,32 +205,7 @@ function ContentTab(): JSX.Element {
           ? <EmptyState title="没有符合条件的研究" hint="换个筛选，或去「找新闻」搜一批。" icon="book" />
           : (
             <div className="mng__items">
-              {studies.map((s) => (
-                <article key={s.id} className={cx('mng__study', s.status === 'hidden' && 'mng__study--off')}>
-                  <div className="mng__studyhead">
-                    <span className="mng__studytitle">{s.title}</span>
-                    {s.status === 'hidden' && <span className="mng__studybadge">已下架</span>}
-                  </div>
-                  <p className="mng__studysum">{s.summary}</p>
-                  <div className="mng__studyacts">
-                    {s.status === 'live' ? (
-                      <button type="button" disabled={!canEdit}
-                        onClick={() => { dispatch({ type: 'study-hide', id: s.id, who }); toast('已下架。', 'info') }}>
-                        <Icon name="eye-off" size={13} />下架
-                      </button>
-                    ) : (
-                      <button type="button" disabled={!canEdit}
-                        onClick={() => { dispatch({ type: 'study-restore', id: s.id, who }); toast('已重新上线。', 'go') }}>
-                        <Icon name="eye" size={13} />重新上线
-                      </button>
-                    )}
-                    <button type="button" className="mng__studydel" disabled={!canEdit}
-                      onClick={() => { dispatch({ type: 'study-delete', id: s.id, who }); toast('已永久删除。', 'info') }}>
-                      <Icon name="trash" size={13} />永久删除
-                    </button>
-                  </div>
-                </article>
-              ))}
+              {studies.map((s) => <StudyEditor key={s.id} item={s} openAtFirst={s.id === justMade} />)}
             </div>
           )
       )}

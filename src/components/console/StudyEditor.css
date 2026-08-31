@@ -1,0 +1,46 @@
+/*
+ * 研究编辑卡。
+ *
+ * 卡片本身、标签、链接、按钮全部沿用 NewsEditor.css 的 `nedit` 一套——
+ * 两种条目的编辑界面长得一样，是故意的。这里只补研究独有的三块：
+ * 来源／日期并排、类型说明、关键数字。
+ */
+
+/* 来源机构和日期是一对短字段，宽屏上并排省一行。 */
+.sedit__meta {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 620px) {
+  .sedit__meta { grid-template-columns: 2fr 1fr; align-items: start; }
+}
+.sedit__meta > div { min-width: 0; }
+
+.sedit__kindnote {
+  margin-top: var(--s-1);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--fg-faint);
+}
+
+.sedit__figs { list-style: none; display: grid; gap: var(--s-3); }
+.sedit__fig {
+  display: grid;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+}
+/* 数值那一格窄一点，垃圾桶只占自己那么宽。 */
+.sedit__figrow {
+  display: grid;
+  gap: var(--s-2);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 7rem) auto;
+  align-items: center;
+}
+@media (max-width: 560px) {
+  .sedit__figrow { grid-template-columns: minmax(0, 1fr) auto; }
+  .sedit__figrow > :nth-child(2) { grid-column: 1 / -1; }
+}

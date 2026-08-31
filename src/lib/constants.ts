@@ -75,7 +75,8 @@ export const DEFAULT_APPEARANCE: Appearance = {
  * 检索引擎
  *
  * 搜集是重复性工作，可以用免费或自托管的开源模型。
- * 控制端里的改写固定用 Claude。
+ * 这里选的模型只管找链接和写总结——网站本身不再内置任何改写功能，
+ * 站长要改网站是直接跟 Claude Code 说，那不经过这个选项，也不花这里的钱。
  * ------------------------------------------------------------------ */
 
 export interface EngineOption {
@@ -91,7 +92,7 @@ export const ENGINES: EngineOption[] = [
   { id: 'llama-open', name: 'Llama 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '权重公开，英文长总结好，适合欧美来源。' },
   { id: 'mistral-open', name: 'Mistral 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '体量小、吞吐高，量大时最省，总结偏简洁。' },
   { id: 'self-hosted', name: '自定义端点（本地或私有部署）', kind: 'open-source', cost: '免费 · 自建算力', note: '指向你自己的推理服务，请求不离开你控制的网络。' },
-  { id: 'claude', name: 'Claude', kind: 'hosted', cost: '按调用计费', note: '质量最好但按调用计费。搜索和总结不必用它——「编辑 → Claude」那边本来就是它。' },
+  { id: 'claude', name: 'Claude', kind: 'hosted', cost: '按调用计费', note: '质量最好，但每次搜集都按调用计费。找链接和写总结是重复劳动，开源模型就够，不必花这笔钱。' },
 ]
 
 export const ENGINE_MAP: Record<string, EngineOption> = Object.fromEntries(

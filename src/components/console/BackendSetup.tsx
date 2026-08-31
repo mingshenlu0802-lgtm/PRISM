@@ -245,8 +245,11 @@ export function BackendSetup(): JSX.Element {
             aria-label="Supabase Project URL"
             aria-invalid={urlErr ? true : undefined}
             onChange={(e) => {
+              // 先把值取出来。React 会在 render 期间重跑这个 updater，
+              // 那时事件已经结束、currentTarget 被置空——在里面读就是 null.value。
+              const v = e.currentTarget.value
               setTouched((t) => ({ ...t, url: false }))
-              setCfg((c) => ({ ...c, url: e.currentTarget.value }))
+              setCfg((c) => ({ ...c, url: v }))
             }}
             onBlur={() => setTouched((t) => ({ ...t, url: true }))}
             onPaste={onPaste('url')}
@@ -259,8 +262,11 @@ export function BackendSetup(): JSX.Element {
             aria-label="Supabase Publishable key"
             aria-invalid={keyErr ? true : undefined}
             onChange={(e) => {
+              // 先把值取出来。React 会在 render 期间重跑这个 updater，
+              // 那时事件已经结束、currentTarget 被置空——在里面读就是 null.value。
+              const v = e.currentTarget.value
               setTouched((t) => ({ ...t, key: false }))
-              setCfg((c) => ({ ...c, anonKey: e.currentTarget.value }))
+              setCfg((c) => ({ ...c, anonKey: v }))
             }}
             onBlur={() => setTouched((t) => ({ ...t, key: true }))}
             onPaste={onPaste('anonKey')}
