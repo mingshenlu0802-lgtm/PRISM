@@ -1,0 +1,228 @@
+/* ==========================================================================
+   PRISM 棱镜 — design tokens
+   "全球独立媒体 ＋ 研究期刊 ＋ 未来编辑室"
+   Deep indigo · warm white · coral · restrained prism light · map texture.
+   No rainbow gradients, no gendered pictograms.
+   ========================================================================== */
+
+:root {
+  /* --- Ink: deep indigo spine ------------------------------------------- */
+  --ink-950: #06081A;
+  --ink-900: #0B0E24;
+  --ink-850: #0E1230;
+  --ink-800: #12173A;
+  --ink-750: #171D48;
+  --ink-700: #1C2354;
+  --ink-600: #262E6B;
+  --ink-500: #343E85;
+  --ink-400: #4A55A3;
+  --ink-300: #6E79BE;
+
+  /* --- Paper: warm white ------------------------------------------------ */
+  --paper-0:   #FFFDFA;
+  --paper-50:  #FBF8F2;
+  --paper-100: #F5F1E8;
+  --paper-200: #ECE6DA;
+  --paper-300: #DED6C7;
+  --paper-400: #C4BAA8;
+
+  /* --- Coral: the single loud voice ------------------------------------- */
+  --coral-700: #96301F;
+  --coral-600: #B93E29;
+  --coral-500: #D64F37;
+  --coral-400: #E8705A;
+  --coral-300: #F2A08F;
+  --coral-100: #FBE3DD;
+
+  /* --- Prism light: refracted, desaturated, used sparingly -------------- */
+  --prism-1: #5E72C8; /* indigo   */
+  --prism-2: #3F9A93; /* teal     */
+  --prism-3: #B8912C; /* ochre    */
+  --prism-4: #A65E8C; /* mauve    */
+  --prism-5: #D64F37; /* coral    */
+  --prism-6: #4C86B4; /* slate blue */
+
+  /* --- Neutrals (warm-tinted) ------------------------------------------ */
+  --grey-900: #1A1A1F;
+  --grey-700: #3D3E47;
+  --grey-600: #55565F;
+  --grey-500: #71727C;
+  --grey-400: #96979F;
+  --grey-300: #BFC0C6;
+  --grey-200: #DCDDE1;
+
+  /* --- Verdict scale (fact-check) -------------------------------------- */
+  --v-supported:   #2E7D6B;
+  --v-caution:     #A9791F;
+  --v-contested:   #7A5BA6;
+  --v-unsupported: #5C6480;
+  --v-false:       #B23A28;
+  --v-unknown:     #6E7183;
+
+  /* --- Risk scale ------------------------------------------------------- */
+  --risk-low:      #4B7F6E;
+  --risk-medium:   #A9791F;
+  --risk-high:     #C25C2E;
+  --risk-critical: #B23A28;
+
+  /* --- Topic hues (subtle) --------------------------------------------- */
+  --topic-rights:       var(--prism-1);
+  --topic-violence:     var(--coral-600);
+  --topic-repro:        var(--prism-4);
+  --topic-trans:        var(--prism-2);
+  --topic-hate:         var(--prism-5);
+  --topic-equality:     var(--prism-6);
+  --topic-displacement: var(--prism-3);
+  --topic-movement:     var(--ink-400);
+
+  /* --- Type ------------------------------------------------------------- */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --font-serif: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC",
+    "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono",
+    "Noto Sans Mono CJK SC", monospace;
+
+  --fs-2xs: 0.6875rem;
+  --fs-xs:  0.75rem;
+  --fs-sm:  0.8125rem;
+  --fs-base:0.9375rem;
+  --fs-md:  1rem;
+  --fs-lg:  1.125rem;
+  --fs-xl:  1.375rem;
+  --fs-2xl: 1.75rem;
+  --fs-3xl: 2.25rem;
+  --fs-4xl: 3rem;
+
+  --lh-tight: 1.2;
+  --lh-snug: 1.4;
+  --lh-normal: 1.65;
+  --lh-prose: 1.85;
+
+  /* --- Space ------------------------------------------------------------ */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 40px;
+  --s-9: 56px; --s-10: 72px; --s-11: 96px;
+
+  /* --- Radius / border / shadow ---------------------------------------- */
+  --r-xs: 3px; --r-sm: 5px; --r-md: 8px; --r-lg: 12px; --r-xl: 18px; --r-full: 999px;
+  --bw: 1px;
+
+  --shadow-sm: 0 1px 2px rgba(11, 14, 36, .06), 0 1px 3px rgba(11, 14, 36, .05);
+  --shadow-md: 0 2px 6px rgba(11, 14, 36, .07), 0 8px 24px rgba(11, 14, 36, .07);
+  --shadow-lg: 0 4px 12px rgba(11, 14, 36, .09), 0 24px 56px rgba(11, 14, 36, .12);
+
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 380ms;
+
+  /* --- Layout ----------------------------------------------------------- */
+  --measure: 68ch;
+  --page-max: 1280px;
+  --wide-max: 1680px;
+  --header-h: 60px;
+}
+
+/* --------------------------------------------------------------------------
+   Surfaces. The public site reads as a warm research journal; the console
+   reads as a low-light editing room. Both derive from the same ink/paper set.
+   -------------------------------------------------------------------------- */
+
+[data-surface="public"] {
+  color-scheme: light;
+  --bg: var(--paper-50);
+  --bg-raised: var(--paper-0);
+  --bg-sunken: var(--paper-100);
+  --bg-inset: var(--paper-200);
+  --fg: var(--ink-900);
+  --fg-muted: #4A4D63;
+  --fg-subtle: #6E7189;
+  --fg-faint: #8B8EA3;
+  --line: var(--paper-300);
+  --line-soft: var(--paper-200);
+  --line-strong: #C3BAA9;
+  --accent: var(--coral-600);
+  --accent-fg: #FFFFFF;
+  --accent-soft: var(--coral-100);
+  --link: var(--ink-600);
+  --focus: var(--ink-500);
+  --overlay: rgba(11, 14, 36, .48);
+  --chip-bg: rgba(28, 35, 84, .06);
+}
+
+[data-surface="public"][data-theme="dark"] {
+  color-scheme: dark;
+  --bg: var(--ink-950);
+  --bg-raised: var(--ink-900);
+  --bg-sunken: #040614;
+  --bg-inset: var(--ink-850);
+  --fg: #EDEAE3;
+  --fg-muted: #B6B4C4;
+  --fg-subtle: #8E8DA2;
+  --fg-faint: #6E6D82;
+  --line: rgba(150, 160, 220, .16);
+  --line-soft: rgba(150, 160, 220, .09);
+  --line-strong: rgba(150, 160, 220, .3);
+  --accent: var(--coral-400);
+  --accent-fg: #120A08;
+  --accent-soft: rgba(214, 79, 55, .16);
+  --link: #A9B4E8;
+  --focus: var(--prism-1);
+  --overlay: rgba(2, 3, 12, .66);
+  --chip-bg: rgba(150, 160, 220, .1);
+}
+
+[data-surface="command"] {
+  color-scheme: dark;
+  --bg: var(--ink-950);
+  --bg-raised: var(--ink-900);
+  --bg-sunken: #040614;
+  --bg-inset: var(--ink-850);
+  --bg-panel: rgba(23, 29, 72, .5);
+  --fg: #E9E7EF;
+  --fg-muted: #ADAFC6;
+  --fg-subtle: #8386A0;
+  --fg-faint: #63667E;
+  --line: rgba(140, 152, 214, .17);
+  --line-soft: rgba(140, 152, 214, .09);
+  --line-strong: rgba(140, 152, 214, .34);
+  --accent: var(--coral-400);
+  --accent-fg: #150907;
+  --accent-soft: rgba(214, 79, 55, .15);
+  --link: #A9B4E8;
+  --focus: var(--prism-1);
+  --overlay: rgba(2, 3, 12, .72);
+  --chip-bg: rgba(140, 152, 214, .1);
+}
+
+/* --------------------------------------------------------------------------
+   Textures. A faint graticule (map grid) and a single refracted edge — the
+   only "prism" motif in the system.
+   -------------------------------------------------------------------------- */
+
+.tex-graticule {
+  background-image:
+    linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.tex-dots {
+  background-image: radial-gradient(var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* A 1px refracted rule. Used at most once per view. */
+.prism-rule {
+  height: 2px;
+  border: 0;
+  background: linear-gradient(90deg,
+    var(--prism-1) 0%, var(--prism-6) 22%, var(--prism-2) 42%,
+    var(--prism-3) 62%, var(--prism-4) 80%, var(--prism-5) 100%);
+  opacity: .55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 1ms; --dur: 1ms; --dur-slow: 1ms; }
+}

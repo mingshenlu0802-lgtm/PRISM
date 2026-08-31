@@ -1,0 +1,134 @@
+/* ==========================================================================
+   PRISM 棱镜 — base layer: reset, typography, primitives.
+   Component styles live beside their component and must scope every selector
+   under their own root class. Only tokens from tokens.css may set colour.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 620; line-height: var(--lh-tight); letter-spacing: -0.012em; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; }
+img, svg, video { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: 0; padding: 0; }
+a { color: var(--link); text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
+hr { border: 0; border-top: var(--bw) solid var(--line); margin: 0; }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+
+::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+/* Scrollbars — thin, surface-aware. */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--r-full); border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--fg-faint); background-clip: content-box; }
+
+/* --------------------------------------------------------------------------
+   Shared primitives (the only global class namespace: `u-` and `prose`).
+   -------------------------------------------------------------------------- */
+
+.u-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.u-skip {
+  position: absolute; left: var(--s-4); top: -60px; z-index: 200;
+  background: var(--accent); color: var(--accent-fg);
+  padding: var(--s-2) var(--s-4); border-radius: var(--r-sm);
+  transition: top var(--dur) var(--ease);
+}
+.u-skip:focus { top: var(--s-4); }
+
+.u-shell { width: 100%; max-width: var(--page-max); margin-inline: auto; padding-inline: var(--s-5); }
+.u-shell-wide { width: 100%; max-width: var(--wide-max); margin-inline: auto; padding-inline: var(--s-5); }
+@media (min-width: 900px) { .u-shell, .u-shell-wide { padding-inline: var(--s-7); } }
+
+.u-eyebrow {
+  font-size: var(--fs-2xs); font-weight: 640; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--fg-subtle);
+}
+
+.u-mono { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: -0.01em; }
+
+.u-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+/* --------------------------------------------------------------------------
+   Prose — article body. Serif, generous measure, journal rhythm.
+   -------------------------------------------------------------------------- */
+
+.prose {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-prose);
+  color: var(--fg);
+  max-width: var(--measure);
+}
+.prose > * + * { margin-top: 1.15em; }
+.prose h3 {
+  font-family: var(--font-sans); font-size: var(--fs-xl); font-weight: 640;
+  margin-top: 1.9em; letter-spacing: -0.015em;
+}
+.prose h4 {
+  font-family: var(--font-sans); font-size: var(--fs-md); font-weight: 660;
+  margin-top: 1.6em; color: var(--fg-muted);
+  text-transform: none; letter-spacing: 0;
+}
+.prose ul, .prose ol { padding-left: 1.35em; }
+.prose li + li { margin-top: .5em; }
+.prose ul { list-style: none; padding-left: 0; }
+.prose ul > li { position: relative; padding-left: 1.35em; }
+.prose ul > li::before {
+  content: ""; position: absolute; left: .25em; top: .82em;
+  width: 6px; height: 6px; border-radius: 1px;
+  background: var(--accent); opacity: .7; transform: rotate(45deg);
+}
+.prose ol { list-style: decimal; }
+.prose ol > li::marker { color: var(--fg-subtle); font-family: var(--font-sans); font-size: .82em; }
+.prose strong { font-weight: 680; }
+.prose em { font-style: italic; }
+
+@media (max-width: 640px) {
+  .prose { font-size: var(--fs-md); line-height: 1.78; }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion / print
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body { background: #fff; color: #000; }
+  .u-noprint { display: none !important; }
+}
