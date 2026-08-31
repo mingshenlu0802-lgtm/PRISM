@@ -42,3 +42,5 @@
 }
 .gate__ghost:hover { border-color: var(--accent); color: var(--accent); }
 .gate__link { color: var(--accent); text-decoration: underline; font: inherit; }
+
+.gate__inner { display: grid; justify-items: start; gap: var(--s-3); width: 100%; }

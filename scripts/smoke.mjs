@@ -235,6 +235,17 @@ await test('本地模式：没有登录这回事，打开的人就是这份副�
   eq(a.isMember, true, '没有名单这回事')
 })
 
+await test('看内容不需要登录——有链接就能看', () => {
+  const s = fresh()
+  // 没登录的人：不是成员，但这不该妨碍他看内容。
+  const anon = accessOf(s, 'shared')
+  eq(anon.isMember, false, '没登录当然不是成员')
+  eq(anon.canEdit, false, '也当然不能改')
+  eq(anon.consoleOpen, false, '进不了控制端')
+  // 「能不能看」不由 accessOf 决定——公众站不再拿它拦人，
+  // 数据库那边 news/studies/site 的读也对所有人开放。
+})
+
 await test('共享模式：只有站长和编辑进得了控制端', () => {
   const base = asOwner([
     { email: 'editor@x.com', role: 'editor', addedAt: '2026-01-02T00:00:00Z' },

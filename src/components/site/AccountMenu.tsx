@@ -4,6 +4,7 @@ import { usePrism } from '../../lib/store'
 import { cx } from '../../lib/util'
 import { signOut } from '../../lib/session'
 import { Icon, toast } from '../common'
+import { SignInPanel } from './SignInGate'
 import './AccountMenu.css'
 
 /**
@@ -13,8 +14,9 @@ import './AccountMenu.css'
  * 账号这回事，摆一个「登录」按钮只会让人以为自己漏了什么。那时直接给
  * 控制端入口就好。
  *
- * 共享模式下显示当前登录的人和他的身份。能进控制端的（站长和编辑）才看得到
- * 入口；只能看的人不会看到一个按了会被拒绝的按钮。
+ * 共享模式下：没登录的人看到一个「登录」——但看内容本来就不需要登录，
+ * 所以面板里第一句话就说清楚这件事，免得有人以为自己被挡住了。
+ * 登录之后显示身份；能进控制端的（站长和编辑）才看得到入口。
  */
 export function AccountMenu(): JSX.Element | null {
   const { state, dispatch, isOwner, isAdmin, mode } = usePrism()
@@ -45,9 +47,8 @@ export function AccountMenu(): JSX.Element | null {
     )
   }
 
-  if (!auth.email) return null
-
-  const role = isOwner ? '站长' : isAdmin ? '编辑' : '只能看'
+  const signedIn = Boolean(auth.email)
+  const role = isOwner ? '站长' : isAdmin ? '编辑' : '已登录'
 
   return (
     <div className="acct" ref={ref}>
@@ -56,16 +57,22 @@ export function AccountMenu(): JSX.Element | null {
         className="acct__btn"
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={`账号：${auth.email}`}
+        aria-label={signedIn ? `账号：${auth.email}` : '登录'}
         onClick={() => setOpen((v) => !v)}
       >
-        {auth.picture
+        {signedIn && auth.picture
           ? <img className="acct__avatar" src={auth.picture} alt="" width={20} height={20} />
           : <Icon name="users" size={15} />}
-        <span className="acct__label">{auth.name ?? auth.email}</span>
+        <span className="acct__label">{signedIn ? (auth.name ?? auth.email) : '登录'}</span>
       </button>
 
-      {open && (
+      {open && !signedIn && (
+        <div className="acct__panel acct__panel--wide" role="dialog" aria-label="登录">
+          <SignInPanel onDone={() => undefined} />
+        </div>
+      )}
+
+      {open && signedIn && (
         <div className="acct__panel" role="dialog" aria-label="账号">
           <div className="acct__me">
             {auth.picture

@@ -10,3 +10,20 @@
 
 .bke__fields { display: grid; gap: var(--s-2); margin-bottom: var(--s-3); }
 .bke__acts { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-3); }
+
+/* 填邮箱 + 一键复制 SQL：不用去仓库里翻文件。 */
+.bke__sql { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-3) 0; }
+.bke__sql > :first-child { flex: 1 1 220px; min-width: 0; }
+
+.bke__peek { margin-top: var(--s-3); }
+.bke__peek > summary { cursor: pointer; font-size: var(--fs-2xs); color: var(--fg-subtle); }
+.bke__peek > summary:hover { color: var(--fg); }
+.bke__pre {
+  margin: var(--s-2) 0 0;
+  padding: var(--s-3);
+  max-height: 20em; overflow: auto;
+  border: var(--bw) solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg);
+  font-family: var(--font-mono); font-size: 10px; line-height: 1.6;
+  color: var(--fg-muted); white-space: pre;
+}

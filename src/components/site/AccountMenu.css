@@ -72,3 +72,6 @@
   font-size: var(--fs-xs); color: var(--fg); text-decoration: none;
 }
 .acct__bare:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 登录面板比账号面板宽一点，容得下输入框和那句「不登录也能看」。 */
+.acct__panel--wide { width: min(340px, calc(100vw - var(--s-8))); }

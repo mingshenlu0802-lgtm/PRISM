@@ -1,4 +1,15 @@
--- PRISM — database schema and access rules.
+/**
+ * 建库用的 SQL，跟控制端一起带着走。
+ *
+ * 本来这一步是「去仓库里找 supabase/schema.sql」——对一个不写代码的人来说，
+ * 这句话等于没说：他不知道仓库长什么样，也不知道怎么在里面找文件。
+ * 所以把内容放进来，控制端里一个按钮就能复制，连带把站长邮箱替换好，
+ * 原来那个「记得改最后一行」的坑也一起消失。
+ *
+ * 这份内容跟 supabase/schema.sql 必须一致；`npm run check` 会核对，不一致就不给过。
+ */
+
+const TEMPLATE = String.raw`-- PRISM — database schema and access rules.
 --
 -- Paste this whole file into Supabase → SQL Editor → New query → Run.
 -- It is safe to run more than once.
@@ -197,5 +208,14 @@ end $$;
 -- Replace the address below with YOUR email, then run this file.
 
 insert into public.members (email, role, name, added_by)
-values (lower('CHANGE-ME@example.com'), 'owner', '站长', 'setup')
+values (lower('__OWNER_EMAIL__'), 'owner', '站长', 'setup')
 on conflict (email) do update set role = 'owner';
+`
+
+/** 把 SQL 交出去，站长那一行已经填成他自己的地址。 */
+export function schemaSqlFor(ownerEmail: string): string {
+  return TEMPLATE.replace('__OWNER_EMAIL__', ownerEmail.trim().toLowerCase())
+}
+
+/** 原样的模板，给一致性检查用。 */
+export const SCHEMA_TEMPLATE = TEMPLATE

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { usePrism } from '../../lib/store'
 import { loadConfig, saveLocal, type BackendConfig } from '../../lib/backend'
 import { syncFile } from '../../lib/github'
+import { schemaSqlFor } from '../../lib/schemaSql'
 import { Icon, TextInput, toast } from '../common'
 import './BackendSetup.css'
 
@@ -20,6 +21,8 @@ import './BackendSetup.css'
 export function BackendSetup(): JSX.Element {
   const { state, mode, isOwner } = usePrism()
   const [cfg, setCfg] = useState<BackendConfig>({ url: '', anonKey: '' })
+  const [ownerEmail, setOwnerEmail] = useState('')
+  const [copied, setCopied] = useState(false)
   const [saving, setSaving] = useState(false)
   const [published, setPublished] = useState<string | null>(null)
 
@@ -76,7 +79,7 @@ export function BackendSetup(): JSX.Element {
       )}
 
       <details className="mng__setup" open={mode !== 'shared'}>
-        <summary>三步接上（约十五分钟，只做一次）</summary>
+        <summary>四步接上（约十五分钟，只做一次）</summary>
         <ol className="mng__steps">
           <li>
             打开 <a href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a> 注册，
@@ -87,18 +90,53 @@ export function BackendSetup(): JSX.Element {
             </span>
           </li>
           <li>
-            左边 <strong>SQL Editor</strong> → <strong>New query</strong>，
-            把仓库里 <code>supabase/schema.sql</code> 整个文件粘进去，
-            <strong>先把最后一行的邮箱改成你自己的</strong>，然后 <strong>Run</strong>。
+            <strong>先在这里填你的邮箱</strong>（就是你以后登录网站用的那个），
+            按「复制建库 SQL」。
+            <div className="bke__sql">
+              <TextInput
+                type="email"
+                placeholder="你的邮箱（会被设成站长）"
+                value={ownerEmail}
+                onChange={(e) => { setOwnerEmail(e.currentTarget.value); setCopied(false) }}
+              />
+              <button
+                type="button"
+                className="mng__solid"
+                disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerEmail.trim())}
+                onClick={() => {
+                  const sql = schemaSqlFor(ownerEmail)
+                  void navigator.clipboard?.writeText(sql)
+                    .then(() => { setCopied(true); toast('SQL 已复制，去 Supabase 粘贴。', 'go') })
+                    .catch(() => toast('复制不了。展开下面那一大段，手动全选复制。', 'warn'))
+                }}
+              >
+                <Icon name="file" size={14} />{copied ? '已复制 ✓' : '复制建库 SQL'}
+              </button>
+            </div>
             <span className="mng__stepwhy">
-              这一步建好所有的表和权限规则。最后那行是把你自己设成站长——
-              在有第一个成员之前，谁都读不到东西，所以这一行必须在这里写死一次。
+              不用去仓库里找文件——SQL 就在这个按钮里，而且你的邮箱已经替你填好了。
             </span>
           </li>
           <li>
-            左边 <strong>Project Settings → API</strong>，
+            回到 Supabase，左边点 <strong>SQL Editor</strong> → <strong>New query</strong>，
+            <strong>粘贴</strong>，然后点右下角 <strong>Run</strong>。
+            看到绿色的 <code>Success</code> 就成了。
+            <span className="mng__stepwhy">
+              这一步建好所有的表和权限规则，并且把你设成站长。
+              在有第一个成员之前谁都读不到东西，所以站长必须在这里先写进去一次。
+              这段 SQL 重复跑多少遍都没问题，不会弄坏已有的东西。
+            </span>
+            {ownerEmail.trim() && (
+              <details className="bke__peek">
+                <summary>复制不了？点开手动选中这一段</summary>
+                <pre className="bke__pre">{schemaSqlFor(ownerEmail)}</pre>
+              </details>
+            )}
+          </li>
+          <li>
+            Supabase 左下角 <strong>Project Settings</strong>（齿轮）→ <strong>API</strong>，
             复制 <strong>Project URL</strong> 和 <strong>anon public</strong> 那一串，
-            粘到下面。
+            粘到下面两个框。
             <span className="mng__stepwhy">
               这两串是公开的，可以放心提交进仓库——anon key 不授予任何权限，
               能不能读写完全取决于你登录后的身份和第 2 步建好的规则。
