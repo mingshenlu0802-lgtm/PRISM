@@ -118,7 +118,7 @@ export function reducer(state: PrismState, action: Action): PrismState {
           wantsPublish && locked ? 'approved' : DECISION_AUDIT[action.decision],
           article.title,
           wantsPublish && locked
-            ? '全局发布锁已开启：批准已记录，但未公开发布。'
+            ? 'Global Publishing Lock 已开启：批准已记录，内容未公开发布。'
             : action.note || '—',
           action.articleId,
         ),

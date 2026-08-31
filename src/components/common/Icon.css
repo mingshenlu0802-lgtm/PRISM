@@ -1,0 +1,9 @@
+/* Icon — 24×24 stroke grid, currentColor only. */
+
+.picon {
+  display: inline-block;
+  flex: none;
+  vertical-align: -0.14em;
+  color: inherit;
+  overflow: visible;
+}

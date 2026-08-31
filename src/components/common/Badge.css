@@ -1,0 +1,52 @@
+/* Badge — the house chip. Tone tints; the label always carries the meaning. */
+
+.pbadge {
+  --pb-tone: var(--fg-subtle);
+  --pb-text: color-mix(in srgb, var(--pb-tone) 86%, var(--ink-950) 14%);
+  --pb-fill: color-mix(in srgb, var(--pb-tone) 10%, transparent);
+  --pb-line: color-mix(in srgb, var(--pb-tone) 26%, transparent);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: 100%;
+  border: var(--bw) solid var(--pb-line);
+  border-radius: var(--r-full);
+  background: var(--pb-fill);
+  color: var(--pb-text);
+  font-weight: 600;
+  letter-spacing: .01em;
+  line-height: 1.35;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+[data-theme="dark"] .pbadge,
+[data-surface="command"] .pbadge {
+  --pb-text: color-mix(in srgb, var(--pb-tone) 48%, var(--paper-50) 52%);
+  --pb-fill: color-mix(in srgb, var(--pb-tone) 17%, transparent);
+  --pb-line: color-mix(in srgb, var(--pb-tone) 32%, transparent);
+}
+
+.pbadge--sm { padding: 1px var(--s-2); font-size: var(--fs-2xs); }
+.pbadge--md { padding: 3px var(--s-3); font-size: var(--fs-xs); }
+
+.pbadge__icon {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-left: -1px;
+}
+
+.pbadge__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pbadge--neutral { --pb-tone: var(--fg-subtle); }
+.pbadge--go      { --pb-tone: var(--v-supported); }
+.pbadge--hold    { --pb-tone: var(--risk-medium); }
+.pbadge--stop    { --pb-tone: var(--v-false); }
+.pbadge--live    { --pb-tone: var(--accent); }
+.pbadge--info    { --pb-tone: var(--prism-6); }
+.pbadge--warn    { --pb-tone: var(--risk-high); }

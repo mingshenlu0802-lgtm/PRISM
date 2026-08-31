@@ -1,0 +1,66 @@
+/* VerdictBadge — shape first, colour second. */
+
+.pverdict {
+  --pv-tone: var(--v-unknown);
+  --pv-text: color-mix(in srgb, var(--pv-tone) 84%, var(--ink-950) 16%);
+  --pv-fill: color-mix(in srgb, var(--pv-tone) 9%, transparent);
+  --pv-line: color-mix(in srgb, var(--pv-tone) 28%, transparent);
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 100%;
+  border: var(--bw) solid var(--pv-line);
+  border-radius: var(--r-full);
+  background: var(--pv-fill);
+  color: var(--pv-text);
+  font-weight: 640;
+  line-height: 1.3;
+  vertical-align: middle;
+  cursor: default;
+}
+
+[data-theme="dark"] .pverdict,
+[data-surface="command"] .pverdict {
+  --pv-text: color-mix(in srgb, var(--pv-tone) 44%, var(--paper-50) 56%);
+  --pv-fill: color-mix(in srgb, var(--pv-tone) 18%, transparent);
+  --pv-line: color-mix(in srgb, var(--pv-tone) 34%, transparent);
+}
+
+.pverdict__glyph {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.pverdict__svg { display: block; }
+
+.pverdict__text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.pverdict__zh { white-space: nowrap; }
+
+.pverdict__en {
+  font-family: var(--font-sans);
+  font-size: .78em;
+  font-weight: 520;
+  letter-spacing: .01em;
+  opacity: .72;
+  white-space: nowrap;
+}
+
+.pverdict--sm { padding: 2px var(--s-2) 2px 5px; font-size: var(--fs-2xs); gap: 5px; }
+.pverdict--md { padding: 4px var(--s-3) 4px var(--s-2); font-size: var(--fs-xs); }
+.pverdict--lg { padding: 7px var(--s-4) 7px var(--s-3); font-size: var(--fs-base); border-radius: var(--r-lg); }
+
+/* The unsupported / unknown rungs read as "we cannot say", so they stay quiet. */
+.pverdict--unsupported,
+.pverdict--unknown { font-weight: 600; }
+
+@media (max-width: 400px) {
+  .pverdict__en { display: none; }
+}

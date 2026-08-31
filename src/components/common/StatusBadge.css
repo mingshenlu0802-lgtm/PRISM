@@ -1,0 +1,10 @@
+/* StatusBadge — a Badge with a fixed glyph per workflow state. */
+
+.pstatus {
+  letter-spacing: .02em;
+  cursor: default;
+}
+
+.pstatus .pbadge__icon {
+  opacity: .85;
+}
