@@ -1,0 +1,81 @@
+/* Tooltip — hover and focus, both surfaces. */
+
+.ptip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.ptip__bubble {
+  --ptip-bg: var(--ink-900);
+  --ptip-fg: var(--paper-50);
+  position: absolute;
+  left: 50%;
+  z-index: 320;
+  width: max-content;
+  max-width: min(260px, 78vw);
+  padding: 6px var(--s-3);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--ptip-bg);
+  color: var(--ptip-fg);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: .01em;
+  text-align: left;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 3px);
+  transition: opacity var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease),
+    visibility var(--dur-fast) var(--ease);
+  pointer-events: none;
+}
+
+.ptip--top .ptip__bubble { bottom: calc(100% + 7px); }
+.ptip--bottom .ptip__bubble { top: calc(100% + 7px); transform: translate(-50%, -3px); }
+
+.ptip:hover .ptip__bubble,
+.ptip:focus-within .ptip__bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+[data-theme="dark"] .ptip__bubble,
+[data-surface="command"] .ptip__bubble {
+  --ptip-bg: var(--ink-700);
+  --ptip-fg: var(--paper-100);
+}
+
+/* A small pointer, drawn as a rotated corner of the bubble. */
+.ptip__bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  background: var(--ptip-bg);
+  border: var(--bw) solid var(--line);
+  transform: rotate(45deg);
+}
+
+.ptip--top .ptip__bubble::after {
+  bottom: -4.5px;
+  border-top: 0;
+  border-left: 0;
+}
+
+.ptip--bottom .ptip__bubble::after {
+  top: -4.5px;
+  border-bottom: 0;
+  border-right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptip__bubble { transition: none; }
+}

@@ -1,0 +1,12 @@
+/* PrismMark — the wordless logo. */
+
+.pmark {
+  display: block;
+  flex: none;
+  color: var(--fg);
+  overflow: visible;
+}
+
+.pmark--muted {
+  color: var(--fg-subtle);
+}

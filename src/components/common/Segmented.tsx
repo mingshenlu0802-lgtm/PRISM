@@ -40,7 +40,7 @@ export function Segmented<T extends string>({
     if (option) onChange(option.value)
   }
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     switch (event.key) {
       case 'ArrowRight':
       case 'ArrowDown':

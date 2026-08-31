@@ -1,0 +1,55 @@
+/* EmptyState — calm, explains what would fill the space. */
+
+.pempty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-8) var(--s-5);
+  border: var(--bw) dashed var(--line);
+  border-radius: var(--r-lg);
+  background-color: var(--bg-sunken);
+  background-position: center;
+  text-align: center;
+}
+
+.pempty__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--bg-raised);
+  color: var(--fg-subtle);
+  box-shadow: var(--shadow-sm);
+}
+
+.pempty__title {
+  font-size: var(--fs-md);
+  font-weight: 640;
+  letter-spacing: -.01em;
+  color: var(--fg);
+}
+
+.pempty__hint {
+  max-width: 46ch;
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+  color: var(--fg-subtle);
+}
+
+.pempty__action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+@media (min-width: 720px) {
+  .pempty { padding: var(--s-9) var(--s-7); }
+}

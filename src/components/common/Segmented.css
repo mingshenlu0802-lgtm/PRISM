@@ -1,0 +1,66 @@
+/* Segmented — filter row. Scrolls horizontally on narrow screens, never the page. */
+
+.psegmented {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--bg-sunken);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.psegmented::-webkit-scrollbar { display: none; }
+
+.psegmented__seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  border-radius: var(--r-full);
+  color: var(--fg-subtle);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+
+.psegmented--sm .psegmented__seg { padding: 4px var(--s-3); font-size: var(--fs-2xs); }
+.psegmented--md .psegmented__seg { padding: 6px var(--s-4); font-size: var(--fs-xs); }
+
+.psegmented__seg:hover {
+  color: var(--fg);
+  background: var(--chip-bg);
+}
+
+.psegmented__seg--on,
+.psegmented__seg--on:hover {
+  color: var(--fg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-sm), inset 0 0 0 var(--bw) var(--line-soft);
+}
+
+.psegmented__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-full);
+  background: var(--chip-bg);
+  color: var(--fg-faint);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.psegmented__seg--on .psegmented__count {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: color-mix(in srgb, var(--accent) 74%, var(--fg));
+}
