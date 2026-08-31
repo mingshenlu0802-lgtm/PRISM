@@ -14,6 +14,13 @@ be done later.
 
 ---
 
+> **If you are sharing with friends rather than publishing publicly, read
+> [SHARING.md](SHARING.md) first.** Connecting the free Supabase backend
+> described there gives you real, server-enforced access control — a
+> non-member cannot read a single row — which makes most of Part 5 below
+> unnecessary. Parts 1–4 (de-personalising your accounts and URLs) still
+> apply either way, and matter just as much.
+
 ## Part 0 — What you are actually protecting
 
 Be clear about this before spending effort in the wrong place.
