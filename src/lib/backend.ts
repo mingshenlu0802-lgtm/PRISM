@@ -51,13 +51,15 @@ export function saveLocal(cfg: BackendConfig | null): void {
 }
 
 /**
- * 这两串填对了没有。
+ * 危险的那一类错误：**必须一边打字一边拦**。
  *
- * 特意挡住 `sb_secret_`：Supabase 新界面上「Publishable key」和「Secret key」
- * 挨在一起，长得也像，复制错一个的后果是**把绕过全部权限规则的钥匙印在网页上**，
- * 谁都能拿去改你的数据库。这种错误必须在这里就拦下来，不能等到出事。
+ * Supabase 新界面上「Publishable key」和「Secret key」挨在一起，长得也像，
+ * 复制错一个的后果是**把绕过全部权限规则的钥匙印在网页上**，谁都能拿去改
+ * 你的数据库。这种错不能等到按按钮才说——那时候人可能已经点了「发布出去」。
+ *
+ * 只有这一类立刻报。别的都等他打完再说（见 `keyProblem`）。
  */
-export function keyProblem(key: string): string | null {
+export function keyDanger(key: string): string | null {
   const k = key.trim()
   if (!k) return null
   if (/^sb_secret_/i.test(k)) {
@@ -66,26 +68,67 @@ export function keyProblem(key: string): string | null {
   if (/^service_role/i.test(k) || /"role"\s*:\s*"service_role"/.test(k)) {
     return '这是 service_role 密钥，不能填在网页上。请改用 anon / Publishable key。'
   }
-  if (k.length < 20) return '这一串太短，看起来不是完整的 key。'
-  if (!/^(sb_publishable_|eyJ)/.test(k)) {
-    return '这一串不像 Supabase 的 Publishable key（应当以 sb_publishable_ 开头，旧版是 eyJ 开头）。'
-  }
   return null
 }
 
+/**
+ * 这一串填对了没有——**完整地判断**，用于失焦之后和按按钮之前。
+ *
+ * 不要拿它一边打字一边判断。站长反馈过：「我尝试给 publishable key
+ * enter anything 的时候就出现错误」——因为才敲了一两个字母就被判「太短」。
+ * 一个人在打字中途本来就是「还没填对」，那不是错误，那是打字。
+ */
+export function keyProblem(key: string): string | null {
+  const k = key.trim()
+  if (!k) return null
+  const danger = keyDanger(k)
+  if (danger) return danger
+  if (!/^(sb_publishable_|eyJ)/.test(k)) {
+    return '这一串不像 Supabase 的 Publishable key（应当以 sb_publishable_ 开头，旧版是 eyJ 开头）。'
+  }
+  if (k.length < 20) return '这一串太短，像是没复制全。回 Supabase 用那一栏的复制图标，别手打。'
+  return null
+}
+
+/**
+ * 这一串还在打字的中途吗。
+ *
+ * 「是」的时候界面什么都不说——它只是还没打完，不是填错了。
+ */
+export function keyTyping(key: string): boolean {
+  const k = key.trim()
+  if (!k) return true
+  if (keyDanger(k)) return false
+  // 正在往「sb_publishable_」或「eyJ」这两个开头上凑，就还算在打字。
+  const prefixes = ['sb_publishable_', 'eyJ']
+  if (prefixes.some((p) => p.startsWith(k) || k.startsWith(p))) {
+    return keyProblem(k) !== null
+  }
+  return false
+}
+
+/** 网址的危险类错误：暂时没有——填错网址顶多是连不上，不会泄漏什么。 */
 export function urlProblem(url: string): string | null {
   const u = url.trim()
   if (!u) return null
-  if (!/^https:\/\//.test(u)) return '网址要以 https:// 开头。'
+  if (!/^https?:\/\//.test(u)) return '网址要以 https:// 开头。'
   try {
     const parsed = new URL(u)
     if (!/\.supabase\.(co|in)$/.test(parsed.hostname)) {
       return '这个网址不像 Supabase 的项目地址（应当是 https://你的项目ID.supabase.co）。'
     }
+    if (parsed.protocol !== 'https:') return '网址要以 https:// 开头。'
     return null
   } catch {
     return '这不是一个合法的网址。'
   }
+}
+
+/** 网址还在打字的中途吗。`https://` 这半截显然是。 */
+export function urlTyping(url: string): boolean {
+  const u = url.trim()
+  if (!u) return true
+  return 'https://'.startsWith(u) || u === 'https://'
 }
 
 function valid(c: Partial<BackendConfig> | null | undefined): boolean {
@@ -166,4 +209,33 @@ export function friendly(e: unknown): string {
   if (/JWT|not authenticated|session/i.test(msg)) return '登录状态过期了，请重新登录。'
   if (/Failed to fetch|NetworkError/i.test(msg)) return '连不上服务器，检查一下网络。'
   return msg || '出错了。'
+}
+
+/**
+ * 从一坨粘贴进来的文字里，把网址和 key 分别认出来。
+ *
+ * 站长的原话：「我不能同时输入两行进输入框。」——他是想**把两行一起粘**。
+ * 那完全合理：这两串在 Supabase 后台常常是连着抄下来的，中间就一个换行。
+ * 单行输入框会把换行吃掉，于是两串黏成一串，怎么填都不对。
+ *
+ * 与其教他「要分两次粘」，不如让粘贴这件事直接管用：
+ * 不管他粘的是哪一个框、粘的是一行还是两行，能认出来的就各自归位。
+ *
+ * 认法很笨但很稳：按空白字符切开，逐段看它像网址还是像 key。
+ * 认不出来的段落一概忽略——宁可少填一个让他自己补，也不要把垃圾塞进去。
+ */
+export function parsePasted(text: string): { url?: string; anonKey?: string } {
+  const out: { url?: string; anonKey?: string } = {}
+  for (const raw of text.split(/[\s\n\r]+/)) {
+    const piece = raw.trim().replace(/[,;"'<>]+$/, '')
+    if (!piece) continue
+    if (!out.url && /^https?:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/i.test(piece)) {
+      out.url = piece.replace(/\/$/, '')
+      continue
+    }
+    if (!out.anonKey && /^(sb_publishable_|sb_secret_|eyJ)/.test(piece) && piece.length >= 20) {
+      out.anonKey = piece
+    }
+  }
+  return out
 }

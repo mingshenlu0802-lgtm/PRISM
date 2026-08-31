@@ -23,7 +23,7 @@ export type Action =
   | { type: 'reset' }
   | { type: 'hydrate'; state: PrismState }
   /* content */
-  | { type: 'news-add'; items: NewsItem[]; who: string }
+  | { type: 'news-add'; items: NewsItem[]; who: string; manual?: boolean }
   | { type: 'news-edit'; id: ID; patch: Partial<NewsItem>; who: string }
   | { type: 'news-hide'; id: ID; who: string }
   | { type: 'news-restore'; id: ID; who: string }
@@ -32,7 +32,7 @@ export type Action =
   | { type: 'news-link-add'; id: ID; link: MediaLink; who: string }
   | { type: 'news-link-edit'; id: ID; linkId: ID; patch: Partial<MediaLink>; who: string }
   | { type: 'news-link-remove'; id: ID; linkId: ID; who: string }
-  | { type: 'study-add'; items: StudyItem[]; who: string }
+  | { type: 'study-add'; items: StudyItem[]; who: string; manual?: boolean }
   | { type: 'study-edit'; id: ID; patch: Partial<StudyItem>; who: string }
   | { type: 'study-hide'; id: ID; who: string }
   | { type: 'study-restore'; id: ID; who: string }
@@ -81,11 +81,15 @@ export function reducer(state: PrismState, action: Action): PrismState {
 
     case 'news-add': {
       if (action.items.length === 0) return state
+      // 自己写的和搜来的记法不一样——「最近编辑」是站长回头查账用的，
+      // 把手写的记成「搜集到」，他以后就分不清哪条是自己的意思。
+      const text = action.manual
+        ? '自己写了一条新闻（先存成下架，写好再上线）'
+        : `搜集到 ${action.items.length} 条新闻：${action.items.map((i) => short(i.headline, 14)).join('、')}`
       return {
         ...state,
         news: [...action.items, ...state.news],
-        changes: log(state, action.who, 'collected',
-          `搜集到 ${action.items.length} 条新闻：${action.items.map((i) => short(i.headline, 14)).join('、')}`),
+        changes: log(state, action.who, action.manual ? 'edited' : 'collected', text),
       }
     }
 
@@ -192,10 +196,13 @@ export function reducer(state: PrismState, action: Action): PrismState {
 
     case 'study-add': {
       if (action.items.length === 0) return state
+      const text = action.manual
+        ? '自己写了一项研究（先存成下架，写好再上线）'
+        : `搜集到 ${action.items.length} 项研究/数据`
       return {
         ...state,
         studies: [...action.items, ...state.studies],
-        changes: log(state, action.who, 'collected', `搜集到 ${action.items.length} 项研究/数据`),
+        changes: log(state, action.who, action.manual ? 'edited' : 'collected', text),
       }
     }
 

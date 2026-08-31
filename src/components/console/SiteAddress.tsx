@@ -171,7 +171,7 @@ export function SiteAddress(): JSX.Element {
               <br />
               想连 <code>github.io</code> 都去掉，就再买一个自己的域名（约 $10–15/年），
               做法写在仓库的 <code>docs/RENAME.md</code> 后半篇——
-              也可以直接在旁边的 <b>Claude</b> 标签里问我。
+              也可以直接在 Claude Code 的聊天里问。
             </p>
           )}
 

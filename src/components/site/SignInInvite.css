@@ -1,0 +1,51 @@
+/*
+ * 登录邀请条。
+ *
+ * 要显眼到朋友会看见，又不能显眼到像一道门。所以用强调色的浅底加一条左边线，
+ * 而不是整条填满强调色——填满会读成「警告」或「你被拦下了」。
+ */
+.invite {
+  border-bottom: var(--bw) solid var(--line);
+  background: var(--accent-soft);
+}
+
+.invite__in {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  color: var(--fg-muted);
+}
+.invite__in > svg { flex: none; color: var(--accent); }
+
+.invite__text {
+  flex: 1 1 auto; min-width: 0; margin: 0;
+  font-size: var(--fs-xs); line-height: 1.7;
+}
+.invite__text strong { color: var(--fg); font-weight: 660; }
+
+.invite__go {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-full);
+  background: var(--accent); color: var(--accent-fg);
+  font-size: var(--fs-xs); font-weight: 640; text-decoration: none;
+  white-space: nowrap;
+}
+.invite__go:hover { filter: brightness(1.06); }
+
+.invite__x {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: var(--r-full);
+  color: var(--fg-subtle);
+}
+.invite__x:hover { background: var(--chip-bg); color: var(--fg); }
+
+/* 手机上让文字占满一行，按钮退到下面——否则三样挤在一行谁都读不清。 */
+@media (max-width: 700px) {
+  .invite__in { flex-wrap: wrap; row-gap: var(--s-3); }
+  .invite__text { flex: 1 1 100%; order: 2; }
+  .invite__go { order: 3; }
+  .invite__x { order: 1; margin-left: auto; }
+}

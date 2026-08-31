@@ -55,6 +55,8 @@ const ROUTES = [
   ['topic', '/topic/violence'],
   ['studies', '/studies'],
   ['about', '/about'],
+  // 朋友第一次登录会落在这一页，坏了就没人能被设成编辑。
+  ['signin', '/signin'],
   ['console-search', '/console'],
   ['console-manage', '/console/manage'],
 ]

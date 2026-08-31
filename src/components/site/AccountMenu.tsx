@@ -17,6 +17,11 @@ import './AccountMenu.css'
  * 共享模式下：没登录的人看到一个「登录」——但看内容本来就不需要登录，
  * 所以面板里第一句话就说清楚这件事，免得有人以为自己被挡住了。
  * 登录之后显示身份；能进控制端的（站长和编辑）才看得到入口。
+ *
+ * **没登录时这个按钮是实心的、带信封图标、手机上也保留文字。**
+ * 站长的原话：「请把登陆功能做得更加 obvious，这个是给我的朋友的。」
+ * 朋友不是天天用这个网站的人，一个跟别的图标长得一样的小圆按钮，他找不到。
+ * 登录之后就恢复成安静的样式——那时它只是个账号菜单，不该再抢注意力。
  */
 export function AccountMenu(): JSX.Element | null {
   const { state, dispatch, isOwner, isAdmin, mode } = usePrism()
@@ -54,16 +59,20 @@ export function AccountMenu(): JSX.Element | null {
     <div className="acct" ref={ref}>
       <button
         type="button"
-        className="acct__btn"
+        className={cx('acct__btn', !signedIn && 'acct__btn--in')}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={signedIn ? `账号：${auth.email}` : '登录'}
+        aria-label={signedIn ? `账号：${auth.email}` : '用邮箱登录'}
         onClick={() => setOpen((v) => !v)}
       >
-        {signedIn && auth.picture
-          ? <img className="acct__avatar" src={auth.picture} alt="" width={20} height={20} />
-          : <Icon name="users" size={15} />}
-        <span className="acct__label">{signedIn ? (auth.name ?? auth.email) : '登录'}</span>
+        {signedIn
+          ? (auth.picture
+              ? <img className="acct__avatar" src={auth.picture} alt="" width={20} height={20} />
+              : <Icon name="users" size={15} />)
+          : <Icon name="mail" size={15} />}
+        <span className={cx('acct__label', !signedIn && 'acct__label--always')}>
+          {signedIn ? (auth.name ?? auth.email) : '登录'}
+        </span>
       </button>
 
       {open && !signedIn && (

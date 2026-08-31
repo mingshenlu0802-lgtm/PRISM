@@ -130,3 +130,6 @@
   font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-subtle);
 }
 .nedit__imgnote svg { flex: none; margin-top: 3px; color: var(--warn); }
+
+/* 自己写的条目——跟「AI 自动」区分开，站长回头能一眼看出哪条是他的意思。 */
+.nedit__badge--mine { background: var(--accent); color: var(--accent-fg); }

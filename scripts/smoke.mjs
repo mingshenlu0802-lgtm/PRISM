@@ -25,8 +25,10 @@ await build({
 })
 
 const m = await import(pathToFileURL(bundle).href)
-const { buildInitialState, reducer, accessOf, collect, planSteps, runVibe, VIBE_EXAMPLES,
-        contentSnapshot, PRIORITY_REGIONS, readAddress } = m
+const { buildInitialState, reducer, accessOf, collect, planSteps,
+        contentSnapshot, PRIORITY_REGIONS, readAddress,
+        blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
+        parsePasted } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -413,38 +415,13 @@ await test('搜集步骤是有名有姓的，不是一个转圈的图标', () =>
   ok(steps.every((x) => x.label.trim() && x.detail.trim()), '每步都要有说明')
 })
 
-/* ------------------------------ 一句话改样子 ------------------------------ */
-
-await test('每个示例句子都真的能被看懂', () => {
-  const s = fresh()
-  for (const ex of VIBE_EXAMPLES) {
-    const r = runVibe(ex, s)
-    ok(r.understood, `示例「${ex}」自己都看不懂`)
-    ok(r.changes.length > 0, `示例「${ex}」没有产生任何改动`)
-  }
-})
-
-await test('看不懂就直说，并给一句建议——不瞎改', () => {
-  const s = fresh()
-  const r = runVibe('把首页做成一个能自动交易的比特币面板', s)
-  eq(r.understood, false, '不该假装看懂')
-  eq(r.changes.length, 0, '看不懂时不该改任何东西')
-  ok((r.suggestion ?? '').trim().length > 0, '应该给一句建议')
-})
-
-await test('同一句话说两遍，结果一样（没有随机）', () => {
-  const s = fresh()
-  const a = runVibe('字大一点，换成深色', s)
-  const b = runVibe('字大一点，换成深色', s)
-  eq(JSON.stringify(a), JSON.stringify(b), '两次结果应完全一致')
-})
-
 await test('调整外观不会碰到新闻内容', () => {
-  const s = fresh()
-  const r = runVibe('换成深色，字大一点', s)
-  for (const c of r.changes) {
-    ok(!('news' in c) && !('studies' in c), '外观改动不该带上内容')
-  }
+  const s0 = fresh()
+  const s1 = reducer(s0, { type: 'appearance', patch: { theme: 'ink', fontScale: 1.3 }, who: ME })
+  eq(s1.appearance.theme, 'ink', '主题应当改了')
+  eq(s1.appearance.fontScale, 1.3, '字号应当改了')
+  eq(JSON.stringify(s1.news), JSON.stringify(s0.news), '外观改动不该碰新闻')
+  eq(JSON.stringify(s1.studies), JSON.stringify(s0.studies), '外观改动不该碰研究')
 })
 
 /* ------------------------------ 同步 ------------------------------ */
@@ -528,6 +505,108 @@ await test('冒充 github.io 的域名不会被当成 Pages', () => {
   // 若把它认成 Pages，就会把「evil」当账号名显示给站长，等于帮着骗人。
   eq(readAddress('https://github.io.example.com/').kind, 'custom', '不是 github.io')
   eq(readAddress('https://a.b.github.io/x/').kind, 'custom', '多一级子域不是 Pages 用户站')
+})
+
+/* ---------------- 自己写一条 ---------------- */
+
+await test('自己写的新条目先下架，不会以空壳出现在首页', () => {
+  const item = blankNews()
+  eq(item.status, 'hidden', '新建的必须是下架状态')
+  eq(item.origin, 'editor', '要标成人写的，不是搜来的')
+  eq(item.demo, false, '自己写的不是演示数据')
+  eq(item.links.length, 0, '不该塞任何占位链接——假网址比没链接更糟')
+  const s = reducer(fresh(), { type: 'news-add', items: [item], who: ME, manual: true })
+  eq(s.news[0].id, item.id, '新建的应当排在最前')
+  eq(s.news.filter((n) => n.status === 'live').length,
+     fresh().news.filter((n) => n.status === 'live').length, '上线条数不该变')
+})
+
+await test('研究也能自己写，同样先下架', () => {
+  const item = blankStudy()
+  eq(item.status, 'hidden', '新建的研究必须是下架状态')
+  eq(item.origin, 'editor', '要标成人写的')
+  const s = reducer(fresh(), { type: 'study-add', items: [item], who: ME, manual: true })
+  eq(s.studies[0].id, item.id, '新建的应当排在最前')
+})
+
+await test('自己写的和搜来的，改动记录分得清', () => {
+  const s0 = fresh()
+  const manual = reducer(s0, { type: 'news-add', items: [blankNews()], who: ME, manual: true })
+  const collected = reducer(s0, { type: 'news-add', items: [blankNews()], who: ME })
+  ok(manual.changes[0].text.includes('自己写'), `手写的记成了：${manual.changes[0].text}`)
+  ok(collected.changes[0].text.includes('搜集到'), `搜来的记成了：${collected.changes[0].text}`)
+})
+
+await test('每次新建都是一条独立的条目，不会互相覆盖', () => {
+  let s = fresh()
+  const a = blankNews()
+  const b = blankNews()
+  ok(a.id !== b.id, '两次新建的 id 不该相同')
+  ok(a.slug !== b.slug || a.id !== b.id, '两次新建不该完全一样')
+  s = reducer(s, { type: 'news-add', items: [a], who: ME, manual: true })
+  s = reducer(s, { type: 'news-add', items: [b], who: ME, manual: true })
+  eq(s.news.length, fresh().news.length + 2, '应当多出两条')
+})
+
+/* ---------------- 填 Supabase 那两串时的提示 ---------------- */
+
+await test('打字打到一半不该被判成填错了', () => {
+  // 站长反馈：「我尝试给 publishable key enter anything 的时候就出现错误」。
+  for (const half of ['s', 'sb_', 'sb_publishable', 'sb_publishable_', 'e', 'ey', 'eyJ']) {
+    ok(keyTyping(half), `「${half}」还在打字中途，不该报错`)
+    eq(keyDanger(half), null, `「${half}」不是危险的 key，不该立刻拦`)
+  }
+  ok(keyTyping(''), '空的输入框当然不算填错')
+  for (const half of ['h', 'https:', 'https://']) {
+    ok(urlTyping(half), `「${half}」还在打字中途，不该报错`)
+  }
+})
+
+await test('危险的 key 一个字符都不等，立刻拦下来', () => {
+  // 填错这一个的后果是把绕过全部权限规则的钥匙印在网页上——不能等按按钮才说。
+  ok(keyDanger('sb_secret_abc'), 'Secret key 必须立刻拦')
+  ok(keyDanger('service_role_xyz'), 'service_role 必须立刻拦')
+  ok(!keyTyping('sb_secret_abc'), '危险的 key 不算「还在打字」')
+  ok(keyProblem('sb_secret_abc').includes('Secret'), '错误里要说清楚是哪一种 key')
+})
+
+await test('填对的 key 和网址不报错', () => {
+  eq(keyProblem('sb_publishable_' + 'x'.repeat(40)), null, '新版 Publishable key 应当通过')
+  eq(keyProblem('eyJ' + 'x'.repeat(60)), null, '旧版 anon key 应当通过')
+  eq(urlProblem('https://lutztcjcgrqjbpzzbzmw.supabase.co'), null, '正常的项目地址应当通过')
+})
+
+await test('填错网址会说清楚，而不是默默连不上', () => {
+  ok(urlProblem('http://example.com'), '非 Supabase 的地址应当被指出来')
+  ok(urlProblem('https://example.com').includes('Supabase'), '要说明期望的是什么')
+  ok(urlProblem('随便打的').length > 0, '不是网址就该说不是网址')
+})
+
+await test('两行一起粘也认得出来，各自归位', () => {
+  // 站长的原话：「我不能同时输入两行进输入框。」
+  const URL_ = 'https://lutztcjcgrqjbpzzbzmw.supabase.co'
+  const KEY_ = 'sb_publishable_' + 'A1b2C3d4'.repeat(5)
+  for (const blob of [`${URL_}\n${KEY_}`, `${KEY_}\n${URL_}`, `${URL_}  ${KEY_}`, `  ${URL_}\r\n${KEY_}  `]) {
+    const r = parsePasted(blob)
+    eq(r.url, URL_, `没认出网址：${JSON.stringify(blob)}`)
+    eq(r.anonKey, KEY_, `没认出 key：${JSON.stringify(blob)}`)
+  }
+})
+
+await test('只粘一串时不会瞎猜另一串', () => {
+  const only = parsePasted('https://lutztcjcgrqjbpzzbzmw.supabase.co')
+  eq(only.url, 'https://lutztcjcgrqjbpzzbzmw.supabase.co', '网址应当认出来')
+  eq(only.anonKey, undefined, '没有 key 就不该编一个出来')
+  const junk = parsePasted('随便一段没用的文字\n还有一行')
+  eq(junk.url, undefined, '认不出来就什么都别填')
+  eq(junk.anonKey, undefined, '认不出来就什么都别填')
+})
+
+await test('粘进来的 Secret key 照样会被拦下', () => {
+  // 认出来只是为了填进框里——危险与否由 keyDanger 判断，不能因为「是粘的」就放行。
+  const r = parsePasted('https://abc.supabase.co\nsb_secret_' + 'x'.repeat(40))
+  ok(r.anonKey.startsWith('sb_secret_'), '应当认出这一串')
+  ok(keyDanger(r.anonKey), '认出来之后必须立刻被判危险')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

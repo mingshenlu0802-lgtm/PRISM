@@ -75,3 +75,19 @@
 
 /* 登录面板比账号面板宽一点，容得下输入框和那句「不登录也能看」。 */
 .acct__panel--wide { width: min(340px, calc(100vw - var(--s-8))); }
+
+/*
+ * 没登录时的登录按钮：实心、带信封、手机上也保留文字。
+ *
+ * 站长的原话：「请把登陆功能做得更加 obvious，这个是给我的朋友的。」
+ * 朋友一年打开几次，一个跟外观按钮长得一样的小圆图标，他根本不会去点。
+ * 登录之后按钮恢复安静样式——那时它只是账号菜单，不该再抢注意力。
+ */
+.acct__btn--in {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 640;
+}
+.acct__btn--in:hover { filter: brightness(1.06); }
+.acct__label--always { display: inline; }

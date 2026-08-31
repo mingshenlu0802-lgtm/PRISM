@@ -181,7 +181,7 @@ Supabase 后台 → **Authentication** → **URL Configuration** →
 ## B5 — 跟我说一声
 
 用 Actions 发布的网站，域名设置有时会在下一次发布时被覆盖掉。
-**在控制端的 Claude 里跟我说「我的域名是 xxx，帮我固定住」**，
+**在 Claude Code 的聊天里说「我的域名是 xxx，帮我固定住」**，
 我会在仓库里加一个 `public/CNAME` 文件，以后每次发布都自动带上，不会再掉。
 
 ---

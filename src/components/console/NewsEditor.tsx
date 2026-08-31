@@ -14,9 +14,13 @@ import './NewsEditor.css'
  * 目标是「站长敢按」：每个按钮都写明后果，删除要二次确认，下架可以一键恢复，
  * 改坏了有「还原」。任何字段都能改——总结、要点、标签、每一个媒体链接。
  */
-export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
+export function NewsEditor(
+  { item, openAtFirst = false }: { item: NewsItem; openAtFirst?: boolean },
+): JSX.Element {
   const { dispatch, who, canEdit } = usePrism()
-  const [open, setOpen] = useState(false)
+  // 刚按「自己写一条」建出来的，直接展开——否则站长按了按钮，
+  // 只看到列表顶上多了一行折叠的「（未命名）」，还得自己去点开。
+  const [open, setOpen] = useState(openAtFirst)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [draft, setDraft] = useState({
     headline: item.headline,
@@ -112,6 +116,7 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
         <div className="nedit__badges">
           {item.featured && <span className="nedit__badge nedit__badge--lead">头条</span>}
           {item.status === 'hidden' && <span className="nedit__badge nedit__badge--off">已下架</span>}
+          {item.origin === 'editor' && <span className="nedit__badge nedit__badge--mine">你写的</span>}
           {item.origin === 'auto' && !item.editedByHuman && <span className="nedit__badge">AI 自动</span>}
           {item.editedByHuman && <span className="nedit__badge nedit__badge--edited">你编辑过</span>}
           <span className="nedit__linkn">{item.links.length} 链接</span>
