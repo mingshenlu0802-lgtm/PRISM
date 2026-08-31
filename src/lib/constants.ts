@@ -87,11 +87,11 @@ export interface EngineOption {
 }
 
 export const ENGINES: EngineOption[] = [
-  { id: 'qwen-open', name: 'Qwen 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '多语种覆盖好，适合中港台日韩的中文与东亚语种检索。' },
-  { id: 'llama-open', name: 'Llama 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '权重公开，适合大批量抓链接。' },
-  { id: 'mistral-open', name: 'Mistral 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '体量小、吞吐高，适合逐条打开链接确认可用。' },
+  { id: 'qwen-open', name: 'Qwen 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '多语种覆盖好，中文长总结写得最稳，适合中港台日韩。默认用它。' },
+  { id: 'llama-open', name: 'Llama 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '权重公开，英文长总结好，适合欧美来源。' },
+  { id: 'mistral-open', name: 'Mistral 系列（开源，可自托管）', kind: 'open-source', cost: '免费 · 自建算力', note: '体量小、吞吐高，量大时最省，总结偏简洁。' },
   { id: 'self-hosted', name: '自定义端点（本地或私有部署）', kind: 'open-source', cost: '免费 · 自建算力', note: '指向你自己的推理服务，请求不离开你控制的网络。' },
-  { id: 'claude', name: 'Claude', kind: 'hosted', cost: '按调用计费', note: '总结质量最好；控制端内的改写固定使用它。' },
+  { id: 'claude', name: 'Claude', kind: 'hosted', cost: '按调用计费', note: '质量最好但按调用计费。搜索和总结不必用它——「编辑 → Claude」那边本来就是它。' },
 ]
 
 export const ENGINE_MAP: Record<string, EngineOption> = Object.fromEntries(

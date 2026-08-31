@@ -4,6 +4,7 @@ import { cx, paragraphs, relTime, textLength } from '../../lib/util'
 import { Icon } from '../common'
 import { TagRow } from './Tags'
 import { LinkList } from './LinkList'
+import { Cover } from './Cover'
 import './NewsCard.css'
 
 /**
@@ -46,12 +47,21 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
         </p>
       </header>
 
+      {/* 内容提示永远排在图之前——读者要先有机会决定看不看。 */}
       {item.contentNotice && (
         <p className="ncard__notice">
           <Icon name="shield" size={13} />
           <span>{item.contentNotice}</span>
         </p>
       )}
+
+      <Cover
+        image={item.image}
+        seed={item.slug}
+        regions={item.regions}
+        topics={item.topics}
+        variant={full ? 'full' : lead ? 'lead' : 'feed'}
+      />
 
       <div className={cx('ncard__summary', clamped && 'ncard__summary--clamp')}>
         {paragraphs(item.summary).map((p, i) => <p key={i}>{p}</p>)}

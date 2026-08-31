@@ -114,3 +114,19 @@
 .nedit__mbtn--danger { background: var(--accent); color: var(--accent-fg); font-weight: 620; }
 .nedit__mtext { font-size: var(--fs-sm); line-height: 1.75; color: var(--fg-muted); }
 .nedit__mtext strong { color: var(--fg); }
+
+/* --------------------------------- 配图 --------------------------------- */
+
+.nedit__img { display: grid; gap: var(--s-3); }
+@media (min-width: 720px) { .nedit__img { grid-template-columns: 160px minmax(0, 1fr); align-items: start; } }
+.nedit__imgprev {
+  width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: var(--r-sm); border: var(--bw) solid var(--line);
+  background: var(--bg-sunken);
+}
+.nedit__imgfields { display: grid; gap: var(--s-2); min-width: 0; }
+.nedit__imgnote {
+  display: flex; gap: 6px; align-items: flex-start;
+  font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-subtle);
+}
+.nedit__imgnote svg { flex: none; margin-top: 3px; color: var(--warn); }

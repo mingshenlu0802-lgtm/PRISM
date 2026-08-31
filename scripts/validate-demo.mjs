@@ -90,6 +90,16 @@ for (const n of s.news) {
     }
   }
 
+  // 配图必须带署名和描述。挂着别人的照片不写来源不行；没有描述等于把看不见图的人排除在外。
+  if (n.image) {
+    if (!n.image.credit?.trim()) err(`${at}：配了图却没有署名`)
+    if (!n.image.alt?.trim()) err(`${at}：配了图却没有图片说明，看不见图的读者拿不到任何信息`)
+    try { new URL(n.image.url) } catch { err(`${at}：配图网址格式不对`) }
+    if (n.demo && !isPlaceholder(n.image.url)) {
+      err(`${at}：演示条目用了看起来像真的配图网址`)
+    }
+  }
+
   if (!['live', 'hidden'].includes(n.status)) err(`${at}：status 不认识（${n.status}）`)
   if (!['auto', 'editor'].includes(n.origin)) err(`${at}：origin 不认识（${n.origin}）`)
   if (Number.isNaN(Date.parse(n.publishedAt))) err(`${at}：发布时间不是合法时间`)

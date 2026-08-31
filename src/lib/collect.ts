@@ -233,7 +233,16 @@ export function planSteps(config: CollectConfig): RunStep[] {
     },
     { stage: 'search', label: '按议题筛选', detail: topics.join('、') || '未选择议题', done: false },
     { stage: 'dedupe', label: '合并重复报道', detail: config.dedupe ? '标题高度相似的条目只保留一条' : '已关闭去重', done: false },
-    { stage: 'summarise', label: '生成简短总结', detail: '每条 2–4 句，不写长文', done: false },
+    {
+      stage: 'summarise', label: '写总结',
+      detail: '用你选的免费模型写，长短由内容定；复杂的政策或判决可以写到上千字，空行分段',
+      done: false,
+    },
+    {
+      stage: 'links', label: '取配图',
+      detail: '从报道页面自带的社交预览图取一张，连同署名一起收；取不到就用系统画的封面，不伪造现场照片',
+      done: false,
+    },
     {
       stage: 'links', label: '整理媒体链接',
       detail: config.preferIndependent

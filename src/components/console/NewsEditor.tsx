@@ -23,6 +23,10 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
     summary: item.summary,
     bullets: item.bullets.join('\n'),
     editorNote: item.editorNote ?? '',
+    imageUrl: item.image?.url ?? '',
+    imageAlt: item.image?.alt ?? '',
+    imageCredit: item.image?.credit ?? '',
+    imageCreditUrl: item.image?.creditUrl ?? '',
   })
   const [newLink, setNewLink] = useState({ outlet: '', title: '', url: '' })
 
@@ -31,8 +35,19 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
     || draft.summary !== item.summary
     || draft.bullets !== item.bullets.join('\n')
     || draft.editorNote !== (item.editorNote ?? '')
+    || draft.imageUrl !== (item.image?.url ?? '')
+    || draft.imageAlt !== (item.image?.alt ?? '')
+    || draft.imageCredit !== (item.image?.credit ?? '')
+    || draft.imageCreditUrl !== (item.image?.creditUrl ?? '')
 
   const save = () => {
+    const url = draft.imageUrl.trim()
+    // 图必须带署名和描述，缺一样就不存这张图——挂着别人的照片不写来源是不行的，
+    // 而没有描述等于把看不见图的读者排除在外。
+    if (url && (!draft.imageCredit.trim() || !draft.imageAlt.trim())) {
+      toast('配图要填「图片说明」和「来源署名」，两样都填了才能保存这张图。', 'warn')
+      return
+    }
     dispatch({
       type: 'news-edit', id: item.id, who,
       patch: {
@@ -40,6 +55,14 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
         summary: draft.summary.trim(),
         bullets: draft.bullets.split('\n').map((b) => b.trim()).filter(Boolean),
         editorNote: draft.editorNote.trim() || undefined,
+        image: url
+          ? {
+            url,
+            alt: draft.imageAlt.trim(),
+            credit: draft.imageCredit.trim(),
+            creditUrl: draft.imageCreditUrl.trim() || undefined,
+          }
+          : undefined,
       },
     })
     toast('已保存。', 'go')
@@ -50,6 +73,10 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
     summary: item.summary,
     bullets: item.bullets.join('\n'),
     editorNote: item.editorNote ?? '',
+    imageUrl: item.image?.url ?? '',
+    imageAlt: item.image?.alt ?? '',
+    imageCredit: item.image?.credit ?? '',
+    imageCreditUrl: item.image?.creditUrl ?? '',
   })
 
   const toggleTag = <T extends string>(list: T[], key: T): T[] =>
@@ -133,6 +160,49 @@ export function NewsEditor({ item }: { item: NewsItem }): JSX.Element {
             onChange={(e) => setDraft((d) => ({ ...d, editorNote: e.currentTarget.value }))}
             disabled={!canEdit}
           />
+
+          <p className="nedit__label">
+            配图
+            <span className="nedit__hint">
+              留空就用系统自动画的封面。填了图片网址，署名和说明就必须一起填。
+            </span>
+          </p>
+          <div className="nedit__img">
+            {draft.imageUrl.trim() && (
+              <img className="nedit__imgprev" src={draft.imageUrl.trim()} alt="" />
+            )}
+            <div className="nedit__imgfields">
+              <TextInput
+                placeholder="图片网址（https://…）"
+                value={draft.imageUrl}
+                onChange={(e) => setDraft((d) => ({ ...d, imageUrl: e.currentTarget.value }))}
+                disabled={!canEdit}
+              />
+              <TextInput
+                placeholder="图片说明：图里有什么（给看不见图的人读）"
+                value={draft.imageAlt}
+                onChange={(e) => setDraft((d) => ({ ...d, imageAlt: e.currentTarget.value }))}
+                disabled={!canEdit}
+              />
+              <TextInput
+                placeholder="来源署名：摄影师或机构"
+                value={draft.imageCredit}
+                onChange={(e) => setDraft((d) => ({ ...d, imageCredit: e.currentTarget.value }))}
+                disabled={!canEdit}
+              />
+              <TextInput
+                placeholder="图片出处网址（可留空）"
+                value={draft.imageCreditUrl}
+                onChange={(e) => setDraft((d) => ({ ...d, imageCreditUrl: e.currentTarget.value }))}
+                disabled={!canEdit}
+              />
+            </div>
+          </div>
+          <p className="nedit__imgnote">
+            <Icon name="alert" size={12} />
+            图是别人拍的。直接引用别人网站上的图，对方随时可能换掉或封掉外链，
+            而且未必允许转载——最稳妥的做法是取得授权后自己存一份，再把网址填这里。
+          </p>
 
           {dirty && (
             <div className="nedit__saverow">

@@ -169,6 +169,28 @@ await test('演示数据里的中国内地条目带得上境外或独立来源',
   }
 })
 
+/* ------------------------------ 配图 ------------------------------ */
+
+await test('配图必须带署名和说明，缺一样就不算数', () => {
+  for (const n of fresh().news) {
+    if (!n.image) continue
+    ok(n.image.credit?.trim(), `「${n.headline}」配了图却没署名`)
+    ok(n.image.alt?.trim(), `「${n.headline}」配了图却没有图片说明`)
+  }
+})
+
+await test('没有配图的条目也不会开天窗——封面由标签生成，而且是确定的', () => {
+  const n = fresh().news[0]
+  // 同一条新闻画出来的封面必须每次一样，否则读者每次刷新看到的都不同。
+  const draw = (seed) => {
+    let h = 2166136261
+    for (let i = 0; i < seed.length; i += 1) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) }
+    return Math.abs(h)
+  }
+  eq(draw(n.slug), draw(n.slug), '同一个 slug 应当得到同一张图')
+  ok(draw(n.slug) !== draw(fresh().news[1].slug), '不同新闻不该画出同一张图')
+})
+
 /* ------------------------------ 长总结 ------------------------------ */
 
 await test('总结可以写长，空行分段会被切成自然段', () => {

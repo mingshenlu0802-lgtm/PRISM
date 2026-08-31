@@ -74,6 +74,17 @@ export interface MediaLink {
   note?: string
 }
 
+/** 一张配图，连同它的出处。 */
+export interface NewsImage {
+  url: string
+  /** 给看不见图的人描述图里有什么。空着等于把他们排除在外。 */
+  alt: string
+  /** 摄影师／机构，照原样显示。 */
+  credit: string
+  /** 图的原始页面，方便读者自己去核对。 */
+  creditUrl?: string
+}
+
 /* ------------------------------------------------------------------ *
  * News
  * ------------------------------------------------------------------ */
@@ -103,6 +114,17 @@ export interface NewsItem {
   editorNote?: string
   /** Set when the editor has touched the summary, so the desk stops overwriting it. */
   editedByHuman?: boolean
+  /**
+   * 配图。
+   *
+   * 只放**真实存在**的图，而且必须署名和给出出处——图是别人拍的，网站只是引用。
+   * 没有图的条目不伪造：页面会画一张由这条新闻的地区色和议题色生成的抽象封面，
+   * 它明显不是照片，不会被误当成现场。
+   *
+   * 涉及性暴力等题材的条目，内容提示永远排在图之前——读者要先有机会决定看不看。
+   */
+  image?: NewsImage
+
   /** Shown above the summary for material that needs a heads-up. */
   contentNotice?: string
   featured?: boolean

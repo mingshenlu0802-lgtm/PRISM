@@ -273,9 +273,11 @@ export default function SearchPage(): JSX.Element {
       </section>
 
       <section className="srch__block">
-        <h2 className="srch__blocktitle">用哪个 AI 去找</h2>
+        <h2 className="srch__blocktitle">用哪个 AI 去找和写</h2>
         <p className="srch__blocknote">
-          找资料是重复劳动，用免费的开源模型就够，不用花钱。控制端里的改写固定用 Claude。
+          <strong>找链接和写总结都用你在这里选的模型</strong>——包括几百上千字的长总结。
+          这两件事是重复劳动，免费的开源模型就够，不用花钱。
+          控制端「编辑 → Claude」里的改写才用 Claude，那是另一笔账，你不选也不会产生费用。
         </p>
         <div className="srch__engines">
           {ENGINES.map((e) => (
