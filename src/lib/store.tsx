@@ -6,7 +6,7 @@ import type {
 
 import { buildInitialState } from './demo'
 import type { Mode } from './backend'
-import { getClient } from './backend'
+import { backendFailure, getClient, inSandboxFrame, loadConfig } from './backend'
 import { fetchAll, watch } from './remote'
 import { currentWho, onAuthChange } from './session'
 import { mirror } from './sync'
@@ -557,9 +557,26 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
     let alive = true
 
     void (async () => {
-      const db = await getClient()
+      let db = null
+      try {
+        db = await getClient()
+      } catch (e) {
+        // 连后端出任何岔子都不该把整个网站带下水。
+        setSyncError(e instanceof Error ? e.message : '连接后端失败')
+      }
       if (!alive) return
-      if (!db) { setMode('local'); setReady(true); return }
+      if (!db) {
+        setMode('local')
+        setReady(true)
+        // 「配置了却在看演示数据」是最让人困惑的失败——如果确实配了，就说出来。
+        const cfg = await loadConfig().catch(() => null)
+        if (cfg && alive) {
+          setSyncError(inSandboxFrame()
+            ? '这里是预览环境，禁止一切对外请求，所以连不上数据库——这不是你填错了。请到你自己的网址上操作（GitHub Pages 或你的域名）。'
+            : backendFailure() || '配置了共享数据库，但连不上。检查网址和 key 是否填对、网络是否被挡。')
+        }
+        return
+      }
       setMode('shared')
       await pull()
       if (!alive) return

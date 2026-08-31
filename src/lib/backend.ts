@@ -50,14 +50,47 @@ export function saveLocal(cfg: BackendConfig | null): void {
   clientPromise = null
 }
 
+/**
+ * 这两串填对了没有。
+ *
+ * 特意挡住 `sb_secret_`：Supabase 新界面上「Publishable key」和「Secret key」
+ * 挨在一起，长得也像，复制错一个的后果是**把绕过全部权限规则的钥匙印在网页上**，
+ * 谁都能拿去改你的数据库。这种错误必须在这里就拦下来，不能等到出事。
+ */
+export function keyProblem(key: string): string | null {
+  const k = key.trim()
+  if (!k) return null
+  if (/^sb_secret_/i.test(k)) {
+    return '这是 Secret key，绝对不能填在网页上——它能绕过所有权限规则。请改用 Publishable key（sb_publishable_ 开头）。'
+  }
+  if (/^service_role/i.test(k) || /"role"\s*:\s*"service_role"/.test(k)) {
+    return '这是 service_role 密钥，不能填在网页上。请改用 anon / Publishable key。'
+  }
+  if (k.length < 20) return '这一串太短，看起来不是完整的 key。'
+  if (!/^(sb_publishable_|eyJ)/.test(k)) {
+    return '这一串不像 Supabase 的 Publishable key（应当以 sb_publishable_ 开头，旧版是 eyJ 开头）。'
+  }
+  return null
+}
+
+export function urlProblem(url: string): string | null {
+  const u = url.trim()
+  if (!u) return null
+  if (!/^https:\/\//.test(u)) return '网址要以 https:// 开头。'
+  try {
+    const parsed = new URL(u)
+    if (!/\.supabase\.(co|in)$/.test(parsed.hostname)) {
+      return '这个网址不像 Supabase 的项目地址（应当是 https://你的项目ID.supabase.co）。'
+    }
+    return null
+  } catch {
+    return '这不是一个合法的网址。'
+  }
+}
+
 function valid(c: Partial<BackendConfig> | null | undefined): boolean {
   if (!c?.url || !c?.anonKey) return false
-  try {
-    const u = new URL(c.url)
-    return u.protocol === 'https:' && c.anonKey.length > 20
-  } catch {
-    return false
-  }
+  return urlProblem(c.url) === null && keyProblem(c.anonKey) === null
 }
 
 /**
@@ -82,17 +115,44 @@ export async function loadConfig(): Promise<BackendConfig | null> {
   return cached
 }
 
-/** 拿到客户端；没配置后端就是 null，调用方据此走本地模式。 */
+/**
+ * 这个页面跑在别人的框里吗（比如 claude.ai 的 artifact 预览）。
+ *
+ * 那种沙箱禁止一切对外请求，Supabase 在里面永远连不上。这不是配置错，
+ * 但表现得一模一样，所以要单独认出来告诉站长「换到你自己的网址去操作」——
+ * 否则他会一遍遍检查两串没错的字符。
+ */
+export function inSandboxFrame(): boolean {
+  try { return window.self !== window.top } catch { return true }
+}
+
+/** 上一次连后端为什么没成。界面拿它告诉站长，而不是默默退回本地模式。 */
+let lastFailure = ''
+export const backendFailure = (): string => lastFailure
+
+/**
+ * 拿到客户端。
+ *
+ * 没配置后端就是 null——调用方据此走本地模式，这是正常路径。
+ * 配置了却连不上也返回 null，但会把原因记下来：**「说配置了却看到演示数据」
+ * 是最让人困惑的失败**，站长会以为自己填错了，其实可能只是网络被挡。
+ */
 export function getClient(): Promise<SupabaseClient | null> {
   if (clientPromise) return clientPromise
   clientPromise = (async () => {
     const cfg = await loadConfig()
     if (!cfg) return null
-    // 动态引入：本地模式下读者不会下载这一大坨。
-    const { createClient } = await import('@supabase/supabase-js')
-    return createClient(cfg.url, cfg.anonKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-    })
+    try {
+      // 动态引入：本地模式下读者不会下载这一大坨。
+      const { createClient } = await import('@supabase/supabase-js')
+      lastFailure = ''
+      return createClient(cfg.url, cfg.anonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+      })
+    } catch (e) {
+      lastFailure = friendly(e)
+      return null
+    }
   })()
   return clientPromise
 }

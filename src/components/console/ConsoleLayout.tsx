@@ -15,7 +15,7 @@ import './ConsoleLayout.css'
  * 不是管理员的人到这里看到的是一扇门，不是一个处处按不动的控制端。
  */
 export default function ConsoleLayout(): JSX.Element {
-  const { state, isAdmin, isOwner, consoleOpen, mode } = usePrism()
+  const { state, isAdmin, isOwner, consoleOpen, mode, syncError } = usePrism()
   const email = state.auth.email
 
   if (!consoleOpen) return <Gate />
@@ -78,6 +78,13 @@ export default function ConsoleLayout(): JSX.Element {
           )}
         </div>
       </div>
+
+      {syncError && (
+        <div className="clyt__syncerr" role="alert">
+          <Icon name="alert" size={15} />
+          <span>{syncError}</span>
+        </div>
+      )}
 
       {mode === 'local' && (
         <div className="clyt__unlocked" role="status">

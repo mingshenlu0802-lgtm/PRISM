@@ -34,3 +34,5 @@ export type { EmptyStateProps } from './EmptyState'
 
 export { PrismMark } from './PrismMark'
 export type { PrismMarkProps } from './PrismMark'
+
+export { ErrorBoundary } from './ErrorBoundary'

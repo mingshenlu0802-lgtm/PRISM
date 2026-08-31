@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { usePrism } from '../../lib/store'
-import { loadConfig, saveLocal, type BackendConfig } from '../../lib/backend'
+import { inSandboxFrame, keyProblem, loadConfig, saveLocal, urlProblem, type BackendConfig } from '../../lib/backend'
 import { syncFile } from '../../lib/github'
 import { schemaSqlFor } from '../../lib/schemaSql'
 import { Icon, TextInput, toast } from '../common'
@@ -30,14 +30,21 @@ export function BackendSetup(): JSX.Element {
     void loadConfig().then((c) => { if (c) setCfg(c) })
   }, [])
 
-  const ready = cfg.url.trim().startsWith('https://') && cfg.anonKey.trim().length > 20
+  // 边填边说哪里不对。等按了按钮才报错，人已经不知道自己刚才做了什么了。
+  const urlErr = urlProblem(cfg.url)
+  const keyErr = keyProblem(cfg.anonKey)
+  const ready = Boolean(cfg.url.trim() && cfg.anonKey.trim()) && !urlErr && !keyErr
 
-  async function connect() {
-    if (!ready) { toast('两串都要填，网址要以 https:// 开头。', 'warn'); return }
+  function connect() {
+    if (!ready) { toast(urlErr ?? keyErr ?? '两串都要填。', 'warn'); return }
+    if (inSandboxFrame()) {
+      toast('这里是预览环境，连不上任何数据库。请到你自己的网址上做这一步。', 'warn')
+      return
+    }
     saveLocal({ url: cfg.url.trim(), anonKey: cfg.anonKey.trim() })
-    toast('已连上。正在读取…', 'go')
-    // 刷新一次，让整个网站按共享模式重新起来。
-    window.location.reload()
+    // 整个网站要按共享模式重新起来，最干净的做法是重新载入。
+    // 用 assign 而不是 reload：在 iframe 预览里 reload 有时会留下一个空白框。
+    window.location.assign(window.location.href)
   }
 
   async function publishConfig() {
@@ -75,6 +82,18 @@ export function BackendSetup(): JSX.Element {
           现在是<strong>本地模式</strong>：内容只存在你这台电脑的浏览器里。
           把网址发给朋友，他们看到的会是演示数据，不是你的内容。
           按下面三步接上一个免费的共享数据库，就能真的分享出去。
+        </p>
+      )}
+
+      {inSandboxFrame() && mode !== 'shared' && (
+        <p className="bke__sandbox">
+          <Icon name="alert" size={15} />
+          <span>
+            <strong>你现在看的是预览版。</strong>
+            这个预览跑在一个沙箱里，禁止一切对外请求，所以在这里连不上数据库——
+            连对了也会失败。请打开<strong>你自己的网址</strong>（GitHub Pages 给你的那个，
+            或者你的域名），在那边做下面这几步。
+          </span>
         </p>
       )}
 
@@ -134,11 +153,28 @@ export function BackendSetup(): JSX.Element {
             )}
           </li>
           <li>
-            Supabase 左下角 <strong>Project Settings</strong>（齿轮）→ <strong>API</strong>，
-            复制 <strong>Project URL</strong> 和 <strong>anon public</strong> 那一串，
-            粘到下面两个框。
+            回 Supabase 拿两串字符，粘到下面两个框。它们在**两个不同的页面**上：
+            <ul className="bke__where">
+              <li>
+                <strong>Project URL</strong> —— 左下角齿轮 <strong>Settings</strong> →
+                <strong> General</strong>，找 <strong>Project ID</strong>。
+                网址就是 <code>https://那串ID.supabase.co</code>。
+                <span className="mng__stepwhy">
+                  也可以直接看浏览器地址栏：<code>/project/</code> 后面那一串就是。
+                </span>
+              </li>
+              <li>
+                <strong>Publishable key</strong> —— Settings → <strong>API Keys</strong>，
+                在 <strong>Publishable key</strong> 那一栏，点复制图标。
+                <span className="mng__stepwhy">
+                  就是以前叫 anon public 的那个，Supabase 改了名字。
+                  <strong>下面那个 Secret key 千万别用</strong>——它能绕过所有权限规则。
+                  填错了下面会红字提醒你。
+                </span>
+              </li>
+            </ul>
             <span className="mng__stepwhy">
-              这两串是公开的，可以放心提交进仓库——anon key 不授予任何权限，
+              这两串是公开的，可以放心提交进仓库——它们不授予任何权限，
               能不能读写完全取决于你登录后的身份和第 2 步建好的规则。
             </span>
           </li>
@@ -146,15 +182,18 @@ export function BackendSetup(): JSX.Element {
 
         <div className="bke__fields">
           <TextInput
-            placeholder="Project URL（https://xxxx.supabase.co）"
+            placeholder="Project URL（https://你的项目ID.supabase.co）"
             value={cfg.url}
             onChange={(e) => setCfg((c) => ({ ...c, url: e.currentTarget.value }))}
           />
+          {urlErr && <p className="bke__err">{urlErr}</p>}
+
           <TextInput
-            placeholder="anon public key"
+            placeholder="Publishable key（sb_publishable_… 开头）"
             value={cfg.anonKey}
             onChange={(e) => setCfg((c) => ({ ...c, anonKey: e.currentTarget.value }))}
           />
+          {keyErr && <p className="bke__err">{keyErr}</p>}
         </div>
 
         <div className="bke__acts">

@@ -27,3 +27,24 @@
   font-family: var(--font-mono); font-size: 10px; line-height: 1.6;
   color: var(--fg-muted); white-space: pre;
 }
+
+.bke__err {
+  font-size: var(--fs-2xs); line-height: 1.7; color: var(--danger);
+  padding: var(--s-2) var(--s-3);
+  background: var(--danger-soft); border-radius: var(--r-sm);
+}
+.bke__where { list-style: none; display: grid; gap: var(--s-3); margin: var(--s-3) 0; padding: 0; }
+.bke__where > li {
+  padding-left: var(--s-4);
+  border-left: 2px solid var(--line-strong);
+}
+
+.bke__sandbox {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: var(--r-xs) var(--r-md) var(--r-md) var(--r-xs);
+  font-size: var(--fs-xs); line-height: 1.75; color: var(--fg);
+}
+.bke__sandbox svg { flex: none; margin-top: 3px; color: var(--warn); }

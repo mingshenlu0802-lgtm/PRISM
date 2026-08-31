@@ -1,0 +1,37 @@
+.eb {
+  min-height: 100%;
+  display: grid; place-items: center;
+  padding: 40px 20px;
+  background: var(--bg, #FBF8F2); color: var(--fg, #0B0E24);
+  font-family: var(--font-sans, system-ui);
+}
+.eb__box {
+  width: 100%; max-width: 520px;
+  display: grid; justify-items: start; gap: 16px;
+  padding: 32px 24px;
+  border: 1px solid var(--line, #DED6C7); border-radius: 18px;
+  background: var(--bg-raised, #fff);
+}
+.eb__title { font-size: 1.6rem; margin: 0; }
+.eb__lede { font-size: .95rem; line-height: 1.7; margin: 0; }
+.eb__note { font-size: .8rem; line-height: 1.75; color: var(--fg-muted, #4A4D63); margin: 0; }
+.eb__acts { display: flex; flex-wrap: wrap; gap: 12px; }
+.eb__solid {
+  padding: 10px 20px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--fg, #0B0E24); color: var(--bg, #fff);
+  font: inherit; font-size: .82rem; font-weight: 640;
+}
+.eb__ghost {
+  padding: 10px 20px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-strong, #C3BAA9); background: transparent;
+  color: inherit; font: inherit; font-size: .82rem;
+}
+.eb__detail { width: 100%; font-size: .78rem; color: var(--fg-subtle, #6E7189); }
+.eb__detail > summary { cursor: pointer; }
+.eb__pre {
+  margin: 10px 0 0; padding: 12px;
+  max-height: 16em; overflow: auto;
+  border-radius: 6px; background: var(--bg-sunken, #F5F1E8);
+  font-family: ui-monospace, monospace; font-size: 10px; line-height: 1.6;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
