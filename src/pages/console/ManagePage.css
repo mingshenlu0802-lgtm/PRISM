@@ -71,36 +71,7 @@
 
 .mng__items { display: grid; gap: var(--s-3); }
 
-/* ------------------------------ 研究条目 -------------------------------- */
-
-.mng__study {
-  display: grid; gap: var(--s-2);
-  padding: var(--s-4);
-  border: var(--bw) solid var(--line); border-radius: var(--r-lg);
-  background: var(--bg-raised);
-}
-.mng__study--off { opacity: .6; border-style: dashed; }
-.mng__studyhead { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: baseline; }
-.mng__studytitle { font-size: var(--fs-base); font-weight: 660; line-height: 1.5; }
-.mng__studybadge {
-  flex: none;
-  padding: 2px 8px; border-radius: var(--r-full);
-  background: var(--bg-inset); color: var(--fg-subtle);
-  font-size: 10px; font-weight: 660;
-}
-.mng__studysum {
-  font-size: var(--fs-xs); line-height: 1.7; color: var(--fg-muted);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.mng__studyacts { display: flex; flex-wrap: wrap; gap: var(--s-4); padding-top: var(--s-1); }
-.mng__studyacts button {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-xs); font-weight: 620; color: var(--fg-subtle);
-}
-.mng__studyacts button:hover:not(:disabled) { color: var(--fg); text-decoration: underline; }
-.mng__studyacts button:disabled { opacity: .4; cursor: not-allowed; }
-.mng__studydel { color: var(--danger) !important; }
-.mng__studydel:hover:not(:disabled) { color: var(--danger) !important; }
+/* 研究条目用 StudyEditor（跟新闻共用 nedit 那一套样式），这里不再单独有一套。 */
 
 /* --------------------------------- vibe --------------------------------- */
 
