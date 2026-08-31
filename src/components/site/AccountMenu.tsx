@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { OWNER_EMAIL } from '../../lib/types'
 import { usePrism } from '../../lib/store'
 import { cx } from '../../lib/util'
 import { googleSignOut, renderGoogleButton } from '../../lib/google'
+import { isOwnerEmail } from '../../lib/owner'
 import { Icon, toast } from '../common'
 import './AccountMenu.css'
 
@@ -42,9 +42,11 @@ export function AccountMenu(): JSX.Element {
       clientId: auth.clientId,
       target: btnRef.current,
       onSignIn: (p) => {
-        dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture })
-        setOpen(false)
-        toast(`已登录：${p.email}`, 'go')
+        void isOwnerEmail(p.email).then((owner) => {
+          dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture, isOwner: owner })
+          setOpen(false)
+          toast(`已登录：${p.email}`, 'go')
+        })
       },
       onError: (m) => toast(m, 'warn'),
     })
@@ -124,7 +126,7 @@ export function AccountMenu(): JSX.Element {
                 </Link>
               )}
               <p className="acct__note acct__note--small">
-                站长账号是 {OWNER_EMAIL}。
+                登录不解锁任何东西，网站内容不登录也随便看。
               </p>
             </>
           )}

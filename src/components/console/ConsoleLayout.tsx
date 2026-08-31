@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { NavLink, Link, Outlet } from 'react-router-dom'
-import { OWNER_EMAIL } from '../../lib/types'
 import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
 import { googleSignOut, renderGoogleButton } from '../../lib/google'
+import { isOwnerEmail } from '../../lib/owner'
 import { Icon, PrismMark, ToastHost, toast } from '../common'
 import { AppearanceMenu } from '../site/AppearanceMenu'
 import './ConsoleLayout.css'
@@ -75,8 +75,7 @@ export default function ConsoleLayout(): JSX.Element {
             <>
               <Icon name="users" size={15} />
               <span className="clyt__hint">
-                当前未登录。在「编辑 → 账号」里用 Google 登录后才能保存编辑；
-                站长账号是 <strong>{OWNER_EMAIL}</strong>。
+                当前未登录。在「编辑 → 账号」里用 Google 登录后才能保存编辑。
               </span>
             </>
           )}
@@ -129,8 +128,10 @@ function Gate(): JSX.Element {
       clientId: auth.clientId,
       target: btnRef.current,
       onSignIn: (p) => {
-        dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture })
-        toast(`已登录：${p.email}`, 'go')
+        void isOwnerEmail(p.email).then((owner) => {
+          dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture, isOwner: owner })
+          toast(`已登录：${p.email}`, 'go')
+        })
       },
       onError: (m) => toast(m, 'warn'),
     })
@@ -148,8 +149,8 @@ function Gate(): JSX.Element {
               你现在登录的是 <strong>{auth.email}</strong>，这个账号不在管理员名单里。
             </p>
             <p className="cgate__note">
-              网站内容随便看，不需要登录。要编辑内容，得请站长（{OWNER_EMAIL}）
-              把你的 Gmail 加进管理员名单。
+              网站内容随便看，不需要登录。要编辑内容，得请站长把你的 Gmail
+              加进管理员名单。
             </p>
             <div className="cgate__acts">
               <Link className="cgate__back" to="/">回到网站</Link>

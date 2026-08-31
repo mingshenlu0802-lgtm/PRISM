@@ -3,7 +3,7 @@ import type {
   Account, Appearance, ChangeEntry, ChangeKind, CollectConfig, CollectRun,
   GitHubConfig, ID, MediaLink, NewsItem, PrismState, SiteCopy, StudyItem,
 } from './types'
-import { OWNER_EMAIL } from './types'
+
 import { buildInitialState } from './demo'
 import { nowIso, uid } from './util'
 
@@ -43,7 +43,7 @@ export type Action =
   | { type: 'appearance'; patch: Partial<Appearance>; who: string }
   | { type: 'copy'; patch: Partial<SiteCopy>; who: string }
   /* accounts */
-  | { type: 'signin'; email: string; name?: string; picture?: string }
+  | { type: 'signin'; email: string; name?: string; picture?: string; isOwner: boolean }
   | { type: 'signout' }
   | { type: 'client-id'; clientId: string }
   | { type: 'admin-add'; email: string; who: string }
@@ -294,8 +294,23 @@ export function reducer(state: PrismState, action: Action): PrismState {
 
     /* ----------------------------- accounts ----------------------------- */
 
-    case 'signin':
-      return { ...state, auth: { ...state.auth, email: action.email, name: action.name, picture: action.picture } }
+    /**
+     * 登录。
+     *
+     * 站长身份由调用方先用哈希验过（见 lib/owner.ts）——代码里没有邮箱地址，
+     * 所以这里没法自己比对。第一次验过之后把地址记在这台浏览器里，
+     * 同时把站长那一行补进管理员名单，好让「谁能编辑这个网站」显示得出来。
+     */
+    case 'signin': {
+      const email = action.email.trim().toLowerCase()
+      const auth = { ...state.auth, email, name: action.name, picture: action.picture }
+      if (!action.isOwner) return { ...state, auth }
+      auth.ownerEmail = email
+      const admins = state.auth.admins.some((a) => a.role === 'owner')
+        ? state.auth.admins.map((a) => (a.role === 'owner' ? { ...a, email, name: action.name } : a))
+        : [{ email, role: 'owner' as const, addedAt: nowIso(), name: action.name ?? '站长' }, ...state.auth.admins]
+      return { ...state, auth: { ...auth, admins } }
+    }
 
     case 'signout':
       return { ...state, auth: { ...state.auth, email: undefined, name: undefined, picture: undefined } }
@@ -315,11 +330,15 @@ export function reducer(state: PrismState, action: Action): PrismState {
     }
 
     case 'admin-remove': {
-      // The owner can never be removed, by anyone, including the owner.
-      if (action.email === OWNER_EMAIL) return state
+      // 站长删不掉，谁都不行，站长自己也不行。用存下来的地址比对——
+      // 代码里本来就没有它。名单上标了 owner 的那一行同样受保护，
+      // 免得站长还没登录过就有人把它清掉。
+      const target = action.email.trim().toLowerCase()
+      if (target && target === state.auth.ownerEmail) return state
+      if (state.auth.admins.some((a) => a.email === target && a.role === 'owner')) return state
       return {
         ...state,
-        auth: { ...state.auth, admins: state.auth.admins.filter((a) => a.email !== action.email) },
+        auth: { ...state.auth, admins: state.auth.admins.filter((a) => a.email !== target) },
         changes: log(state, action.who, 'admin', `移除了管理员 ${action.email}`),
       }
     }
@@ -410,7 +429,7 @@ export interface Access {
  */
 export function accessOf(state: PrismState): Access {
   const email = (state.auth.email ?? '').toLowerCase()
-  const isOwner = email === OWNER_EMAIL
+  const isOwner = Boolean(email) && email === state.auth.ownerEmail
   const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email)
   const consoleUnlocked = !state.auth.clientId
   const consoleOpen = isAdmin || consoleUnlocked

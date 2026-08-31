@@ -226,9 +226,6 @@ export interface Appearance {
  * Accounts
  * ------------------------------------------------------------------ */
 
-/** The one account that can never be removed. */
-export const OWNER_EMAIL = 'mingshen.lu0802@gmail.com'
-
 export interface Account {
   email: string
   name?: string
@@ -245,6 +242,13 @@ export interface AuthState {
   /** Google OAuth client id; empty until the owner pastes one in. */
   clientId: string
   admins: Account[]
+  /**
+   * The owner's address, once they have signed in and matched OWNER_HASH.
+   *
+   * It lives here — in the owner's own browser — and never in the shipped
+   * code, so the published site carries nobody's email address.
+   */
+  ownerEmail?: string
 }
 
 /* ------------------------------------------------------------------ *

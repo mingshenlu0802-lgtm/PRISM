@@ -6,7 +6,6 @@
  */
 import type { PrismState } from '../types'
 import { DEFAULT_APPEARANCE, DEFAULT_COPY } from '../constants'
-import { OWNER_EMAIL } from '../types'
 import { PRIORITY_REGIONS } from '../regions'
 import { NEWS } from './news'
 import { STUDIES } from './studies'
@@ -31,10 +30,12 @@ export function buildInitialState(): PrismState {
     appearance: { ...DEFAULT_APPEARANCE },
     auth: {
       clientId: '',
-      admins: [{ email: OWNER_EMAIL, role: 'owner', addedAt: '2026-08-01T00:00:00Z', name: '站长' }],
+      // 名单一开始是空的：站长第一次登录、哈希对上之后才补进来。
+      // 发布出去的文件里因此没有任何人的邮箱地址。
+      admins: [],
     },
     github: {
-      owner: 'mingshenlu0802-lgtm',
+      owner: '',
       repo: 'PRISM',
       branch: 'claude/prism-feminist-media-platform-2er8su',
       token: '',

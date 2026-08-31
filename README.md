@@ -76,7 +76,9 @@ npm run dev          # 打开 http://localhost:5173
 只有站长和管理员的账号菜单里才会出现「进入控制端」；别的账号看到的就是一个普通的
 已登录状态，不会有一个按了会被拒绝的按钮在那里晃。
 
-站长是 **mingshen.lu0802@gmail.com**，只有站长能增删管理员。
+站长身份在代码里只以 **SHA-256 哈希**的形式存在（`src/lib/owner.ts`）——
+发布出去的文件里没有任何人的邮箱地址。登录时把地址算一遍哈希比对，
+地址本身只留在站长自己的浏览器里。只有站长能增删管理员。
 管理员能编辑内容、调外观、启动搜集；站长额外能暂停整站显示和恢复初始内容。
 站长这一行在名单里**删不掉**——否则控制端会变成没人管得了。
 
@@ -140,6 +142,16 @@ key 只存在这台电脑的浏览器里，跟 GitHub token 一样，随时可�
 所以同步不会弄坏网站。token 只存在你自己这台电脑的浏览器里，不会进同步文件。
 没有 token 也没关系——旁边有「下载文件」，下载下来自己上传即可。
 
+## 安全与隐私
+
+完整操作手册在 **[docs/SECURITY.md](docs/SECURITY.md)**，两部分：真正的门禁怎么做，
+以及怎么让公开的地方不出现你的姓名和账号。
+
+一句话版本：控制端的登录是**界面上的**判断，懂技术的人能绕过去看到界面；
+但他改不了你发布的网站——真正更新内容需要 GitHub token，那串东西只在你的浏览器里，
+从来没进过发布出去的文件。要连界面也挡住，需要一个自己的域名加 Cloudflare Access
+（服务端拦截，免费），手册里写了每一步。
+
 ## 发布到网上
 
 仓库里带了 `.github/workflows/pages.yml`。第一次使用前，去仓库的
@@ -159,7 +171,8 @@ key 只存在这台电脑的浏览器里，跟 GitHub token 一样，随时可�
 ```bash
 npm run dev        # 开发服务器
 npm run build      # 类型检查 + 构建到 dist/
-npm run check      # 类型检查 + 数据检查 + 38 项行为测试
+npm run check      # 类型检查 + 数据检查 + 42 项行为测试
+npm run privacy    # 扫一遍构建产物，出现邮箱地址就不给发布
 npm run ui-check   # 用真实浏览器走 9 条路由 × 3 个视口
 npm run single     # 生成单文件 PRISM-prototype.html
 npm run artifact   # 打包成一页，用于 claude.ai artifact
@@ -178,6 +191,7 @@ npm run artifact   # 打包成一页，用于 claude.ai artifact
 - 接上登录之后，不在管理员名单里的账号还进得去控制端
 - 打开取材规则之后，官方媒体排在了独立媒体前面
 - 一条中国内地新闻只有官方来源，没有可以对照的独立报道
+- 发布产物里出现了任何人的邮箱地址（`npm run privacy`，发布流程里会自动跑）
 
 技术栈：Vite 5 + React 18 + TypeScript（strict）+ react-router-dom（HashRouter）。
 没有 UI 框架，样式全部是手写 CSS 和一套语义化设计令牌。

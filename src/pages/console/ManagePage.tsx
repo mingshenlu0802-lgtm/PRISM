@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { OWNER_EMAIL } from '../../lib/types'
 import { usePrism } from '../../lib/store'
 import { downloadSnapshot, syncToGitHub } from '../../lib/github'
 import { googleSignOut, renderGoogleButton } from '../../lib/google'
+import { isOwnerEmail } from '../../lib/owner'
 import { ACCENTS, FONT_STEPS, THEMES } from '../../lib/constants'
 import { byNewest, cx, fmtDateTime, relTime } from '../../lib/util'
 import {
@@ -311,8 +311,10 @@ function AccountTab(): JSX.Element {
       clientId: auth.clientId,
       target: btnRef.current,
       onSignIn: (p) => {
-        dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture })
-        toast(`已登录：${p.email}`, 'go')
+        void isOwnerEmail(p.email).then((owner) => {
+          dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture, isOwner: owner })
+          toast(`已登录：${p.email}`, 'go')
+        })
       },
       onError: (m) => toast(m, 'warn'),
     })
@@ -457,7 +459,7 @@ function AccountTab(): JSX.Element {
           </button>
         </div>
       ) : (
-        <p className="mng__note">只有站长（{OWNER_EMAIL}）可以增删管理员。</p>
+        <p className="mng__note">只有站长可以增删管理员。</p>
       )}
 
       <h3 className="mng__subtitle">同步到 GitHub</h3>

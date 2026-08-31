@@ -39,6 +39,9 @@ jobs:
 
       - run: npm run build
 
+      # 发布出去的文件里不能有邮箱地址。有就不发布。
+      - run: npm run privacy
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

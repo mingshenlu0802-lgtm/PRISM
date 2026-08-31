@@ -26,7 +26,7 @@ await build({
 
 const m = await import(pathToFileURL(bundle).href)
 const { buildInitialState, reducer, accessOf, collect, planSteps, runVibe, VIBE_EXAMPLES,
-        contentSnapshot, OWNER_EMAIL, PRIORITY_REGIONS } = m
+        contentSnapshot, OWNER_HASH, PRIORITY_REGIONS } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -37,7 +37,10 @@ const eq = (a, b, msg) => { if (a !== b) throw new Error(`${msg}：期望 ${b}�
 const ok = (v, msg) => { if (!v) throw new Error(msg) }
 
 const fresh = () => buildInitialState()
-const ME = 'mingshen.lu0802@gmail.com'
+// 测试里用一个假地址就够了：站长身份由 lib/owner.ts 的哈希在登录时验，
+// reducer 只接受已经验过的结果。
+const ME = 'owner@example.com'
+const signedInAsOwner = () => reducer(fresh(), { type: 'signin', email: ME, isOwner: true })
 
 /* --------------------- 删掉的东西真的没了，下架的还在 --------------------- */
 
@@ -196,45 +199,73 @@ await test('还没接登录时控制端开着——否则站长进不去填客�
 })
 
 await test('接上登录之后，没登录的人进不去', () => {
-  let s = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
+  const s = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
   const a = accessOf(s)
   eq(a.consoleOpen, false, '不该放行')
   eq(a.isAdmin, false, '未登录不是管理员')
 })
 
 await test('接上登录之后，站长和管理员进得去，别人进不去', () => {
-  let base = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
+  let base = reducer(signedInAsOwner(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
   base = reducer(base, { type: 'admin-add', email: 'friend@gmail.com', who: ME })
 
-  const owner = accessOf(reducer(base, { type: 'signin', email: OWNER_EMAIL }))
+  const owner = accessOf(base)
   eq(owner.isOwner, true, '站长'); eq(owner.consoleOpen, true, '站长应放行')
 
-  const admin = accessOf(reducer(base, { type: 'signin', email: 'friend@gmail.com' }))
+  const admin = accessOf(reducer(base, { type: 'signin', email: 'friend@gmail.com', isOwner: false }))
   eq(admin.isOwner, false, '管理员不是站长')
   eq(admin.isAdmin, true, '管理员'); eq(admin.consoleOpen, true, '管理员应放行')
 
-  const other = accessOf(reducer(base, { type: 'signin', email: 'stranger@gmail.com' }))
+  const other = accessOf(reducer(base, { type: 'signin', email: 'stranger@gmail.com', isOwner: false }))
   eq(other.isAdmin, false, '陌生人不是管理员')
   eq(other.consoleOpen, false, '陌生人不该放行')
   eq(other.canEdit, false, '陌生人也不该能改')
 })
 
 await test('邮箱大小写不影响身份判断', () => {
-  let s = reducer(fresh(), { type: 'client-id', clientId: 'x.apps.googleusercontent.com' })
-  s = reducer(s, { type: 'signin', email: OWNER_EMAIL.toUpperCase() })
-  eq(accessOf(s).isOwner, true, '大写的站长邮箱也应认得')
+  let s = reducer(fresh(), { type: 'signin', email: ME.toUpperCase(), isOwner: true })
+  s = reducer(s, { type: 'signin', email: `  ${ME.toUpperCase()}  `, isOwner: true })
+  eq(accessOf(s).isOwner, true, '大写和空格都该被归一化')
+  eq(s.auth.admins.filter((a) => a.role === 'owner').length, 1, '不该因为大小写多出一个站长')
 })
 
 /* ------------------------------ 谁能改 ------------------------------ */
 
 await test('站长不能被移除——否则控制端会没人能管', () => {
-  const s0 = fresh()
-  const s1 = reducer(s0, { type: 'admin-remove', email: OWNER_EMAIL, who: ME })
-  ok(s1.auth.admins.some((a) => a.email === OWNER_EMAIL && a.role === 'owner'), '站长仍应在名单里')
+  const s0 = signedInAsOwner()
+  const s1 = reducer(s0, { type: 'admin-remove', email: ME, who: ME })
+  ok(s1.auth.admins.some((a) => a.email === ME && a.role === 'owner'), '站长仍应在名单里')
+})
+
+/* --------------------------- 不外泄个人信息 --------------------------- */
+
+await test('发布出去的初始状态里没有任何邮箱地址', () => {
+  const text = JSON.stringify(fresh())
+  ok(!/[\w.+-]+@[\w-]+\.[\w.]+/.test(text), `初始状态里出现了邮箱地址：${text.match(/[\w.+-]+@[\w-]+\.[\w.]+/)}`)
+  eq(fresh().auth.admins.length, 0, '名单一开始应当是空的，站长登录后才补进来')
+  eq(fresh().github.owner, '', 'GitHub 用户名也不该预填在代码里')
+})
+
+await test('代码里只有哈希，没有地址', () => {
+  ok(/^[0-9a-f]{64}$/.test(OWNER_HASH), '应当是一串 sha256')
+  ok(!OWNER_HASH.includes('@'), '不该是地址')
+})
+
+await test('站长第一次登录才写进名单，而且只有一个站长', () => {
+  const s = signedInAsOwner()
+  eq(s.auth.ownerEmail, ME, '应当记下站长地址（只在这台浏览器里）')
+  eq(s.auth.admins.filter((a) => a.role === 'owner').length, 1, '站长人数')
+  eq(accessOf(s).isOwner, true, '应当认得出是站长')
+})
+
+await test('哈希对不上的人登录了也不是站长', () => {
+  const s = reducer(fresh(), { type: 'signin', email: 'someone@gmail.com', isOwner: false })
+  eq(accessOf(s).isOwner, false, '不该是站长')
+  eq(s.auth.ownerEmail, undefined, '不该被写成站长')
 })
 
 await test('加进来的是管理员，不是第二个站长', () => {
-  const s1 = reducer(fresh(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
+  const s1 = reducer(signedInAsOwner(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
   const a = s1.auth.admins.find((x) => x.email === 'friend@gmail.com')
   ok(a, '新管理员应在名单里')
   eq(a.role, 'admin', '角色')
@@ -242,7 +273,7 @@ await test('加进来的是管理员，不是第二个站长', () => {
 })
 
 await test('同一个邮箱不会被加两遍', () => {
-  let s = reducer(fresh(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
+  let s = reducer(signedInAsOwner(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
   s = reducer(s, { type: 'admin-add', email: 'FRIEND@gmail.com', who: ME })
   eq(s.auth.admins.filter((x) => x.email.toLowerCase() === 'friend@gmail.com').length, 1, '重复加应只留一条')
 })

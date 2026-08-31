@@ -142,10 +142,13 @@ for (const st of s.studies) {
 
 /* --------------------------- setup --------------------------------- */
 
-const owner = s.auth.admins.find((a) => a.role === 'owner')
-if (!owner) err('没有站长账号——控制端会没人能管')
-else if (owner.email !== m.OWNER_EMAIL) err(`站长账号应为 ${m.OWNER_EMAIL}，实际是 ${owner.email}`)
-if (s.auth.admins.filter((a) => a.role === 'owner').length > 1) err('站长不止一个')
+// 发布出去的东西里不能有任何人的邮箱地址。公开站点是最好扒的邮箱来源。
+const initial = JSON.stringify(s)
+const leak = initial.match(/[\w.+-]+@[\w-]+\.[\w.]+/)
+if (leak) err(`初始状态里出现了邮箱地址：${leak[0]}`)
+if (s.auth.admins.length > 0) err('管理员名单不该预置——站长登录后才写入这台浏览器')
+if (s.github.owner) err(`GitHub 用户名不该写在代码里：${s.github.owner}`)
+if (!/^[0-9a-f]{64}$/.test(m.OWNER_HASH)) err('站长身份应当是一串 sha256，不是地址')
 
 for (const r of s.collect.regions) if (!REGIONS.has(r)) err(`搜集设置里的地区「${r}」不存在`)
 for (const t of s.collect.topics) if (!TOPICS.has(t)) err(`搜集设置里的议题「${t}」不存在`)
