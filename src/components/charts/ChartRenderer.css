@@ -1,0 +1,7 @@
+/* ChartRenderer — the plot slot inside the figure chrome. */
+
+.pcrender {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}

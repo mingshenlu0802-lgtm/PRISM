@@ -1,0 +1,337 @@
+/* PipelineTimeline — the nightly desk run. Root class: .pipet */
+
+.pipet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.pipet__emptytext,
+.pipet__logempty {
+  font-size: var(--fs-xs);
+  color: var(--fg-subtle);
+}
+
+/* --- run meta ------------------------------------------------------------- */
+
+.pipet__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+}
+
+.pipet__metaitem {
+  font-size: var(--fs-2xs);
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.pipet__metaitem + .pipet__metaitem::before {
+  content: "·";
+  margin-right: var(--s-3);
+  color: var(--fg-faint);
+}
+
+/* --- track: vertical on mobile ------------------------------------------- */
+
+.pipet__track {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.pipet__stage {
+  position: relative;
+  min-width: 0;
+}
+
+/* connector — drawn between node markers, never behind the text */
+.pipet__stage:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 40px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--line);
+  border-radius: var(--r-full);
+}
+.pipet__stage--done:not(:last-child)::after { background: color-mix(in srgb, var(--risk-low) 55%, var(--line)); }
+.pipet__stage--blocked:not(:last-child)::after { background: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+
+.pipet__node {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-2) var(--s-2) var(--s-4);
+  text-align: left;
+  color: inherit;
+  border-radius: var(--r-sm);
+  background: none;
+  transition: background var(--dur) var(--ease);
+}
+.pipet__node--static { cursor: default; }
+button.pipet__node:hover { background: var(--chip-bg); }
+button.pipet__node:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.pipet__marker {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-full);
+  background: var(--bg-raised);
+  color: var(--fg-faint);
+}
+.pipet__marker--done { color: var(--risk-low); }
+.pipet__marker--running { color: var(--prism-6); }
+.pipet__marker--blocked { color: var(--accent); }
+.pipet__marker--idle { color: var(--fg-faint); }
+
+.pipet__arc { transform-origin: 12px 12px; animation: pipet-spin 2.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pipet__arc { animation: none; }
+}
+@keyframes pipet-spin { to { transform: rotate(360deg); } }
+
+.pipet__nodetext {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--s-2);
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.pipet__idx { color: var(--fg-faint); font-size: var(--fs-2xs); }
+.pipet__zh { font-size: var(--fs-sm); font-weight: 640; color: var(--fg); }
+.pipet__en { font-size: var(--fs-2xs); color: var(--fg-faint); letter-spacing: .02em; }
+
+.pipet__state {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: var(--r-full);
+  border: var(--bw) solid var(--line);
+  font-size: var(--fs-2xs);
+  font-weight: 620;
+  line-height: 1.7;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+}
+.pipet__state--done { color: var(--risk-low); border-color: color-mix(in srgb, var(--risk-low) 45%, transparent); }
+.pipet__state--running { color: var(--prism-6); border-color: color-mix(in srgb, var(--prism-6) 45%, transparent); }
+.pipet__state--blocked { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+
+.pipet__metric {
+  flex-basis: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: 2px;
+  min-width: 0;
+}
+.pipet__metricvalue { font-size: var(--fs-sm); font-weight: 660; color: var(--fg); }
+.pipet__metriclabel { font-size: var(--fs-2xs); color: var(--fg-subtle); }
+
+.pipet__stage--active > .pipet__node { background: var(--chip-bg); }
+.pipet__stage--active > .pipet__node::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  border-radius: var(--r-full);
+  background: var(--fg-muted);
+}
+
+/* --- panel ---------------------------------------------------------------- */
+
+.pipet__panel {
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-inset);
+  padding: var(--s-4);
+  min-width: 0;
+}
+.pipet__panel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.pipet__panelhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
+.pipet__paneltitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  font-size: var(--fs-md);
+  font-weight: 640;
+}
+.pipet__panelidx { color: var(--fg-faint); font-size: var(--fs-xs); }
+.pipet__panelen { font-size: var(--fs-2xs); font-weight: 500; color: var(--fg-faint); }
+
+.pipet__detail {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+  max-width: 76ch;
+}
+
+.pipet__panelmetric {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--bg-sunken);
+  border: var(--bw) solid var(--line-soft);
+  width: fit-content;
+  max-width: 100%;
+}
+.pipet__panelmetric .pipet__metricvalue { font-size: var(--fs-lg); }
+
+.pipet__logwrap { margin-top: var(--s-4); }
+.pipet__logtitle { display: block; margin-bottom: var(--s-2); }
+
+.pipet__log {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+}
+.pipet__logline {
+  display: flex;
+  gap: var(--s-2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+}
+.pipet__logn { flex: none; color: var(--fg-faint); }
+.pipet__logtext { min-width: 0; }
+.pipet__log--flat .pipet__logtext::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: var(--s-2);
+  margin-bottom: 2px;
+  border-radius: 1px;
+  background: var(--fg-faint);
+  transform: rotate(45deg);
+}
+
+.pipet__all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs);
+  color: var(--fg-muted);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+.pipet__all:hover { border-color: var(--line-strong); color: var(--fg); }
+
+.pipet__alllogs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: var(--bw) solid var(--line-soft);
+}
+.pipet__alltitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-sm);
+  font-weight: 640;
+  margin-bottom: var(--s-2);
+  color: var(--fg);
+}
+.pipet__alltitle .u-mono { color: var(--fg-faint); font-size: var(--fs-2xs); }
+
+/* --- handoff statement ---------------------------------------------------- */
+
+.pipet__handoff {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border: var(--bw) solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-left-width: 3px;
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+}
+.pipet__handoff strong { color: var(--fg); font-weight: 660; }
+.pipet__handofficon { flex: none; color: var(--accent); padding-top: 1px; }
+
+/* --- desktop: horizontal track ------------------------------------------- */
+
+@media (min-width: 1080px) {
+  .pipet__track {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .pipet__stage { flex: 1 1 0; }
+
+  .pipet__stage:not(:last-child)::after {
+    left: calc(50% + 21px);
+    right: calc(-50% + 21px);
+    top: 21px;
+    bottom: auto;
+    width: auto;
+    height: 2px;
+  }
+
+  .pipet__node {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--s-2);
+    padding: var(--s-2) var(--s-1) var(--s-3);
+  }
+
+  .pipet__nodetext {
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding-top: 0;
+    width: 100%;
+  }
+
+  .pipet__idx { order: -1; }
+  .pipet__metric { flex-direction: column; align-items: center; gap: 0; }
+  .pipet__metricvalue { font-size: var(--fs-md); }
+  .pipet__metriclabel { text-align: center; }
+
+  .pipet__stage--active > .pipet__node::before {
+    inset: auto 0 0 0;
+    width: auto;
+    height: 2px;
+  }
+
+  .pipet__panel { padding: var(--s-5); }
+}

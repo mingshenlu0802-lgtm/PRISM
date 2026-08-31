@@ -16,7 +16,7 @@ import './RichText.css'
  * broken reference stays visible to the reader and to the editor.
  */
 
-const TOKEN = /\[\[c:([A-Za-z0-9_-]+)\]\]|\*\*([\s\S]+?)\*\*|\*([^*\n]+?)\*/
+const TOKEN = /\[\[c:([^\]\n]*)\]\]|\*\*([\s\S]+?)\*\*|\*([^*\n]+?)\*/
 
 function plain(text: string, key: string): ReactNode[] {
   if (!text) return []

@@ -121,7 +121,7 @@
   vertical-align: -2px;
 }
 
-.pcframe__warnhint { color: var(--fg-subtle); }
+.pcframe__warnhint { margin-left: 6px; color: var(--fg-subtle); }
 
 @media (min-width: 720px) {
   .pcframe { padding: var(--s-5); }

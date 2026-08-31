@@ -1,0 +1,116 @@
+/* LineChart — ordered series with an explicit methodology break. */
+
+.pline { width: 100%; max-width: 100%; min-width: 0; }
+
+.pline__scroll { position: relative; width: 100%; max-width: 100%; }
+.pline__scroll--x { overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+
+.pline__plot { position: relative; }
+
+.pline__svg { display: block; max-width: none; overflow: visible; }
+
+.pline__grid {
+  stroke: var(--line-soft);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.pline__grid--zero { stroke: var(--line); }
+
+.pline__axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.pline__tick,
+.pline__cat {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  fill: var(--fg-subtle);
+}
+
+.pline__cat { fill: var(--fg-muted); }
+
+.pline__cat--break {
+  font-size: 10px;
+  font-weight: 640;
+  fill: var(--risk-medium);
+}
+
+.pline__break {
+  stroke: var(--risk-medium);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+  opacity: .75;
+}
+
+.pline__path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.pline__hit { fill: transparent; }
+
+.pline__ring {
+  stroke: var(--bg-raised);
+  stroke-width: 1.6;
+  transition: r var(--dur-fast) var(--ease);
+}
+
+.pline__core { fill: var(--bg-raised); }
+
+.pline__dot { cursor: default; }
+
+.pline__dot:hover .pline__ring,
+.pline__dot--active .pline__ring { r: 6; }
+
+.pline__dot:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.pline__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+}
+
+.pline__note {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+  line-height: 1.55;
+  color: var(--fg-subtle);
+}
+
+.pline__note--break { color: var(--risk-medium); }
+
+.pline__notemark {
+  flex: none;
+  width: 14px;
+  height: 0;
+  border-top: 1.5px dashed currentColor;
+  transform: translateY(-3px);
+}
+
+.pline__empty {
+  padding: var(--s-6) var(--s-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs);
+  text-align: center;
+  color: var(--fg-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pline__ring { transition: none; }
+}

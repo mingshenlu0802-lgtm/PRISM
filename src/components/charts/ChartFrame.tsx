@@ -83,7 +83,7 @@ export function ChartFrame({
               <span className="pcframe__warnmark" aria-hidden="true">!</span>
               未标注局限性
               <span className="pcframe__warnhint">
-                　这张图缺少「它无法说明什么」的说明，发布前必须补上。
+                这张图缺少「它无法说明什么」的说明，发布前必须补上。
               </span>
             </span>
           )}

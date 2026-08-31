@@ -1,0 +1,168 @@
+/* TimelineStrip — vertical on phones, horizontal from 720px.
+   Standing is carried by node SHAPE plus a text label, never by colour alone. */
+
+.ptimeline { width: 100%; max-width: 100%; min-width: 0; }
+
+.ptimeline__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s-4);
+  list-style: none;
+  margin: 0 0 var(--s-4);
+  padding: 0 0 var(--s-3);
+  border-bottom: var(--bw) solid var(--line-soft);
+}
+
+.ptimeline__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+}
+
+.ptimeline__legend-name { color: var(--fg-muted); }
+
+.ptimeline__glyph { flex: none; overflow: visible; }
+
+.ptimeline__track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ptimeline__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 0 var(--s-3);
+  padding-bottom: var(--s-5);
+}
+
+.ptimeline__item:last-child { padding-bottom: 0; }
+
+.ptimeline__item::before {
+  content: "";
+  position: absolute;
+  left: 9.5px;
+  top: 20px;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.ptimeline__item:last-child::before { display: none; }
+
+.ptimeline__node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: var(--bg-raised);
+}
+
+.ptimeline__card { min-width: 0; }
+
+.ptimeline__date {
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  letter-spacing: .04em;
+  color: var(--fg-subtle);
+}
+
+.ptimeline__title {
+  margin-top: 2px;
+  font-size: var(--fs-base);
+  font-weight: 640;
+  line-height: var(--lh-snug);
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.ptimeline__text {
+  margin-top: 4px;
+  font-size: var(--fs-xs);
+  line-height: 1.65;
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.ptimeline__cites { white-space: nowrap; }
+
+.ptimeline__cite {
+  margin-left: 2px;
+  font-size: var(--fs-2xs);
+  line-height: 0;
+  color: var(--fg-subtle);
+}
+
+.ptimeline__citebtn {
+  padding: 0 1px;
+  border-radius: var(--r-xs);
+  color: var(--link);
+  font-variant-numeric: tabular-nums;
+}
+
+.ptimeline__citebtn:hover { background: var(--chip-bg); text-decoration: underline; }
+
+.ptimeline__standing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: var(--s-2);
+  font-size: var(--fs-2xs);
+  font-weight: 620;
+}
+
+.ptimeline__standing-name { letter-spacing: .02em; }
+
+.ptimeline__empty {
+  padding: var(--s-5) var(--s-4);
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  font-size: var(--fs-xs);
+  text-align: center;
+  color: var(--fg-subtle);
+}
+
+.ptimeline--dense .ptimeline__item { padding-bottom: var(--s-4); }
+.ptimeline--dense .ptimeline__title { font-size: var(--fs-sm); }
+.ptimeline--dense .ptimeline__text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+@media (min-width: 720px) {
+  .ptimeline__track {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    overflow-x: auto;
+    padding-bottom: var(--s-2);
+  }
+
+  .ptimeline__item {
+    display: block;
+    flex: 0 0 auto;
+    width: 236px;
+    padding: 0 var(--s-4) 0 0;
+  }
+
+  .ptimeline__item:last-child { padding-right: 0; }
+
+  .ptimeline__item::before {
+    left: 20px;
+    right: 0;
+    top: 9.5px;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+  }
+
+  .ptimeline__card { margin-top: var(--s-3); }
+
+  .ptimeline--dense .ptimeline__item { width: 200px; }
+}

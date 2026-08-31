@@ -1,0 +1,279 @@
+/* QueuePage — 审批队列. Every selector scoped under .qpage. */
+
+.qpage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+  max-width: var(--wide-max);
+  margin-inline: auto;
+  padding: var(--s-5) var(--s-4) var(--s-9);
+  min-width: 0;
+}
+
+/* ---------------------------------- head ---------------------------------- */
+
+.qpage__head { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+
+.qpage__eyebrow { color: var(--fg-faint); }
+
+.qpage__title {
+  font-size: var(--fs-2xl);
+  font-weight: 660;
+  letter-spacing: -.02em;
+  color: var(--fg);
+}
+
+.qpage__lede {
+  max-width: 74ch;
+  font-size: var(--fs-sm);
+  line-height: 1.8;
+  color: var(--fg-muted);
+}
+
+.qpage__clock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+  color: var(--fg-faint);
+}
+
+.qpage__sep { color: var(--line-strong); }
+
+.qpage__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+  list-style: none;
+  margin-top: var(--s-1);
+}
+
+.qpage__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+  border: var(--bw) solid var(--line);
+  border-left: 3px solid var(--fg-faint);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  min-width: 0;
+}
+
+.qpage__stat--stop { border-left-color: var(--coral-500); }
+.qpage__stat--warn { border-left-color: var(--risk-medium); }
+.qpage__stat--neutral { border-left-color: var(--prism-1); }
+
+.qpage__stat-v {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xl);
+  font-weight: 620;
+  line-height: 1.1;
+  color: var(--fg);
+}
+
+.qpage__stat--stop .qpage__stat-v { color: var(--coral-300); }
+.qpage__stat--warn .qpage__stat-v { color: var(--risk-medium); }
+
+.qpage__stat-l { font-size: var(--fs-xs); font-weight: 640; color: var(--fg-muted); }
+.qpage__stat-h { font-size: 10px; line-height: 1.5; color: var(--fg-faint); }
+
+/* ------------------------------- house rule ------------------------------- */
+
+.qpage__rule {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--prism-1) 9%, transparent), transparent 70%),
+    var(--bg-sunken);
+}
+
+.qpage__rule-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-raised);
+  color: var(--prism-1);
+}
+
+.qpage__rule-body { display: flex; flex-direction: column; gap: var(--s-2); min-width: 0; }
+
+.qpage__rule-title {
+  font-size: var(--fs-sm);
+  font-weight: 680;
+  letter-spacing: -.01em;
+  color: var(--fg);
+}
+
+.qpage__rule-text {
+  max-width: 78ch;
+  font-size: var(--fs-xs);
+  line-height: 1.8;
+  color: var(--fg-muted);
+}
+
+.qpage__rule-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); }
+
+.qpage__rule-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  color: var(--link);
+  text-decoration: none;
+}
+.qpage__rule-links a:hover { text-decoration: underline; }
+
+/* -------------------------------- controls -------------------------------- */
+
+.qpage__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-3);
+  border: var(--bw) solid var(--line-soft);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.qpage__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  min-width: 0;
+}
+
+.qpage__search {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.qpage__search-icon {
+  position: absolute;
+  left: var(--s-3);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--fg-faint);
+  pointer-events: none;
+}
+
+.qpage__search .pfield-input { padding-left: calc(var(--s-3) * 2 + 14px); }
+
+.qpage__tool { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+
+.qpage__tool-label {
+  flex: none;
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  letter-spacing: .06em;
+  color: var(--fg-faint);
+}
+
+.qpage__dir,
+.qpage__toggle,
+.qpage__clear,
+.qpage__emptybtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px var(--s-3);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.qpage__dir:hover,
+.qpage__toggle:hover,
+.qpage__clear:hover,
+.qpage__emptybtn:hover { color: var(--fg); border-color: var(--line-strong); }
+
+.qpage__toggle--on {
+  border-color: transparent;
+  background: var(--coral-600);
+  color: var(--paper-0);
+}
+.qpage__toggle--on:hover { background: var(--coral-500); color: var(--paper-0); }
+
+.qpage__result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  font-size: var(--fs-2xs);
+  color: var(--fg-faint);
+}
+
+.qpage__result-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--coral-300);
+  font-weight: 640;
+}
+
+.qpage__result-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--v-supported);
+}
+
+/* ---------------------------------- list ---------------------------------- */
+
+.qpage__list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.qpage__list--row { gap: var(--s-3); }
+
+.qpage__foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: var(--s-3);
+  border-top: var(--bw) dashed var(--line);
+  font-size: var(--fs-2xs);
+  line-height: 1.6;
+  color: var(--fg-faint);
+}
+
+/* ------------------------------- responsive ------------------------------- */
+
+@media (min-width: 560px) {
+  .qpage__stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 720px) {
+  .qpage { padding: var(--s-6) var(--s-5) var(--s-10); gap: var(--s-6); }
+  .qpage__title { font-size: var(--fs-3xl); }
+}
+
+@media (min-width: 1440px) {
+  .qpage__list--card { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
