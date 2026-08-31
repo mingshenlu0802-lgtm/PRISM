@@ -1,0 +1,100 @@
+/* Meter — 0–100 with visible thresholds. */
+
+.pmeter {
+  --pm-tone: var(--prism-6);
+  display: block;
+  min-width: 0;
+}
+
+.pmeter--go   { --pm-tone: var(--v-supported); }
+.pmeter--warn { --pm-tone: var(--risk-medium); }
+.pmeter--bad  { --pm-tone: var(--risk-high); }
+.pmeter--info { --pm-tone: var(--prism-6); }
+
+.pmeter__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: 5px;
+  min-width: 0;
+}
+
+.pmeter__label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pmeter__value {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  color: var(--fg);
+  letter-spacing: -.01em;
+}
+
+.pmeter__scale {
+  margin-left: 1px;
+  font-size: .78em;
+  font-weight: 500;
+  color: var(--fg-faint);
+}
+
+.pmeter__track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 var(--bw) var(--line-soft);
+  overflow: hidden;
+}
+
+.pmeter__fill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--pm-tone) 68%, transparent) 0%,
+    var(--pm-tone) 100%
+  );
+  transition: width var(--dur-slow) var(--ease);
+}
+
+/* Threshold ticks at 60 and 80 — only drawn when the tone is derived. */
+.pmeter--marked .pmeter__track::before,
+.pmeter--marked .pmeter__track::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--bg);
+  opacity: .55;
+}
+
+.pmeter--marked .pmeter__track::before { left: 60%; }
+.pmeter--marked .pmeter__track::after  { left: 80%; }
+
+.pmeter__hint {
+  margin-top: 5px;
+  font-size: var(--fs-2xs);
+  line-height: 1.55;
+  color: var(--fg-faint);
+}
+
+.pmeter--sm .pmeter__track { height: 5px; }
+.pmeter--sm .pmeter__label { font-size: var(--fs-2xs); }
+.pmeter--sm .pmeter__value { font-size: var(--fs-xs); }
+.pmeter--sm .pmeter__top { margin-bottom: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pmeter__fill { transition: none; }
+}

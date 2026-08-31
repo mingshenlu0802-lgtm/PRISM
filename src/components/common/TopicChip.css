@@ -1,0 +1,51 @@
+/* TopicChip — a quiet index colour plus the label that carries the meaning. */
+
+.ptopic {
+  --ptc-hue: var(--ink-400);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--chip-bg);
+  color: var(--fg-muted);
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ptopic--sm { padding: 2px var(--s-2) 2px 7px; font-size: var(--fs-2xs); }
+.ptopic--md { padding: 4px var(--s-3) 4px var(--s-3); font-size: var(--fs-xs); gap: 7px; }
+
+.ptopic__swatch {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--ptc-hue);
+  transform: rotate(45deg);
+}
+
+.ptopic--md .ptopic__swatch { width: 8px; height: 8px; }
+
+.ptopic__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ptopic--link {
+  color: var(--fg-muted);
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease);
+}
+
+.ptopic--link:hover {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--ptc-hue) 55%, transparent);
+  background: color-mix(in srgb, var(--ptc-hue) 12%, transparent);
+  text-decoration: none;
+}

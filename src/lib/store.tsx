@@ -7,6 +7,8 @@ import { buildInitialState } from './demo'
 import { nowIso, uid } from './util'
 
 const STORAGE_KEY = 'prism.console.v1'
+/** Bumped whenever the demo dataset changes shape, so stale state is dropped. */
+const SCHEMA = 3
 
 /* ------------------------------------------------------------------ *
  * Actions
@@ -378,19 +380,66 @@ export function reducer(state: PrismState, action: Action): PrismState {
  * Persistence
  * ------------------------------------------------------------------ */
 
+interface Persisted extends PrismState { __schema?: number }
+
 function load(): PrismState {
   const fresh = buildInitialState()
   if (typeof window === 'undefined') return fresh
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return fresh
-    const parsed = JSON.parse(raw) as PrismState & { __v?: number }
-    // Shape check: demo data may have changed shape between builds.
-    if (!parsed || !Array.isArray(parsed.articles) || parsed.articles.length === 0) return fresh
-    if (parsed.articles.length !== fresh.articles.length) return fresh
-    return parsed
+    const parsed = JSON.parse(raw) as Persisted
+    // Stale or reshaped demo data is dropped rather than half-migrated.
+    if (!parsed || parsed.__schema !== SCHEMA) return fresh
+    if (!Array.isArray(parsed.articles) || parsed.articles.length !== fresh.articles.length) return fresh
+    if (!Array.isArray(parsed.sources) || parsed.sources.length !== fresh.sources.length) return fresh
+    // Version snapshots may have been dropped under storage pressure; restore
+    // the deterministic ones from the freshly built dataset.
+    const rebuilt = new Map(fresh.versions.map((v) => [v.id, v.snapshot]))
+    const versions = parsed.versions.flatMap((v) => {
+      if (v.snapshot) return [v]
+      const snapshot = rebuilt.get(v.id) ?? parsed.articles.find((a) => a.id === v.articleId)
+      // A version we can neither restore nor rebuild is dropped rather than
+      // left dangling — the version list must never contain an empty snapshot.
+      return snapshot ? [{ ...v, snapshot }] : []
+    })
+    return { ...parsed, versions }
   } catch {
     return fresh
+  }
+}
+
+/**
+ * Version snapshots are whole articles, so a corpus of long entries can push
+ * past the ~5MB localStorage budget. Degrade in stages rather than losing the
+ * editor's decisions: full state first, then without the snapshots that
+ * buildInitialState() can deterministically rebuild, then metadata only.
+ */
+function persist(state: PrismState): void {
+  const attempts: (() => string)[] = [
+    () => JSON.stringify({ ...state, __schema: SCHEMA }),
+    () => JSON.stringify({
+      ...state,
+      __schema: SCHEMA,
+      versions: state.versions.map((v) =>
+        v.state === 'proposal' || state.articles.some((a) => a.currentVersionId === v.id)
+          ? v
+          : { ...v, snapshot: undefined }),
+    }),
+    () => JSON.stringify({
+      ...state,
+      __schema: SCHEMA,
+      versions: state.versions.map((v) => ({ ...v, snapshot: undefined })),
+      audit: state.audit.slice(0, 120),
+    }),
+  ]
+  for (const attempt of attempts) {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, attempt())
+      return
+    } catch {
+      /* quota exceeded or storage unavailable — try the next, smaller shape */
+    }
   }
 }
 
@@ -412,7 +461,7 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (first.current) { first.current = false; return }
-    try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* quota / private mode */ }
+    persist(state)
   }, [state])
 
   const resetDemo = useCallback(() => {

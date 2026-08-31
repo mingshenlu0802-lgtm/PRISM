@@ -1,0 +1,37 @@
+/* DemoTag — 「演示数据」. Never decorative, never hidden. */
+
+.pdemotag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px var(--s-2) 1px 6px;
+  border: var(--bw) dashed color-mix(in srgb, var(--fg-faint) 62%, transparent);
+  border-radius: var(--r-xs);
+  background: color-mix(in srgb, var(--fg-faint) 8%, transparent);
+  color: var(--fg-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: .06em;
+  line-height: 1.5;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.pdemotag__mark {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: .7;
+  transform: rotate(45deg);
+}
+
+.pdemotag--compact {
+  padding: 0 5px 0 4px;
+  letter-spacing: .04em;
+}
+
+.pdemotag--compact .pdemotag__mark { width: 5px; height: 5px; }

@@ -378,6 +378,9 @@ const LEGAL_TYPES: Source['sourceType'][] = [
   'legal-document', 'court-ruling', 'government-data', 'international-body',
 ]
 const LOCAL_TYPES: Source['sourceType'][] = ['ngo-report', 'local-media', 'statement']
+const DATA_TYPES: Source['sourceType'][] = [
+  'government-data', 'international-body', 'primary-research', 'academic-review',
+]
 
 /** Sources not yet attached to the article, ordered deterministically. */
 function unattachedSources(article: Article, state: PrismState): Source[] {
@@ -465,13 +468,15 @@ function isDivergence(b: Block): b is Extract<Block, { type: 'divergence' }> {
 }
 
 /** Append an item to the first list in a section, or create one. */
-function appendListItem(section: ArticleSection, item: string, blockId: ID): void {
+function appendListItem(section: ArticleSection, item: string, blockId: ID): boolean {
   const list = section.blocks.find(isList)
   if (list) {
+    if (list.items.includes(item)) return false
     list.items = [...list.items, item]
-    return
+    return true
   }
   section.blocks.push({ id: blockId, type: 'list', items: [item] })
+  return true
 }
 
 function excerpt(text: string, max = 30): string {
@@ -512,45 +517,53 @@ function addJurisdictionContext(ctx: Ctx): IntentResult {
   const jurisdiction = ctx.plan.jurisdiction ?? article.countries[0] ?? '本篇涉及的司法辖区'
   const pool = unattachedSources(article, state)
   const local = pool.filter((s) => matchesJurisdiction(s, jurisdiction))
-  const picks = takeDistinct(
+
+  // The statutory claim may only ever rest on a legal-type record; the
+  // execution-gap claim prefers statistics. Each is checked separately for
+  // whether it actually comes from the named jurisdiction.
+  const statute = local.find((s) => LEGAL_TYPES.includes(s.sourceType))
+    ?? pool.find((s) => LEGAL_TYPES.includes(s.sourceType))
+  const stats = takeDistinct(
     [
-      local.filter((s) => LEGAL_TYPES.includes(s.sourceType)),
-      local,
-      pool.filter((s) => LEGAL_TYPES.includes(s.sourceType)),
-      pool,
+      local.filter((s) => s !== statute && DATA_TYPES.includes(s.sourceType)),
+      local.filter((s) => s !== statute),
+      pool.filter((s) => s !== statute && DATA_TYPES.includes(s.sourceType)),
+      pool.filter((s) => s !== statute),
     ],
-    2,
-  )
-  /** True when nothing in the library actually comes from the named jurisdiction. */
-  const comparative = picks.length > 0 && !picks.some((s) => matchesJurisdiction(s, jurisdiction))
+    1,
+  )[0]
+
+  const statuteLocal = statute ? matchesJurisdiction(statute, jurisdiction) : false
+  const statsLocal = stats ? matchesJurisdiction(stats, jurisdiction) : false
+  const picks = [statute, stats].filter((s): s is Source => Boolean(s))
+  const comparative = picks.length > 0 && (!statuteLocal || !statsLocal)
 
   const section = ensureSection(snap, 'context', seed)
-  const first = picks[0]
-  const second = picks[1] ?? picks[0]
-  const m1 = first
+
+  const m1 = statute
     ? attachCitation(
       snap,
-      first,
-      comparative
-        ? `${first.country}的对应条文，用作与${jurisdiction}比较的框架`
-        : `${jurisdiction}适用于本篇事件的成文规则与程序条件`,
+      statute,
+      statuteLocal
+        ? `${jurisdiction}适用于本篇事件的成文规则与程序条件`
+        : `${statute.country}的对应条文，用作与${jurisdiction}比较的框架`,
       '条文对照',
       now,
       seed,
     ).marker
     : ''
-  const m2 = second && second !== first
+  const m2 = stats
     ? attachCitation(
       snap,
-      second,
-      comparative
-        ? `${second.country}相关程序的公开统计，用作比较参照`
-        : `${jurisdiction}相关程序的公开统计与执行情况`,
+      stats,
+      statsLocal
+        ? `${jurisdiction}相关程序的公开记录与执行情况`
+        : `${stats.country}相关程序的公开记录，用作比较参照`,
       '统计表',
       now,
       seed,
     ).marker
-    : m1
+    : ''
 
   const heading: Block = {
     id: bid('ctx-heading'),
@@ -559,29 +572,19 @@ function addJurisdictionContext(ctx: Ctx): IntentResult {
     text: `${jurisdiction}的法律与制度背景`,
   }
 
-  const p1: Block = first && comparative
-    ? {
-      id: bid('ctx-p1'),
-      type: 'paragraph',
-      text: `在${jurisdiction}，与本篇事件相关的规则分散在成文法与行政规章之中，各自的适用范围并不重合。资料库中目前没有直接来自${jurisdiction}的可引用文本，因此以下只作比较性说明：${first.country}的对应条文把程序的启动条件、举证责任与时效期限分置于不同层级的文件${m1}。这只能提供提问的框架，不能替代${jurisdiction}自己的规定。`,
-    }
-    : first
-    ? {
-      id: bid('ctx-p1'),
-      type: 'paragraph',
-      text: `在${jurisdiction}，与本篇事件相关的规则分散在成文法与行政规章之中，各自的适用范围并不重合。可核对的文本显示，程序的启动条件、举证责任与时效期限分别由不同层级的文件规定${m1}。本站只陈述文本本身，不推断这些条文在具体个案中会如何适用。`,
-    }
-    : {
-      id: bid('ctx-p1'),
-      type: 'paragraph',
-      text: `在${jurisdiction}，与本篇事件相关的规则分散在成文法与行政规章之中。资料库中目前没有可直接引用的条文记录，因此本节只列出需要核实的问题，不对现行规定作任何断言。`,
-    }
+  const p1Text = !statute
+    ? `在${jurisdiction}，与本篇事件相关的规则分散在成文法与行政规章之中。资料库中目前没有可直接引用的条文记录，因此本节只列出需要核实的问题，不对现行规定作任何断言：适用的是哪一部法律、由哪一级机关执行、时效如何计算。`
+    : statuteLocal
+      ? `在${jurisdiction}，与本篇事件相关的规则分散在成文法与行政规章之中，各自的适用范围并不重合。可核对的文本显示，程序的启动条件、举证责任与时效期限分别由不同层级的文件规定${m1}。本站只陈述文本本身，不推断这些条文在具体个案中会如何适用。`
+      : `在${jurisdiction}，与本篇事件相关的规则分散在成文法与行政规章之中。资料库中目前没有直接来自${jurisdiction}的条文记录，因此以下只作比较性说明：${statute.country}的对应文本把程序的启动条件、举证责任与时效期限分置于不同层级的文件${m1}。这只提供提问的框架，不能替代${jurisdiction}自己的规定。`
 
-  const p2Text = !first
-    ? `文本与实践之间通常存在落差，但在没有取得公开统计之前，本站不对${jurisdiction}的执行情况作任何量化描述。编辑需要补充的是：受理与实质审理的分项数据，以及口径变更的说明。`
-    : comparative
-      ? `文本与实践之间的落差必须用${jurisdiction}自己的统计来验证，而本站目前没有这类记录。可供对照的是${second.country}的公开记录：进入实质审理的数量长期低于受理数量，统计口径与覆盖范围也没有保持一致${m2}。这只能指出提问的方向，不构成对${jurisdiction}的任何描述。`
-      : `文本与实践之间存在落差。公开记录显示，进入实质审理的数量长期低于受理数量，而统计口径与覆盖范围在同一时期并未保持一致${m2}。这一差距既可能来自当事人撤回，也可能来自程序阻碍，现有材料无法区分两者，本篇不据此推断原因。`
+  const p2Text = !stats
+    ? `文本与实践之间通常存在落差，但在取得公开统计之前，本站不对${jurisdiction}的执行情况作任何量化描述。编辑需要补充的是：受理与实质审理的分项数据，以及口径变更的说明。`
+    : statsLocal
+      ? `文本与实践之间存在落差。${stats.publisher}的记录显示，进入实质审理的数量长期低于受理数量，而统计口径与覆盖范围在同一时期并未保持一致${m2}。这一差距既可能来自当事人撤回，也可能来自程序阻碍，现有材料无法区分两者，本篇不据此推断原因。`
+      : `文本与实践之间的落差必须用${jurisdiction}自己的记录来验证，而本站目前没有这类材料。可供对照的是${stats.publisher}对${stats.country}的记录：进入实质审理的数量长期低于受理数量，统计口径与覆盖范围也没有保持一致${m2}。这只指出提问的方向，不构成对${jurisdiction}的任何描述。`
+
+  const p1: Block = { id: bid('ctx-p1'), type: 'paragraph', text: p1Text }
   const p2: Block = { id: bid('ctx-p2'), type: 'paragraph', text: p2Text }
 
   const callout: Block = {
@@ -590,8 +593,8 @@ function addJurisdictionContext(ctx: Ctx): IntentResult {
     tone: 'note',
     title: '本节的证据边界',
     text: comparative
-      ? `以上引用的材料并非来自${jurisdiction}，只作为比较框架使用，不构成对${jurisdiction}现行规定的描述，也不构成对任何具体案件的司法判断。发布前必须补入${jurisdiction}本地的条文或统计。`
-      : `以上是法律文本与公开统计的对照，不构成对任何具体案件的司法判断。本站未取得案卷材料，也未获得${jurisdiction}主管机关的书面回应；若后续取得，将在此处更新。`,
+      ? `本节引用的部分材料并非来自${jurisdiction}，只作为比较框架使用：它不构成对${jurisdiction}现行规定的描述，也不构成对任何具体案件的司法判断。发布前必须补入${jurisdiction}本地的条文或统计。`
+      : `以上是法律文本与公开记录的对照，不构成对任何具体案件的司法判断。本站未取得案卷材料，也未获得${jurisdiction}主管机关的书面回应；若后续取得，将在此处更新。`,
   }
 
   section.blocks.push(heading, p1, p2, callout)
@@ -604,21 +607,26 @@ function addJurisdictionContext(ctx: Ctx): IntentResult {
       ctx.notes.push(`引用了资料库中此前未附加的来源：${sourceLine(s)}。`)
       if (s.caution) ctx.notes.push(`${s.publisher} 带有使用提示：${s.caution}该引用已标记为「保留意见」。`)
     }
-    if (comparative) {
-      ctx.notes.push(`资料库中没有直接来自${jurisdiction}的来源，已改用可比辖区的记录，并在正文与提示框中标明这是比较材料，不能替代当地规定。`)
+    if (!statute) {
+      ctx.notes.push(`资料库中没有任何可引用的条文类记录，条文段落已改为提问式表述，未对${jurisdiction}的现行规定作断言。`)
+    } else if (!statuteLocal) {
+      ctx.notes.push(`没有直接来自${jurisdiction}的条文记录，已改用${statute.country}的文本作比较框架，并在正文与提示框中标明。`)
     }
-    if (picks.length === 1) {
-      ctx.notes.push('只找到 1 份可用来源，两段正文共用同一引用；建议再补一份独立记录后再发布。')
+    if (stats && !statsLocal) {
+      ctx.notes.push(`执行情况一段引用的是${stats.country}的记录，已在正文中标明这不是对${jurisdiction}的描述。`)
+    }
+    if (!stats) {
+      ctx.notes.push('没有可引用的执行情况记录，第二段未使用任何数值表述。')
     }
   }
 
   return {
     summary: picks.length === 0
-      ? `在「${section.title}」补入 ${jurisdiction} 的背景框架；资料库中没有可引用的条文记录，已按低强度表述处理。`
+      ? `在「${section.title}」补入 ${jurisdiction} 的背景框架；资料库中没有可引用的记录，已按低强度表述处理。`
       : comparative
-        ? `在「${section.title}」补入 ${jurisdiction} 的背景框架，新增 4 个内容块；因缺少当地来源，改用 ${picks.length} 份可比辖区记录并已标注。`
+        ? `在「${section.title}」补入 ${jurisdiction} 的背景框架，新增 4 个内容块；因缺少当地记录，改用 ${picks.length} 份可比辖区材料并已标注。`
         : `在「${section.title}」补入 ${jurisdiction} 的成文规则与执行落差，新增 4 个内容块、${picks.length} 条引用。`,
-    rationale: `指令被识别为「补入法律与制度背景」。自动编辑台在资料库中筛选了尚未附加到本篇的来源，优先采用${jurisdiction}的法律文本与官方统计，写入一个小标题、两段背景与一条证据边界提示。背景段落只描述条文与统计本身，不推断个案结果，也不替代司法结论。需要人工判断的是：这些条文是否确实适用于本篇事件，以及执行落差的解释是否需要主管机关的回应。`,
+    rationale: `指令被识别为「补入法律与制度背景」。自动编辑台在资料库中筛选尚未附加到本篇的来源：条文段落只接受法律文本、判决、官方数据一类的记录，执行情况段落优先采用统计。两者分别检查是否真的来自${jurisdiction}——不是的，就改写成明确标注的比较框架，而不是让读者以为那是当地规定。背景段落只描述文本与记录本身，不推断个案结果，也不替代司法结论。仍需人工判断的是：这些条文是否确实适用于本篇事件，以及执行落差是否需要主管机关的回应。`,
   }
 }
 
@@ -673,7 +681,9 @@ function addLocalVoices(ctx: Ctx): IntentResult {
   }
 
   const existing = snap.sections.flatMap((s) => s.blocks).find(isDivergence)
-  if (existing) {
+  if (existing && existing.positions.some((p) => p.holder === position.holder && p.position === position.position)) {
+    ctx.notes.push(`分歧对照中已经有${primary.publisher}的同一项立场，未重复写入。`)
+  } else if (existing) {
     existing.positions = [...existing.positions, position]
     ctx.notes.push(`已在既有的分歧对照中追加一项立场：${primary.publisher}（证据强度：${position.weight}）。`)
   } else {
@@ -835,6 +845,15 @@ const CLAUSE_END = '，、；'
 /** Subjects worth rescuing when a sentence-initial clause is deleted. */
 const SUBJECT_RE = /^(当事人|受害者|受害人|幸存者|报案人|申诉人|她们|他们|她|他)/
 
+/** A clause opening with one of these already has its own subject. */
+const HAS_SUBJECT_RE = /^(这|那|此|该|其|双方|两人|对方|警方|法院|检方|记录|文件|报告)/
+
+/**
+ * Deleting a clause that a later clause points back to ("……，这一点……") would
+ * leave a dangling reference, so those clauses are kept for a human instead.
+ */
+const ANAPHOR_RE = /^(这|那|此|其)/
+
 function splitSentences(text: string): string[] {
   const out: string[] = []
   let buf = ''
@@ -878,13 +897,25 @@ function rewriteForVictimBlaming(text: string): { text: string; hits: Hit[] } {
     const clauses = splitClauses(sentence)
     const kept: string[] = []
     let carriedSubject = ''
-    for (const clause of clauses) {
+    for (let ci = 0; ci < clauses.length; ci += 1) {
+      const clause = clauses[ci]
       const rule = CLAUSE_RULES.find((r) => r.re.test(clause))
       if (!rule) { kept.push(clause); continue }
       if (clause.includes('[[c:')) {
         hits.push({
           rule: `${rule.label}（含引用标记，已保留）`,
           why: `${rule.why}此句带有引用标记，自动改写会破坏引用，已交由人工判断。`,
+          excerpt: excerpt(clause),
+          applied: false,
+        })
+        kept.push(clause)
+        continue
+      }
+      const next = clauses[ci + 1]
+      if (!rule.replaceWith && next && ANAPHOR_RE.test(next)) {
+        hits.push({
+          rule: `${rule.label}（后文有指代，已保留）`,
+          why: `${rule.why}但后一句以「${next.slice(0, 2)}」回指本句，删除会留下悬空的指代，已交由人工改写。`,
           excerpt: excerpt(clause),
           applied: false,
         })
@@ -905,7 +936,9 @@ function rewriteForVictimBlaming(text: string): { text: string; hits: Hit[] } {
     }
     if (kept.length === 0) continue
     let joined = kept.join('')
-    if (carriedSubject && !joined.startsWith(carriedSubject)) joined = carriedSubject + joined
+    if (carriedSubject && !joined.startsWith(carriedSubject) && !HAS_SUBJECT_RE.test(joined)) {
+      joined = carriedSubject + joined
+    }
     if (endMark) {
       joined = joined.replace(/[，、；]$/, '')
       if (!SENTENCE_END.includes(joined.slice(-1))) joined += endMark
@@ -1127,15 +1160,20 @@ function deepen(ctx: Ctx): IntentResult {
   const unknownItem = ranked.length > 0
     ? `${b.who}的材料没有回答：被记录下来的个案与实际发生的个案之间差距有多大——现有公开数据不足以推算这一缺口${b.marker}。`
     : '被记录下来的个案与实际发生的个案之间差距有多大：本篇没有任何材料可以支撑推算。'
-  appendListItem(unknowns, unknownItem, bid('deep-unknowns'))
+  const unknownAdded = appendListItem(unknowns, unknownItem, bid('deep-unknowns'))
 
   const watchItem = ranked.length > 0
     ? `观察${c.who}的下一期记录是否公布分项口径；若口径不变而数值大幅波动，应优先怀疑统计方式而非现实变化${c.marker}。`
     : '观察本篇涉及的机构是否公布分项口径；在拿到口径说明之前，任何数值变化都不足以支撑结论。'
-  appendListItem(watch, watchItem, bid('deep-watch'))
+  const watchAdded = appendListItem(watch, watchItem, bid('deep-watch'))
 
   ctx.notes.push(`已在「${research.title}」新增 1 段以数据口径为核心的分析。`)
-  ctx.notes.push(`已在「${unknowns.title}」补入 1 条未知项，在「${watch.title}」补入 1 条可验证的观察项。`)
+  ctx.notes.push(unknownAdded
+    ? `已在「${unknowns.title}」补入 1 条未知项。`
+    : `「${unknowns.title}」中已有同一条未知项，未重复写入。`)
+  ctx.notes.push(watchAdded
+    ? `已在「${watch.title}」补入 1 条可验证的观察项。`
+    : `「${watch.title}」中已有同一条观察项，未重复写入。`)
   if (ranked.length === 0) {
     ctx.notes.push('本篇没有任何引用可供挂靠，新增内容已改为低强度表述，并明确指出需要先补材料。')
   } else {
@@ -1417,6 +1455,25 @@ export function applyVibeInstruction(
 ): VibeOutcome {
   const plan = classifyInstruction(instruction)
   const seed = hash(`${instruction}|${article.id}`)
+
+  // Ids are derived from the instruction, so re-running the same instruction on
+  // an article that already carries its output would collide. Suffix on demand —
+  // still deterministic, because it depends only on the snapshot's contents.
+  const takenIds = new Set<string>()
+  for (const section of article.sections) {
+    takenIds.add(section.id)
+    for (const block of section.blocks) takenIds.add(block.id)
+  }
+  const bid = (slot: string): ID => {
+    const base = `${article.id}-vibe-${seed}-${slot}`
+    if (!takenIds.has(base)) { takenIds.add(base); return base }
+    let n = 2
+    while (takenIds.has(`${base}-${n}`)) n += 1
+    const id = `${base}-${n}`
+    takenIds.add(id)
+    return id
+  }
+
   const ctx: Ctx = {
     instruction,
     plan,
@@ -1426,7 +1483,7 @@ export function applyVibeInstruction(
     now,
     seed,
     notes: [],
-    bid: (slot: string) => `${article.id}-vibe-${seed}-${slot}`,
+    bid,
   }
 
   let result: IntentResult

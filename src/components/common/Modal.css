@@ -1,0 +1,157 @@
+/* Modal — portalled dialog, scrim, focus trap host. */
+
+.pmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: var(--overlay);
+  backdrop-filter: blur(3px);
+  animation: pmodal-scrim var(--dur) var(--ease) both;
+}
+
+@keyframes pmodal-scrim {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pmodal__dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100%;
+  max-height: 92vh;
+  border: var(--bw) solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: var(--bg-raised);
+  color: var(--fg);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+  animation: pmodal-rise var(--dur-slow) var(--ease) both;
+  overflow: hidden;
+}
+
+@keyframes pmodal-rise {
+  from { transform: translateY(18px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* The one refracted edge: a thin prism rule along the top of the dialog. */
+.pmodal__dialog::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg,
+    var(--prism-1) 0%, var(--prism-6) 22%, var(--prism-2) 42%,
+    var(--prism-3) 62%, var(--prism-4) 80%, var(--prism-5) 100%);
+  opacity: .5;
+}
+
+.pmodal--danger .pmodal__dialog::before {
+  background: linear-gradient(90deg, var(--risk-high) 0%, var(--risk-critical) 100%);
+  opacity: .95;
+}
+
+.pmodal__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-5) var(--s-4);
+  border-bottom: var(--bw) solid var(--line-soft);
+}
+
+.pmodal__heading { min-width: 0; flex: 1; }
+
+.pmodal__title {
+  font-size: var(--fs-lg);
+  font-weight: 660;
+  letter-spacing: -.015em;
+  color: var(--fg);
+}
+
+.pmodal--danger .pmodal__title {
+  color: color-mix(in srgb, var(--risk-critical) 72%, var(--fg));
+}
+
+.pmodal__subtitle {
+  margin-top: var(--s-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+  color: var(--fg-muted);
+}
+
+.pmodal__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: -3px -3px 0 0;
+  border: var(--bw) solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--fg-subtle);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.pmodal__close:hover {
+  color: var(--fg);
+  background: var(--chip-bg);
+  border-color: var(--line);
+}
+
+.pmodal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s-5);
+  font-size: var(--fs-base);
+  line-height: var(--lh-normal);
+  color: var(--fg-muted);
+}
+
+.pmodal__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5);
+  border-top: var(--bw) solid var(--line-soft);
+  background: var(--bg-sunken);
+}
+
+@media (min-width: 720px) {
+  .pmodal {
+    align-items: center;
+    padding: var(--s-7) var(--s-5);
+  }
+
+  .pmodal__dialog {
+    border-bottom: var(--bw) solid var(--line);
+    border-radius: var(--r-lg);
+    max-height: min(86vh, 860px);
+  }
+
+  .pmodal--sm .pmodal__dialog { max-width: 420px; }
+  .pmodal--md .pmodal__dialog { max-width: 580px; }
+  .pmodal--lg .pmodal__dialog { max-width: 780px; }
+  .pmodal--xl .pmodal__dialog { max-width: 1020px; }
+
+  .pmodal__head { padding: var(--s-5) var(--s-6) var(--s-4); }
+  .pmodal__body { padding: var(--s-5) var(--s-6); }
+  .pmodal__foot { padding: var(--s-4) var(--s-6); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pmodal,
+  .pmodal__dialog { animation: none; }
+}

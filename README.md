@@ -24,6 +24,10 @@ npm install
 npm run dev        # http://localhost:5173
 npm run build      # 类型检查 + 生产构建
 npm run preview    # 预览构建产物
+
+npm run validate   # 演示数据完整性检查（引用、来源、图表、风险标记、占位链接）
+npm run smoke      # 行为冒烟测试（发布闸门、全局锁、版本模型、Vibe 引擎）
+npm run check      # 类型检查 + 上述两项
 ```
 
 技术栈：Vite · React 18 · TypeScript（strict）· react-router-dom（HashRouter，可直接静态托管）。

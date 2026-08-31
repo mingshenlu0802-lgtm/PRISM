@@ -1,0 +1,95 @@
+/* Toast — fixed stack. Bottom-centre and full width on phones, bottom-right on desktop. */
+
+.ptoast {
+  position: fixed;
+  left: var(--s-3);
+  right: var(--s-3);
+  bottom: var(--s-3);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-items: stretch;
+  pointer-events: none;
+}
+
+.ptoast__item {
+  --pt-tone: var(--prism-6);
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4);
+  border: var(--bw) solid var(--line);
+  border-left: 3px solid var(--pt-tone);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+  color: var(--fg);
+  box-shadow: var(--shadow-md);
+  animation: ptoast-in var(--dur) var(--ease) both;
+}
+
+@keyframes ptoast-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ptoast__item--info { --pt-tone: var(--prism-6); }
+.ptoast__item--go   { --pt-tone: var(--v-supported); }
+.ptoast__item--warn { --pt-tone: var(--risk-medium); }
+.ptoast__item--stop { --pt-tone: var(--v-false); }
+
+.ptoast__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1px;
+  color: var(--pt-tone);
+}
+
+[data-theme="dark"] .ptoast__icon,
+[data-surface="command"] .ptoast__icon {
+  color: color-mix(in srgb, var(--pt-tone) 52%, var(--paper-50) 48%);
+}
+
+.ptoast__text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.55;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+
+.ptoast__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-xs);
+  color: var(--fg-faint);
+  transition: color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.ptoast__close:hover {
+  color: var(--fg);
+  background: var(--chip-bg);
+}
+
+@media (min-width: 720px) {
+  .ptoast {
+    left: auto;
+    right: var(--s-5);
+    bottom: var(--s-5);
+    width: min(380px, calc(100vw - var(--s-8)));
+    align-items: flex-end;
+  }
+
+  .ptoast__item { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptoast__item { animation: none; }
+}

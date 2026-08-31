@@ -1,0 +1,12 @@
+/* Sparkline — a shape, not a chart. */
+
+.psparkline {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.psparkline--empty {
+  color: var(--fg-faint);
+}
