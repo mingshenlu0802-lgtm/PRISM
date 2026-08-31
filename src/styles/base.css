@@ -47,7 +47,7 @@ hr { border: 0; border-top: var(--bw) solid var(--line); margin: 0; }
 *::-webkit-scrollbar-thumb:hover { background: var(--fg-faint); background-clip: content-box; }
 
 /* --------------------------------------------------------------------------
-   Shared primitives (the only global class namespace: `u-` and `prose`).
+   Shared primitives (one global class namespace: `u-`).
    -------------------------------------------------------------------------- */
 
 .u-sr {
@@ -75,45 +75,6 @@ hr { border: 0; border-top: var(--bw) solid var(--line); margin: 0; }
 .u-mono { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: -0.01em; }
 
 .u-num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
-
-/* --------------------------------------------------------------------------
-   Prose — article body. Serif, generous measure, journal rhythm.
-   -------------------------------------------------------------------------- */
-
-.prose {
-  font-family: var(--font-serif);
-  font-size: var(--fs-lg);
-  line-height: var(--lh-prose);
-  color: var(--fg);
-  max-width: var(--measure);
-}
-.prose > * + * { margin-top: 1.15em; }
-.prose h3 {
-  font-family: var(--font-sans); font-size: var(--fs-xl); font-weight: 640;
-  margin-top: 1.9em; letter-spacing: -0.015em;
-}
-.prose h4 {
-  font-family: var(--font-sans); font-size: var(--fs-md); font-weight: 660;
-  margin-top: 1.6em; color: var(--fg-muted);
-  text-transform: none; letter-spacing: 0;
-}
-.prose ul, .prose ol { padding-left: 1.35em; }
-.prose li + li { margin-top: .5em; }
-.prose ul { list-style: none; padding-left: 0; }
-.prose ul > li { position: relative; padding-left: 1.35em; }
-.prose ul > li::before {
-  content: ""; position: absolute; left: .25em; top: .82em;
-  width: 6px; height: 6px; border-radius: 1px;
-  background: var(--accent); opacity: .7; transform: rotate(45deg);
-}
-.prose ol { list-style: decimal; }
-.prose ol > li::marker { color: var(--fg-subtle); font-family: var(--font-sans); font-size: .82em; }
-.prose strong { font-weight: 680; }
-.prose em { font-style: italic; }
-
-@media (max-width: 640px) {
-  .prose { font-size: var(--fs-md); line-height: 1.78; }
-}
 
 /* --------------------------------------------------------------------------
    Reduced motion / print

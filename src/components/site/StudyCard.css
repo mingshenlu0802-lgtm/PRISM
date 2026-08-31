@@ -1,0 +1,46 @@
+.scard {
+  padding: var(--s-6);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  display: grid; gap: var(--s-4); align-content: start;
+}
+.scard__head { display: grid; gap: var(--s-3); }
+.scard__kindrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.scard__publisher { font-size: var(--fs-xs); color: var(--fg-muted); }
+.scard__date { margin-left: auto; font-size: var(--fs-2xs); color: var(--fg-faint); }
+.scard__title { font-size: var(--fs-lg); line-height: 1.45; font-weight: 640; }
+
+.scard__summary { font-size: var(--fs-sm); line-height: var(--lh-prose); color: var(--fg-muted); }
+:root[data-body="serif"] .scard__summary { font-family: var(--font-serif); font-size: var(--fs-md); }
+
+.scard__figures { list-style: none; display: grid; gap: var(--s-3); }
+@media (min-width: 640px) { .scard__figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.scard__figure {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md); background: var(--bg-sunken);
+  display: grid; gap: 2px;
+}
+.scard__figlabel { font-size: var(--fs-2xs); color: var(--fg-subtle); }
+.scard__figvalue { font-size: var(--fs-lg); font-weight: 680; letter-spacing: -0.01em; }
+.scard__fignote { font-size: 10px; line-height: 1.6; color: var(--fg-faint); }
+
+.scard__limit {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  border-left: 3px solid var(--accent);
+}
+.scard__limit-k {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-2xs); font-weight: 660; color: var(--fg);
+}
+.scard__limit-t { margin-top: var(--s-2); font-size: var(--fs-xs); line-height: 1.75; color: var(--fg-muted); }
+
+.scard__data {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); color: var(--fg-muted);
+}
+.scard__links { padding-top: var(--s-3); border-top: var(--bw) solid var(--line-soft); }
+
+@media (max-width: 600px) { .scard { padding: var(--s-5); } }

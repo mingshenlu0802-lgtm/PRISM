@@ -1,0 +1,132 @@
+.slyt { min-height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+
+/* ---------------------------------- bar ---------------------------------- */
+
+.slyt__bar { position: sticky; top: 0; z-index: 50; background: var(--bg); }
+.slyt__barin {
+  display: flex; align-items: center; gap: var(--s-3);
+  min-height: var(--header-h);
+}
+@media (min-width: 720px) { .slyt__barin { gap: var(--s-4); } }
+.slyt__brand {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  text-decoration: none; color: inherit;
+  min-width: 0; flex: 0 1 auto;
+}
+.slyt__word {
+  font-size: var(--fs-md); font-weight: 700; letter-spacing: .01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* 手机上先让路给右侧的按钮：日期是锦上添花，工具是要能按到的。 */
+.slyt__date { font-size: var(--fs-2xs); color: var(--fg-faint); flex: none; display: none; }
+@media (min-width: 720px) { .slyt__date { display: block; } }
+
+.slyt__nav { display: none; align-items: center; gap: var(--s-1); margin-left: var(--s-3); }
+@media (min-width: 900px) { .slyt__nav { display: flex; } }
+
+.slyt__link {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm); color: var(--fg-muted);
+  text-decoration: none; white-space: nowrap;
+}
+.slyt__link:hover { color: var(--fg); background: var(--chip-bg); }
+.slyt__link--on { color: var(--fg); font-weight: 640; background: var(--chip-bg); }
+.slyt__dropbtn { border: 0; }
+
+.slyt__drop { position: relative; }
+.slyt__panel {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 60;
+  width: max-content; max-width: min(560px, calc(100vw - var(--s-8)));
+  padding: var(--s-4);
+  border: var(--bw) solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow-lg);
+}
+.slyt__panelhead {
+  font-size: var(--fs-2xs); font-weight: 660; color: var(--fg-faint);
+  margin-bottom: var(--s-2);
+}
+.slyt__panelhead + .slyt__panelgrid { margin-bottom: var(--s-4); }
+.slyt__panelgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; }
+.slyt__panelgrid--wide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+
+.slyt__panelitem {
+  display: flex; align-items: flex-start; gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs); color: var(--fg-muted); text-decoration: none;
+}
+.slyt__panelitem:hover { background: var(--chip-bg); color: var(--fg); }
+.slyt__paneldot { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 5px; }
+.slyt__panelgem { width: 8px; height: 8px; border-radius: 1px; transform: rotate(45deg); flex: none; margin-top: 5px; }
+.slyt__panelname { display: block; font-weight: 620; color: var(--fg); }
+.slyt__panelblurb { display: block; font-size: 10px; line-height: 1.5; color: var(--fg-faint); margin-top: 2px; }
+
+.slyt__tools { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; flex: none; }
+.slyt__console {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: var(--s-2) var(--s-4);
+  border: var(--bw) solid var(--line-strong);
+  border-radius: var(--r-full);
+  font-size: var(--fs-xs); text-decoration: none; color: var(--fg);
+}
+.slyt__console:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 620px) { .slyt__consoletext { display: none; } }
+
+.slyt__burger { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r-sm); color: var(--fg); }
+@media (min-width: 900px) { .slyt__burger { display: none; } }
+
+/* --------------------------------- sheet --------------------------------- */
+
+.slyt__sheet {
+  position: sticky; top: var(--header-h); z-index: 45;
+  background: var(--bg-raised);
+  border-bottom: var(--bw) solid var(--line);
+  max-height: 70vh; overflow-y: auto;
+}
+.slyt__sheetin { padding-block: var(--s-4); }
+.slyt__sheethead { font-size: var(--fs-2xs); font-weight: 660; color: var(--fg-faint); margin: var(--s-3) 0 var(--s-2); }
+.slyt__sheetgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; }
+@media (min-width: 560px) { .slyt__sheetgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.slyt__sheetitem {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-3); border-radius: var(--r-sm);
+  font-size: var(--fs-sm); color: var(--fg-muted); text-decoration: none;
+}
+.slyt__sheetitem:hover { background: var(--chip-bg); color: var(--fg); }
+
+/* -------------------------------- banners -------------------------------- */
+
+.slyt__offline {
+  display: flex; align-items: center; justify-content: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--accent); color: var(--accent-fg);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+
+.slyt__demo { background: var(--bg-sunken); border-bottom: var(--bw) solid var(--line-soft); }
+.slyt__demoin {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3);
+  padding-block: var(--s-3);
+  font-size: var(--fs-2xs); line-height: 1.6; color: var(--fg-subtle);
+}
+.slyt__demotag {
+  flex: none; padding: 2px 8px; border-radius: var(--r-full);
+  background: var(--accent); color: var(--accent-fg);
+  font-size: 10px; font-weight: 700;
+}
+
+/* --------------------------------- main ---------------------------------- */
+
+.slyt__main { flex: 1; }
+
+.slyt__foot { margin-top: var(--s-11); border-top: var(--bw) solid var(--line); background: var(--bg-sunken); }
+.slyt__footin { padding-block: var(--s-7); display: grid; gap: var(--s-4); }
+.slyt__footbrand { display: flex; align-items: center; gap: var(--s-3); }
+.slyt__footword { font-size: var(--fs-sm); font-weight: 700; }
+.slyt__foottag { font-size: var(--fs-2xs); color: var(--fg-subtle); }
+.slyt__footnote { font-size: var(--fs-xs); line-height: 1.7; color: var(--fg-muted); max-width: 60ch; }
+.slyt__footmeta { font-size: var(--fs-2xs); color: var(--fg-faint); }

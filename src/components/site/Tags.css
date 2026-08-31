@@ -1,0 +1,22 @@
+.tagx__row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+.tagx {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--bg-raised);
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+  color: var(--fg-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+a.tagx:hover { border-color: var(--accent); color: var(--fg); }
+.tagx--sm { padding: 2px 8px 2px 6px; font-size: 10px; }
+
+.tagx__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.tagx__gem { width: 7px; height: 7px; border-radius: 1px; transform: rotate(45deg); flex: none; }
+
+.tagx--region { font-weight: 600; color: var(--fg); }

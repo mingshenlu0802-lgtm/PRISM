@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * PRISM 演示数据完整性检查
+ * PRISM 演示数据检查
  *
- * Referential integrity + safety checks over the whole demo dataset. This is a
- * real gate, not decoration: the product's core promise is that every claim
- * points at a source that actually exists and that nothing here can be mistaken
- * for a real citation.
+ * The site's whole promise is: a short summary you can check yourself, plus
+ * the links that let you check it. That promise fails silently if a link is
+ * missing, if a demo link looks real, or if a tag points at a region or topic
+ * that does not exist. This is a real gate, not decoration.
  *
  *   node scripts/validate-demo.mjs
  */
 import { build } from 'esbuild'
-import { readFileSync, rmSync, mkdtempSync } from 'node:fs'
+import { rmSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -19,174 +19,138 @@ const out = mkdtempSync(join(tmpdir(), 'prism-validate-'))
 const bundle = join(out, 'demo.mjs')
 
 await build({
-  entryPoints: ['src/lib/demo/index.ts'],
-  bundle: true,
-  format: 'esm',
-  platform: 'node',
-  target: 'node20',
-  outfile: bundle,
-  logLevel: 'silent',
+  entryPoints: [join(process.cwd(), 'scripts/_validate-entry.ts')],
+  bundle: true, format: 'esm', platform: 'node', target: 'node20',
+  outfile: bundle, logLevel: 'silent',
 })
 
-const { buildInitialState } = await import(pathToFileURL(bundle).href)
-const s = buildInitialState()
+const m = await import(pathToFileURL(bundle).href)
+const s = m.buildInitialState()
+const REGIONS = new Set(m.REGIONS.map((r) => r.key))
+const TOPICS = new Set(m.TOPICS.map((t) => t.key))
+const PRIORITY = m.PRIORITY_REGIONS
 
 const errors = []
 const warnings = []
-const err = (m) => errors.push(m)
-const warn = (m) => warnings.push(m)
+const err = (msg) => errors.push(msg)
+const warn = (msg) => warnings.push(msg)
 
-const sourceIds = new Set(s.sources.map((x) => x.id))
-const chartIds = new Set(s.charts.map((x) => x.id))
-const assetIds = new Set(s.assets.map((x) => x.id))
-const articleIds = new Set(s.articles.map((x) => x.id))
-const signalIds = new Set(s.signals.map((x) => x.id))
-
-/* ---------------------------- safety invariants --------------------------- */
-
-const URL_OK = /^https:\/\/demo\.prism\.invalid\//
-for (const src of s.sources) {
-  if (!URL_OK.test(src.url)) err(`source ${src.id}: url must be on demo.prism.invalid — got ${src.url}`)
-  if (src.demo !== true) err(`source ${src.id}: demo flag must be true`)
-  if (!src.credibilityBasis || src.credibilityBasis.length < 12) err(`source ${src.id}: credibility ${src.credibility} has no substantive basis`)
-  if (src.credibility < 0 || src.credibility > 100) err(`source ${src.id}: credibility out of range`)
-}
-const DOI = /\b10\.\d{4,9}\/\S+|arxiv|isbn[\s:]/i
-const blob = JSON.stringify(s)
-if (DOI.test(blob)) err('dataset contains something shaped like a DOI / arXiv id / ISBN — fabricated identifiers are forbidden')
-for (const m of blob.matchAll(/https?:\/\/(?!demo\.prism\.invalid)[^"\\ ]+/g)) {
-  err(`dataset contains a non-placeholder URL: ${m[0]}`)
+const PLACEHOLDER = /(^|\.)invalid$/i
+const isPlaceholder = (url) => {
+  try { return PLACEHOLDER.test(new URL(url).hostname) } catch { return true }
 }
 
-/* --------------------------- referential integrity ------------------------ */
+/* --------------------------- news --------------------------------- */
 
-for (const c of s.charts) {
-  if (!sourceIds.has(c.sourceId)) err(`chart ${c.id}: sourceId ${c.sourceId} does not exist`)
-  if (!c.limitation) err(`chart ${c.id}: missing limitation — every chart must state what it cannot show`)
-  if (!c.series.length) err(`chart ${c.id}: no series`)
-}
+const slugs = new Set()
+const linkIds = new Set()
 
-const CITE = /\[\[c:([a-zA-Z0-9_-]+)\]\]/g
+for (const n of s.news) {
+  const at = `新闻 ${n.id}`
 
-function blockTexts(b) {
-  switch (b.type) {
-    case 'paragraph': case 'heading': case 'pullquote': return [b.text]
-    case 'callout': return [b.title, b.text]
-    case 'list': return b.items
-    case 'figure': return [b.caption]
-    case 'table': return [...b.columns, ...b.rows.flat(), b.caption ?? '']
-    case 'timeline': return b.entries.flatMap((e) => [e.title, e.text])
-    case 'divergence': return b.positions.flatMap((p) => [p.position, p.evidence, p.holder, p.label])
-    case 'chart': return []
-    default: return []
+  if (slugs.has(n.slug)) err(`${at}：slug「${n.slug}」重复，两条新闻会抢同一个网址`)
+  slugs.add(n.slug)
+
+  if (!n.headline?.trim()) err(`${at}：没有标题`)
+  if (!n.summary?.trim()) err(`${at}：没有总结`)
+
+  // The summary IS the article. Too long and it stops being a summary; too
+  // short and the reader learns nothing before clicking away.
+  const len = [...n.summary].length
+  if (len < 60) err(`${at}：总结只有 ${len} 字，短到读者看不出发生了什么`)
+  if (len > 400) err(`${at}：总结 ${len} 字，已经不是「短篇总结」了`)
+
+  if (n.regions.length === 0) err(`${at}：没有地区标签`)
+  if (n.topics.length === 0) err(`${at}：没有议题标签`)
+  for (const r of n.regions) if (!REGIONS.has(r)) err(`${at}：地区「${r}」不存在`)
+  for (const t of n.topics) if (!TOPICS.has(t)) err(`${at}：议题「${t}」不存在`)
+
+  if (n.links.length === 0) {
+    err(`${at}：一条链接都没有——读者没法自己去核对`)
+  } else if (n.links.length < 2) {
+    warn(`${at}：只有 1 条链接`)
   }
-}
 
-for (const a of s.articles) {
-  const citIds = new Set(a.citations.map((c) => c.id))
-
-  for (const sid of a.sourceIds) if (!sourceIds.has(sid)) err(`${a.id}: sourceIds contains unknown ${sid}`)
-  for (const c of a.citations) {
-    if (!sourceIds.has(c.sourceId)) err(`${a.id}/${c.id}: sourceId ${c.sourceId} does not exist`)
-    else if (!a.sourceIds.includes(c.sourceId)) err(`${a.id}/${c.id}: cites ${c.sourceId} but it is not in article.sourceIds`)
-    if (!c.claim) err(`${a.id}/${c.id}: citation carries no claim`)
-  }
-  for (const aid of a.assetIds) if (!assetIds.has(aid)) err(`${a.id}: assetIds contains unknown ${aid}`)
-  for (const cid of a.chartIds) if (!chartIds.has(cid)) err(`${a.id}: chartIds contains unknown ${cid}`)
-  for (const chk of a.citationChecks) if (!citIds.has(chk.citationId)) err(`${a.id}: citationCheck for unknown citation ${chk.citationId}`)
-
-  const kinds = a.sections.map((x) => x.kind)
-  const REQUIRED = ['facts', 'context', 'power', 'research', 'divergence', 'unknowns', 'why', 'watch']
-  for (const k of REQUIRED) if (!kinds.includes(k)) err(`${a.id}: missing required section '${k}'`)
-
-  let inlineCount = 0
-  for (const sec of a.sections) {
-    for (const b of sec.blocks) {
-      if (b.type === 'chart' && !chartIds.has(b.chartId)) err(`${a.id}/${b.id}: chart block references unknown ${b.chartId}`)
-      if (b.type === 'figure' && !assetIds.has(b.assetId)) err(`${a.id}/${b.id}: figure block references unknown asset ${b.assetId}`)
-      const extra = []
-      if (b.type === 'timeline') extra.push(...b.entries.flatMap((e) => e.citationIds ?? []))
-      if (b.type === 'divergence') extra.push(...b.positions.flatMap((p) => p.citationIds))
-      for (const id of extra) if (!citIds.has(id)) err(`${a.id}/${b.id}: references unknown citation ${id}`)
-      for (const t of blockTexts(b)) {
-        for (const m of String(t).matchAll(CITE)) {
-          inlineCount += 1
-          if (!citIds.has(m[1])) err(`${a.id}/${b.id}: inline marker [[c:${m[1]}]] has no citation record`)
-        }
-      }
+  for (const l of n.links) {
+    const lat = `${at} 链接 ${l.id}`
+    if (linkIds.has(l.id)) err(`${lat}：链接 id 重复`)
+    linkIds.add(l.id)
+    if (!l.outlet?.trim()) err(`${lat}：没有媒体名`)
+    if (!l.title?.trim()) err(`${lat}：没有标题`)
+    if (!l.lang?.trim()) err(`${lat}：没有标语言`)
+    try { new URL(l.url) } catch { err(`${lat}：网址格式不对（${l.url}）`) }
+    // Demo data must be unmistakably demo: a fake link that looks real is
+    // worse than no link at all.
+    if (n.demo && !isPlaceholder(l.url)) {
+      err(`${lat}：演示条目却用了看起来像真的网址（${l.url}）`)
     }
   }
-  if (a.sections.length && inlineCount === 0) err(`${a.id}: no inline citations in the body`)
 
-  const live = a.status === 'published' || a.status === 'update-needed'
-  if (live && a.citations.length < 12) warn(`${a.id}: published entry has only ${a.citations.length} citations`)
-  // References are the point of the site now: every published entry must carry
-  // inline markers that resolve, and enough of them to follow the reporting.
-  if (live && a.sourceIds.length < 5) warn(`${a.id}: published entry rests on only ${a.sourceIds.length} sources`)
-  if (a.topics.includes('violence') && !a.contentNotice) warn(`${a.id}: violence topic without a contentNotice`)
-  for (const r of a.riskFlags) {
-    const mustConfirm = ['sexual-violence', 'minors', 'active-litigation', 'identity-exposure']
-    if (mustConfirm.includes(r.kind) && !r.requiresSecondConfirm) err(`${a.id}/${r.id}: ${r.kind} must set requiresSecondConfirm`)
+  if (!['live', 'hidden'].includes(n.status)) err(`${at}：status 不认识（${n.status}）`)
+  if (!['auto', 'editor'].includes(n.origin)) err(`${at}：origin 不认识（${n.origin}）`)
+  if (Number.isNaN(Date.parse(n.publishedAt))) err(`${at}：发布时间不是合法时间`)
+}
+
+/* -------------------------- studies -------------------------------- */
+
+const studySlugs = new Set()
+for (const st of s.studies) {
+  const at = `研究 ${st.id}`
+  if (studySlugs.has(st.slug)) err(`${at}：slug「${st.slug}」重复`)
+  studySlugs.add(st.slug)
+
+  if (!st.title?.trim()) err(`${at}：没有标题`)
+  if (!st.summary?.trim()) err(`${at}：没有总结`)
+  // A study without its own stated limitation invites over-reading. This is
+  // the one field the editor may never leave empty.
+  if (!st.limitation?.trim()) err(`${at}：没有写「这份研究说不了什么」`)
+  if (st.links.length === 0) err(`${at}：没有链接，读者拿不到原始报告`)
+
+  for (const r of st.regions) if (!REGIONS.has(r)) err(`${at}：地区「${r}」不存在`)
+  for (const t of st.topics) if (!TOPICS.has(t)) err(`${at}：议题「${t}」不存在`)
+
+  for (const l of st.links) {
+    if (st.demo && !isPlaceholder(l.url)) err(`${at} 链接 ${l.id}：演示条目却用了看起来像真的网址`)
+    try { new URL(l.url) } catch { err(`${at} 链接 ${l.id}：网址格式不对`) }
   }
-  if (live && !s.versions.some((v) => v.id === a.currentVersionId)) err(`${a.id}: currentVersionId ${a.currentVersionId} has no version record`)
-}
-
-for (const sig of s.signals) {
-  if (sig.linkedArticleId && !articleIds.has(sig.linkedArticleId)) err(`signal ${sig.id}: unknown linkedArticleId ${sig.linkedArticleId}`)
-  if (sig.reportCount < sig.mergedFrom.length) err(`signal ${sig.id}: reportCount ${sig.reportCount} < mergedFrom ${sig.mergedFrom.length}`)
-  // Multi-source means corroborated by more than one independent source —
-  // two is the editorial floor. Three is a strength, not the definition.
-  if (sig.corroboration === 'multi-source' && sig.independentSourceCount < 2) err(`signal ${sig.id}: multi-source needs >= 2 independent sources`)
-  if (sig.corroboration === 'unverified' && sig.primarySourceCount > 0) err(`signal ${sig.id}: unverified cannot carry a primary source`)
-  if (sig.primarySourceCount > sig.independentSourceCount && sig.independentSourceCount > 0) err(`signal ${sig.id}: more primary than independent sources`)
-  if (sig.status === 'declined' && !sig.declineReason) err(`signal ${sig.id}: a spiked signal must keep its reason`)
-  if (sig.linkedArticleId && sig.status !== 'drafted') err(`signal ${sig.id}: links an article but is not marked drafted`)
-  if (sig.corroboration === 'single-source' && sig.independentSourceCount !== 1) err(`signal ${sig.id}: single-source must have exactly 1 independent source`)
-}
-
-for (const r of s.research) if (!sourceIds.has(r.sourceId)) err(`research ${r.id}: unknown sourceId ${r.sourceId}`)
-
-for (const b of s.briefs) {
-  for (const t of b.topFive) if (!signalIds.has(t.signalId)) err(`brief ${b.date}: unknown signalId ${t.signalId}`)
-  for (const r of b.recommended) if (!articleIds.has(r.articleId)) err(`brief ${b.date}: unknown articleId ${r.articleId}`)
-  for (const id of b.pendingArticleIds) if (!articleIds.has(id)) err(`brief ${b.date}: unknown pending ${id}`)
-  for (const x of b.riskAlerts) if (!articleIds.has(x.articleId)) err(`brief ${b.date}: unknown risk articleId ${x.articleId}`)
-  for (const x of b.updateNeeded) if (!articleIds.has(x.articleId)) err(`brief ${b.date}: unknown update articleId ${x.articleId}`)
-  for (const x of b.citationFailures) {
-    const a = s.articles.find((y) => y.id === x.articleId)
-    if (!a) err(`brief ${b.date}: unknown citationFailure articleId ${x.articleId}`)
-    else if (!a.citations.some((c) => c.id === x.citationId)) err(`brief ${b.date}: citationFailure references unknown citation ${x.citationId}`)
+  if (st.datasetUrl) {
+    try { new URL(st.datasetUrl) } catch { err(`${at}：数据集网址格式不对`) }
   }
 }
 
-for (const e of s.audit) if (e.articleId && !articleIds.has(e.articleId)) err(`audit ${e.id}: unknown articleId ${e.articleId}`)
-for (const p of s.pipelineRuns) {
-  for (const id of p.producedArticleIds) if (!articleIds.has(id)) err(`pipeline ${p.id}: unknown articleId ${id}`)
-  for (const id of p.producedSignalIds) if (!signalIds.has(id)) err(`pipeline ${p.id}: unknown signalId ${id}`)
-}
-for (const v of s.versions) if (!articleIds.has(v.articleId)) err(`version ${v.id}: unknown articleId ${v.articleId}`)
-for (const a of s.assets) if (a.articleId && !articleIds.has(a.articleId)) err(`asset ${a.id}: unknown articleId ${a.articleId}`)
-for (const a of s.assets) {
-  if (a.conceptual && !a.guardrail) err(`asset ${a.id}: AI 概念插图 must carry a guardrail note`)
-  if (a.chartId && !chartIds.has(a.chartId)) err(`asset ${a.id}: unknown chartId ${a.chartId}`)
+/* --------------------------- setup --------------------------------- */
+
+const owner = s.auth.admins.find((a) => a.role === 'owner')
+if (!owner) err('没有站长账号——控制端会没人能管')
+else if (owner.email !== m.OWNER_EMAIL) err(`站长账号应为 ${m.OWNER_EMAIL}，实际是 ${owner.email}`)
+if (s.auth.admins.filter((a) => a.role === 'owner').length > 1) err('站长不止一个')
+
+for (const r of s.collect.regions) if (!REGIONS.has(r)) err(`搜集设置里的地区「${r}」不存在`)
+for (const t of s.collect.topics) if (!TOPICS.has(t)) err(`搜集设置里的议题「${t}」不存在`)
+for (const r of PRIORITY) {
+  if (!s.collect.regions.includes(r)) warn(`优先地区「${r}」不在默认搜集范围里`)
 }
 
-/* --------------------------------- report -------------------------------- */
-
-const counts = {
-  articles: s.articles.length, sources: s.sources.length, charts: s.charts.length,
-  signals: s.signals.length, research: s.research.length,
-  assets: s.assets.length, versions: s.versions.length, audit: s.audit.length, briefs: s.briefs.length,
-  citations: s.articles.reduce((n, a) => n + a.citations.length, 0),
+// Coverage: the six regions the owner named should actually have something in
+// them, or the front page looks broken on day one.
+for (const r of PRIORITY) {
+  const n = s.news.filter((x) => x.regions.includes(r)).length
+  if (n === 0) warn(`优先地区「${r}」在演示数据里一条新闻都没有`)
 }
-console.log('PRISM 演示数据完整性检查')
-console.log('—'.repeat(52))
-console.log(Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join('  ·  '))
-console.log('—'.repeat(52))
-for (const w of warnings) console.log(`  警告  ${w}`)
-for (const e of errors) console.log(`  错误  ${e}`)
-console.log('—'.repeat(52))
-console.log(`${errors.length} 错误 · ${warnings.length} 警告`)
+
+/* --------------------------- report --------------------------------- */
 
 rmSync(out, { recursive: true, force: true })
+
+const linkCount = s.news.reduce((a, n) => a + n.links.length, 0)
+console.log('PRISM 演示数据检查')
+console.log('—'.repeat(64))
+console.log(`  新闻 ${s.news.length} 条 · 媒体链接 ${linkCount} 条 · 研究与数据 ${s.studies.length} 项`)
+console.log(`  覆盖地区 ${new Set(s.news.flatMap((n) => n.regions)).size} 个 · 议题 ${new Set(s.news.flatMap((n) => n.topics)).size} 个`)
+console.log('—'.repeat(64))
+for (const w of warnings) console.log(`  提醒  ${w}`)
+for (const e of errors) console.log(`  错误  ${e}`)
+if (!errors.length && !warnings.length) console.log('  没有发现问题')
+console.log('—'.repeat(64))
+console.log(errors.length ? `${errors.length} 个错误` : '通过')
 process.exit(errors.length ? 1 : 0)

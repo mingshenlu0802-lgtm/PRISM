@@ -69,8 +69,8 @@
 }
 
 .pfield-input[aria-invalid="true"] {
-  border-color: var(--v-false);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--v-false) 16%, transparent);
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 16%, transparent);
 }
 
 .pfield-textarea {

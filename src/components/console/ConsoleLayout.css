@@ -1,0 +1,69 @@
+.clyt { min-height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+
+.clyt__bar { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: var(--bw) solid var(--line); }
+.clyt__barin { display: flex; align-items: center; gap: var(--s-3); min-height: var(--header-h); }
+@media (min-width: 720px) { .clyt__barin { gap: var(--s-4); } }
+/* 手机上留住标记、收起「控制端」三个字：两个标签页才是这里最该按到的东西。 */
+.clyt__brand {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  text-decoration: none; color: inherit; flex: none;
+}
+.clyt__word { font-size: var(--fs-md); font-weight: 700; white-space: nowrap; display: none; }
+@media (min-width: 560px) { .clyt__word { display: inline; } }
+.clyt__date { font-size: var(--fs-2xs); color: var(--fg-faint); }
+
+.clyt__nav {
+  display: flex; gap: var(--s-1); margin-left: var(--s-2);
+  flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none;
+}
+.clyt__nav::-webkit-scrollbar { display: none; }
+@media (min-width: 720px) { .clyt__nav { margin-left: var(--s-4); gap: var(--s-2); } .clyt__tab { padding-inline: var(--s-5); } }
+.clyt__tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: var(--s-2) var(--s-3);
+  white-space: nowrap; flex: none;
+  border: var(--bw) solid transparent; border-radius: var(--r-full);
+  font-size: var(--fs-sm); font-weight: 600;
+  color: var(--fg-muted); text-decoration: none;
+}
+.clyt__tab:hover { background: var(--chip-bg); color: var(--fg); }
+.clyt__tab--on { background: var(--accent); color: var(--accent-fg); }
+.clyt__tab--on:hover { background: var(--accent); color: var(--accent-fg); }
+
+.clyt__tools { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; flex: none; }
+.clyt__view {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: var(--s-2) var(--s-4);
+  border: var(--bw) solid var(--line-strong); border-radius: var(--r-full);
+  font-size: var(--fs-xs); text-decoration: none; color: var(--fg);
+}
+.clyt__view:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 640px) { .clyt__view span { display: none; } .clyt__date { display: none; } }
+
+.clyt__who { background: var(--bg-sunken); border-bottom: var(--bw) solid var(--line-soft); }
+.clyt__who--out { background: var(--accent-soft); }
+.clyt__whoin {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3);
+  padding-block: var(--s-3); font-size: var(--fs-2xs); color: var(--fg-subtle);
+}
+.clyt__avatar { border-radius: 50%; flex: none; }
+.clyt__avatar--blank { width: 22px; height: 22px; background: var(--chip-bg); }
+.clyt__email { font-weight: 640; color: var(--fg); }
+.clyt__role {
+  padding: 1px 8px; border-radius: var(--r-full);
+  background: var(--chip-bg); color: var(--fg-muted); font-weight: 640;
+}
+.clyt__role--owner { background: var(--accent); color: var(--accent-fg); }
+.clyt__hint { line-height: 1.6; }
+.clyt__hint strong { color: var(--fg); }
+
+.clyt__offline {
+  display: flex; align-items: center; justify-content: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--accent); color: var(--accent-fg);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+
+.clyt__main { flex: 1; overflow-y: auto; }
+.clyt__mainin { padding-block: var(--s-6) var(--s-10); display: flex; justify-content: center; }
+.clyt__mainin > * { width: 100%; }

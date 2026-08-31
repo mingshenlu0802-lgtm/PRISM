@@ -44,9 +44,9 @@
 }
 
 .pbadge--neutral { --pb-tone: var(--fg-subtle); }
-.pbadge--go      { --pb-tone: var(--v-supported); }
-.pbadge--hold    { --pb-tone: var(--risk-medium); }
-.pbadge--stop    { --pb-tone: var(--v-false); }
+.pbadge--go      { --pb-tone: var(--go); }
+.pbadge--hold    { --pb-tone: var(--warn); }
+.pbadge--stop    { --pb-tone: var(--danger); }
 .pbadge--live    { --pb-tone: var(--accent); }
 .pbadge--info    { --pb-tone: var(--prism-6); }
-.pbadge--warn    { --pb-tone: var(--risk-high); }
+.pbadge--warn    { --pb-tone: var(--warn); }

@@ -1,0 +1,32 @@
+.fbar {
+  display: grid; gap: var(--s-4);
+  padding: var(--s-5);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+}
+.fbar__group { display: grid; gap: var(--s-2); }
+.fbar__label { font-size: var(--fs-2xs); font-weight: 660; color: var(--fg-faint); }
+.fbar__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.fbar__chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--bg);
+  font-size: var(--fs-2xs); color: var(--fg-muted);
+}
+.fbar__chip:hover { border-color: var(--line-strong); color: var(--fg); }
+.fbar__chip--on { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); font-weight: 640; }
+.fbar__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.fbar__gem { width: 7px; height: 7px; border-radius: 1px; transform: rotate(45deg); flex: none; }
+.fbar__n { font-variant-numeric: tabular-nums; color: var(--fg-faint); font-size: 10px; }
+.fbar__chip--on .fbar__n { color: var(--accent); }
+
+.fbar__clear {
+  justify-self: start;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-2xs); color: var(--accent);
+}
+.fbar__clear:hover { text-decoration: underline; }

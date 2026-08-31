@@ -1,0 +1,54 @@
+# 把网站发布到 GitHub Pages。
+#
+# 第一次使用前，请到仓库的 Settings → Pages，把 "Source" 选成 "GitHub Actions"。
+# 之后每次往下面这些分支推送代码，网站都会自动重新发布。
+name: 发布网站
+
+on:
+  push:
+    branches:
+      - main
+      - claude/prism-feminist-media-platform-2er8su
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一个发布，新的会等旧的做完，不会互相覆盖。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # 数据与行为检查不通过就不发布，免得把坏页面推上线。
+      - run: npm run check
+
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

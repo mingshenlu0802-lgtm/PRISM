@@ -4,4 +4,3 @@ dist/
 *.local
 .vite/
 .ui-check/
-PRISM-prototype.html

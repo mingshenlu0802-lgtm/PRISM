@@ -1,48 +1,47 @@
 /**
- * Demo dataset assembly.
+ * 演示数据装配。
  *
- * Every record below is fictional. Jurisdictions, courts, statistics offices,
- * journals, outlets and organisations do not exist; source URLs sit on the
- * reserved `.invalid` TLD and can never resolve. Nothing here is a real news
- * report, a real citation or a real person's words.
+ * 全部为虚构内容：机构、媒体与链接都不存在，链接位于 RFC 2606 保留的
+ * `.invalid` 域名。接入真实检索后会被真实条目替换。
  */
 import type { PrismState } from '../types'
-import { SOURCES } from './sources'
-import { CHARTS } from './charts'
-import { ARTICLES } from './articles'
-import { ASSETS } from './assets'
-import { SIGNALS } from './signals'
-import { RESEARCH } from './research'
-import { buildVersions, currentVersionIdFor } from './versions'
-import { buildBriefs } from './brief'
-import { PIPELINE_RUNS } from './pipeline'
-import { AUDIT } from './audit'
+import { DEFAULT_APPEARANCE, DEFAULT_COPY } from '../constants'
+import { OWNER_EMAIL } from '../types'
+import { PRIORITY_REGIONS } from '../regions'
+import { NEWS } from './news'
+import { STUDIES } from './studies'
 
-/** The prototype runs on a fixed clock so the demo is deterministic. */
 export const TODAY = '2026-08-31'
-export const NOW = '2026-08-31T06:40:00Z'
 
 export function buildInitialState(): PrismState {
-  // Each entry points at the newest adopted version of itself; the generator
-  // owns that id so the two can never drift apart.
-  const articles = ARTICLES.map((a) => ({ ...a, currentVersionId: currentVersionIdFor(a) }))
-  const versions = buildVersions(articles)
   return {
-    articles,
-    sources: SOURCES,
-    signals: SIGNALS,
-    research: RESEARCH,
-    assets: ASSETS,
-    charts: CHARTS,
-    versions,
-    vibeRuns: [],
-    briefs: buildBriefs(articles),
-    pipelineRuns: PIPELINE_RUNS,
-    audit: AUDIT,
-    lock: { engaged: false },
-    // Retrieval defaults to a self-hostable open-source model; authoring is
-    // fixed to Claude and is not settable from the interface.
-    engines: { retrieval: 'qwen-open', authoring: 'claude' },
+    news: NEWS.map((n) => ({ ...n })),
+    studies: STUDIES.map((s) => ({ ...s })),
+    runs: [],
+    collect: {
+      regions: [...PRIORITY_REGIONS],
+      topics: ['rights', 'violence', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'],
+      mode: 'both',
+      autoPublish: true,
+      engine: 'qwen-open',
+      perRun: 6,
+      dedupe: true,
+    },
+    appearance: { ...DEFAULT_APPEARANCE },
+    auth: {
+      clientId: '',
+      admins: [{ email: OWNER_EMAIL, role: 'owner', addedAt: '2026-08-01T00:00:00Z', name: '站长' }],
+    },
+    github: {
+      owner: 'mingshenlu0802-lgtm',
+      repo: 'PRISM',
+      branch: 'claude/prism-feminist-media-platform-2er8su',
+      token: '',
+      path: 'site-content.json',
+    },
+    copy: { ...DEFAULT_COPY },
+    changes: [],
+    publicOffline: false,
     today: TODAY,
   }
 }

@@ -54,7 +54,7 @@
 }
 
 .pmodal--danger .pmodal__dialog::before {
-  background: linear-gradient(90deg, var(--risk-high) 0%, var(--risk-critical) 100%);
+  background: linear-gradient(90deg, var(--warn) 0%, var(--danger) 100%);
   opacity: .95;
 }
 
@@ -76,7 +76,7 @@
 }
 
 .pmodal--danger .pmodal__title {
-  color: color-mix(in srgb, var(--risk-critical) 72%, var(--fg));
+  color: color-mix(in srgb, var(--danger) 72%, var(--fg));
 }
 
 .pmodal__subtitle {

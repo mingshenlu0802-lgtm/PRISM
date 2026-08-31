@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "PRISM 棱镜 — a daily global feminist & LGBTQIA+ deep-reporting, research and fact-checking platform (interactive prototype).",
+  "description": "PRISM 棱镜 — 每日更新的全球女性主义与 LGBTQIA+ 新闻与研究站，附带一个两页的控制端。",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -24,6 +24,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "esbuild": "^0.21.5",
     "playwright": "^1.49.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"

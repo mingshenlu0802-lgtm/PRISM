@@ -1,0 +1,41 @@
+.about { padding-block: var(--s-7) var(--s-9); display: grid; gap: var(--s-6); max-width: 800px; }
+.about__head { display: grid; gap: var(--s-3); justify-items: start; }
+.about__title { font-size: var(--fs-3xl); letter-spacing: -0.02em; }
+.about__lead { font-size: var(--fs-lg); line-height: 1.7; color: var(--fg); font-weight: 560; }
+.about__body { font-size: var(--fs-md); line-height: var(--lh-prose); color: var(--fg-muted); }
+:root[data-body="serif"] .about__body { font-family: var(--font-serif); }
+.about__body code { padding: 1px 5px; border-radius: var(--r-xs); background: var(--bg-sunken); font-size: .92em; }
+
+.about__h2 { font-size: var(--fs-lg); display: flex; align-items: center; gap: var(--s-2); }
+.about__note { font-size: var(--fs-xs); color: var(--fg-subtle); }
+
+.about__how, .about__grid, .about__demo { display: grid; gap: var(--s-3); }
+.about__steps { list-style: none; display: grid; gap: var(--s-3); }
+.about__steps > li { display: flex; gap: var(--s-3); font-size: var(--fs-sm); line-height: 1.75; color: var(--fg-muted); }
+.about__steps strong { color: var(--fg); font-weight: 660; margin-right: 6px; }
+.about__stepn {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-fg);
+  font-size: var(--fs-2xs); font-weight: 700;
+}
+
+.about__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.about__tags--topic { margin-top: var(--s-2); }
+.about__tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  border: var(--bw) solid var(--line); border-radius: var(--r-full);
+  background: var(--bg-raised); font-size: var(--fs-xs);
+  text-decoration: none; color: var(--fg-muted);
+}
+.about__tag:hover { border-color: var(--accent); color: var(--fg); }
+.about__dot { width: 8px; height: 8px; border-radius: 50%; }
+.about__gem { width: 8px; height: 8px; border-radius: 1px; transform: rotate(45deg); }
+.about__pri { font-size: 10px; color: var(--accent); font-weight: 660; }
+
+.about__demo {
+  padding: var(--s-5); border: var(--bw) solid var(--accent);
+  border-radius: var(--r-lg); background: var(--accent-soft);
+}
+.about__foot { font-size: var(--fs-xs); color: var(--fg-faint); }

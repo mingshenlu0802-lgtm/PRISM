@@ -2,331 +2,255 @@
 /**
  * PRISM 行为冒烟测试
  *
- * Exercises the parts of the prototype where a bug would be an editorial
- * failure rather than a cosmetic one: the publishing gate, the global lock,
- * the version model (a revision must never overwrite its predecessor) and the
- * Further-Vibe-Coding engine (it must never invent a source).
+ * Covers the places where a bug costs the owner something real rather than
+ * something cosmetic: deleting the wrong thing, losing control of the console,
+ * a search run that quietly drops what it found, and the "one sentence changes
+ * the site" box doing something the owner did not ask for.
  *
  *   node scripts/smoke.mjs
  */
 import { build } from 'esbuild'
-import { mkdirSync, rmSync } from 'node:fs'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-// Built inside the project so `react` still resolves from node_modules.
 const out = join(process.cwd(), 'node_modules', '.cache', 'prism-smoke')
 mkdirSync(out, { recursive: true })
-const entry = join(out, 'entry.ts')
 const bundle = join(out, 'bundle.mjs')
 
-// One entry re-exporting everything the test needs, so esbuild bundles once.
-const { writeFileSync } = await import('node:fs')
-writeFileSync(entry, `
-export { buildInitialState } from '${process.cwd()}/src/lib/demo/index.ts'
-export { reducer } from '${process.cwd()}/src/lib/store.tsx'
-export * as sel from '${process.cwd()}/src/lib/selectors.ts'
-export { applyVibeInstruction, planSteps, VIBE_PRESETS } from '${process.cwd()}/src/lib/vibe.ts'
-export { diffArticles, diffRefs, diffWords, summarizeDiff } from '${process.cwd()}/src/lib/diff.ts'
-export { citationNumbers, articleWordCount } from '${process.cwd()}/src/lib/util.ts'
-`)
-
 await build({
-  entryPoints: [entry], bundle: true, format: 'esm', platform: 'node', target: 'node20',
-  outfile: bundle, jsx: 'automatic', external: ['react', 'react-dom', 'react/jsx-runtime'], logLevel: 'silent',
+  entryPoints: [join(process.cwd(), 'scripts/_smoke-entry.ts')],
+  bundle: true, format: 'esm', platform: 'node', target: 'node20',
+  outfile: bundle, external: ['react', 'react-dom'], logLevel: 'silent',
 })
 
 const m = await import(pathToFileURL(bundle).href)
-const { buildInitialState, reducer, sel, applyVibeInstruction, planSteps, VIBE_PRESETS,
-        diffArticles, diffRefs, articleWordCount } = m
+const { buildInitialState, reducer, collect, planSteps, runVibe, VIBE_EXAMPLES,
+        contentSnapshot, OWNER_EMAIL, PRIORITY_REGIONS } = m
 
-let failures = 0
 const results = []
-function check(name, fn) {
-  try {
-    const note = fn()
-    results.push(['pass', name, note ?? ''])
-  } catch (e) {
-    failures += 1
-    results.push(['FAIL', name, e.message])
-  }
+const test = (name, fn) => {
+  try { fn(); results.push([true, name, '']) }
+  catch (e) { results.push([false, name, e.message]) }
 }
-const assert = (cond, msg) => { if (!cond) throw new Error(msg) }
+const eq = (a, b, msg) => { if (a !== b) throw new Error(`${msg}：期望 ${b}，实际 ${a}`) }
+const ok = (v, msg) => { if (!v) throw new Error(msg) }
 
-const S0 = buildInitialState()
-const NOW = '2026-08-31T07:00:00Z'
+const fresh = () => buildInitialState()
+const ME = 'mingshen.lu0802@gmail.com'
 
-/* -------------------------- the publishing gate -------------------------- */
+/* --------------------- 删掉的东西真的没了，下架的还在 --------------------- */
 
-check('每篇文章都能算出发布闸门', () => {
-  const lines = S0.articles.map((a) => {
-    const g = sel.publishGate(a, S0)
-    return `${a.id}:${g.ok ? 'ok' : `${g.blockers.length}阻断`}/${g.warnings.length}警告/${g.confirmations.length}二次确认`
-  })
-  return lines.join('  ')
+test('下架只是不给别人看，内容还在', () => {
+  const s0 = fresh()
+  const id = s0.news[0].id
+  const s1 = reducer(s0, { type: 'news-hide', id, who: ME })
+  eq(s1.news.length, s0.news.length, '下架不该减少条目')
+  eq(s1.news.find((n) => n.id === id).status, 'hidden', '下架后状态')
+  const s2 = reducer(s1, { type: 'news-restore', id, who: ME })
+  eq(s2.news.find((n) => n.id === id).status, 'live', '恢复后状态')
 })
 
-check('性暴力与未成年人内容强制二次确认', () => {
-  const maran = S0.articles.find((a) => a.id === 'art-maran')
-  assert(maran, 'art-maran 不存在')
-  const g = sel.publishGate(maran, S0)
-  assert(g.confirmations.length >= 2, `期望至少 2 项二次确认，实际 ${g.confirmations.length}`)
-  const kinds = g.confirmations.map((r) => r.kind)
-  for (const k of ['sexual-violence', 'minors', 'active-litigation', 'identity-exposure']) {
-    assert(kinds.includes(k), `缺少 ${k} 的二次确认`)
+test('永久删除是永久的', () => {
+  const s0 = fresh()
+  const id = s0.news[0].id
+  const s1 = reducer(s0, { type: 'news-delete', id, who: ME })
+  eq(s1.news.length, s0.news.length - 1, '删除后条数')
+  eq(s1.news.some((n) => n.id === id), false, '删掉的条目不该还在')
+})
+
+test('删一个媒体链接只删那一个', () => {
+  const s0 = fresh()
+  const n = s0.news.find((x) => x.links.length >= 2)
+  const linkId = n.links[0].id
+  const s1 = reducer(s0, { type: 'news-link-remove', id: n.id, linkId, who: ME })
+  const after = s1.news.find((x) => x.id === n.id)
+  eq(after.links.length, n.links.length - 1, '链接数')
+  eq(after.links.some((l) => l.id === linkId), false, '删掉的链接不该还在')
+  eq(s1.news.length, s0.news.length, '删链接不该动条目')
+})
+
+test('改总结之后标记成人工编辑过', () => {
+  const s0 = fresh()
+  const id = s0.news[0].id
+  const s1 = reducer(s0, { type: 'news-edit', id, patch: { summary: '改过的总结。' }, who: ME })
+  const n = s1.news.find((x) => x.id === id)
+  eq(n.summary, '改过的总结。', '总结')
+  eq(n.editedByHuman, true, '应标记为人工编辑过')
+  ok(n.updatedAt >= s0.news[0].updatedAt, '更新时间应往后走')
+})
+
+/* ------------------------------ 谁能改 ------------------------------ */
+
+test('站长不能被移除——否则控制端会没人能管', () => {
+  const s0 = fresh()
+  const s1 = reducer(s0, { type: 'admin-remove', email: OWNER_EMAIL, who: ME })
+  ok(s1.auth.admins.some((a) => a.email === OWNER_EMAIL && a.role === 'owner'), '站长仍应在名单里')
+})
+
+test('加进来的是管理员，不是第二个站长', () => {
+  const s1 = reducer(fresh(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
+  const a = s1.auth.admins.find((x) => x.email === 'friend@gmail.com')
+  ok(a, '新管理员应在名单里')
+  eq(a.role, 'admin', '角色')
+  eq(s1.auth.admins.filter((x) => x.role === 'owner').length, 1, '站长人数')
+})
+
+test('同一个邮箱不会被加两遍', () => {
+  let s = reducer(fresh(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
+  s = reducer(s, { type: 'admin-add', email: 'FRIEND@gmail.com', who: ME })
+  eq(s.auth.admins.filter((x) => x.email.toLowerCase() === 'friend@gmail.com').length, 1, '重复加应只留一条')
+})
+
+/* ------------------------------ 搜集 ------------------------------ */
+
+test('搜集不会凭空造链接：每条新闻都带得走的链接', () => {
+  const s = fresh()
+  const r = collect(s.collect, [], [], 0)
+  ok(r.news.length > 0, '应该搜到东西')
+  for (const n of r.news) ok(n.links.length > 0, `「${n.headline}」没有链接`)
+})
+
+test('搜集尊重「找到就直接上线」这个开关', () => {
+  const s = fresh()
+  const on = collect({ ...s.collect, autoPublish: true }, [], [], 0)
+  const off = collect({ ...s.collect, autoPublish: false }, [], [], 0)
+  ok(on.news.every((n) => n.status === 'live'), '打开时应直接上线')
+  ok(off.news.every((n) => n.status === 'hidden'), '关掉时应存草稿')
+})
+
+test('跳过重复的会说明原因，不会悄悄消失', () => {
+  const s = fresh()
+  const first = collect({ ...s.collect, dedupe: true }, [], [], 0)
+  const again = collect({ ...s.collect, dedupe: true }, first.news, first.studies, 0)
+  // 第二次可以带回新的，但绝不能把第一次那些再加一遍。
+  const seen = new Set(first.news.map((n) => n.headline))
+  ok(again.news.every((n) => !seen.has(n.headline)), '同一条不该被加第二遍')
+  ok(again.skipped.length > 0, '被跳过的应当有记录')
+  ok(again.skipped.every((x) => x.reason.trim().length > 0), '每条跳过都要写原因')
+  ok(again.skipped.some((x) => seen.has(x.headline)), '跳过的应当正是第一次已经收过的那些')
+})
+
+test('关掉去重就真的不去重（开关是有用的）', () => {
+  const s = fresh()
+  const first = collect({ ...s.collect, dedupe: false }, [], [], 0)
+  const again = collect({ ...s.collect, dedupe: false }, first.news, first.studies, 0)
+  const seen = new Set(first.news.map((n) => n.headline))
+  ok(again.news.some((n) => seen.has(n.headline)), '关掉去重后应当允许重复')
+})
+
+test('只选一个地区就只搜那个地区', () => {
+  const s = fresh()
+  const r = collect({ ...s.collect, regions: ['cn'], perRun: 10 }, [], [], 0)
+  ok(r.news.length > 0, '应该搜到东西')
+  ok(r.news.every((n) => n.regions.includes('cn')), '不该出现别的地区')
+})
+
+test('撤销一次搜集，会把这次加的全部收回', () => {
+  const s0 = fresh()
+  const r = collect(s0.collect, s0.news, s0.studies, 1)
+  const run = {
+    id: 'run-test', startedAt: new Date().toISOString(),
+    config: s0.collect, steps: planSteps(s0.collect),
+    addedNewsIds: r.news.map((n) => n.id), addedStudyIds: r.studies.map((x) => x.id),
+    skipped: r.skipped, state: 'done',
   }
-  // Handling a risk is why the editor can confirm — not a reason to skip it.
-  assert(g.confirmations.some((r) => r.resolved), '已处置的敏感风险被排除在二次确认之外')
-  return `${g.confirmations.length} 项：${kinds.join('/')}`
+  let s = reducer(s0, { type: 'news-add', items: r.news, who: ME })
+  s = reducer(s, { type: 'study-add', items: r.studies, who: ME })
+  s = reducer(s, { type: 'run-start', run })
+  eq(s.news.length, s0.news.length + r.news.length, '加完之后的条数')
+  const back = reducer(s, { type: 'run-undo', runId: 'run-test', who: ME })
+  eq(back.news.length, s0.news.length, '撤销后应回到原来的条数')
+  eq(back.studies.length, s0.studies.length, '撤销后研究条数')
 })
 
-check('资源未找到的引用会阻断发布', () => {
-  const blocking = S0.articles.filter((a) => sel.blockingChecks(a).length > 0)
-  const handled = S0.articles.filter(
-    (a) => sel.failedChecks(a).length > 0 && sel.blockingChecks(a).length === 0)
-  assert(blocking.length > 0, '演示数据中没有未处理的「资源未找到」条目')
-  assert(handled.length > 0, '演示数据中没有已记录处理说明的条目')
-  for (const a of blocking) {
-    const g = sel.publishGate(a, S0)
-    assert(!g.ok, `${a.id} 有未处理的「资源未找到」却未被阻断`)
+test('搜集步骤是有名有姓的，不是一个转圈的图标', () => {
+  const steps = planSteps(fresh().collect)
+  ok(steps.length >= 4, '步骤太少，等待时看不出在干什么')
+  ok(steps.every((x) => x.label.trim() && x.detail.trim()), '每步都要有说明')
+})
+
+/* ------------------------------ 一句话改样子 ------------------------------ */
+
+test('每个示例句子都真的能被看懂', () => {
+  const s = fresh()
+  for (const ex of VIBE_EXAMPLES) {
+    const r = runVibe(ex, s)
+    ok(r.understood, `示例「${ex}」自己都看不懂`)
+    ok(r.changes.length > 0, `示例「${ex}」没有产生任何改动`)
   }
-  for (const a of handled) {
-    const g = sel.publishGate(a, S0)
-    assert(!g.blockers.some((b) => b.includes('资源未找到')),
-      `${a.id} 的失败已记录处理说明，却仍被当作阻断项`)
+})
+
+test('看不懂就直说，并给一句建议——不瞎改', () => {
+  const s = fresh()
+  const r = runVibe('把首页做成一个能自动交易的比特币面板', s)
+  eq(r.understood, false, '不该假装看懂')
+  eq(r.changes.length, 0, '看不懂时不该改任何东西')
+  ok((r.suggestion ?? '').trim().length > 0, '应该给一句建议')
+})
+
+test('同一句话说两遍，结果一样（没有随机）', () => {
+  const s = fresh()
+  const a = runVibe('字大一点，换成深色', s)
+  const b = runVibe('字大一点，换成深色', s)
+  eq(JSON.stringify(a), JSON.stringify(b), '两次结果应完全一致')
+})
+
+test('改样子不会碰到新闻内容', () => {
+  const s = fresh()
+  const r = runVibe('换成深色，字大一点', s)
+  for (const c of r.changes) {
+    ok(!('news' in c) && !('studies' in c), '外观改动不该带上内容')
   }
-  return `${blocking.length} 篇被阻断 · ${handled.length} 篇已处理不再阻断`
 })
 
-/* ----------------------------- the global lock --------------------------- */
+/* ------------------------------ 同步 ------------------------------ */
 
-check('全局发布锁阻止公开发布', () => {
-  const target = S0.articles.find((a) => a.status === 'in-review') ?? S0.articles[0]
-  const locked = reducer(S0, { type: 'lock', engaged: true, reason: '冒烟测试' })
-  assert(locked.lock.engaged, '锁未开启')
-  const after = reducer(locked, { type: 'publish', articleId: target.id })
-  const a2 = after.articles.find((a) => a.id === target.id)
-  assert(a2.status !== 'published', '上锁状态下仍然发布了')
-  return `${target.id} 保持 ${a2.status}`
+test('同步到 GitHub 的文件里没有 token', () => {
+  let s = fresh()
+  s = reducer(s, { type: 'github', patch: { token: 'ghp_secret_do_not_ship' } })
+  const text = JSON.stringify(contentSnapshot(s))
+  eq(text.includes('ghp_secret_do_not_ship'), false, 'token 不该出现在同步内容里')
 })
 
-check('上锁时「批准并立即发布」只记录批准', () => {
-  const target = S0.articles.find((a) => a.status === 'in-review') ?? S0.articles[0]
-  const locked = reducer(S0, { type: 'lock', engaged: true, reason: '冒烟测试' })
-  const after = reducer(locked, { type: 'decide', articleId: target.id, decision: 'approve-publish' })
-  const a2 = after.articles.find((a) => a.id === target.id)
-  assert(a2.status === 'approved', `期望 approved，实际 ${a2.status}`)
-  assert(after.audit[0].detail.includes('Global Publishing Lock'), '审计记录未说明被锁拦截')
-  return '记录为 approved，未公开'
+test('同步的是内容，不是代码', () => {
+  const snap = contentSnapshot(fresh())
+  ok(Array.isArray(snap.news), '应包含新闻')
+  ok(Array.isArray(snap.studies), '应包含研究')
+  ok(snap.copy && snap.appearance, '应包含站点文案与外观')
 })
 
-check('解锁后可以正常发布', () => {
-  const target = S0.articles.find((a) => a.status === 'in-review') ?? S0.articles[0]
-  let s = reducer(S0, { type: 'lock', engaged: true, reason: 'x' })
-  s = reducer(s, { type: 'lock', engaged: false })
-  s = reducer(s, { type: 'publish', articleId: target.id })
-  const a2 = s.articles.find((a) => a.id === target.id)
-  assert(a2.status === 'published' && a2.publishedAt, '解锁后仍无法发布')
-  return 'ok'
+/* ------------------------------ 默认设置 ------------------------------ */
+
+test('默认就先搜站长点名的六个地区', () => {
+  const s = fresh()
+  for (const r of PRIORITY_REGIONS) ok(s.collect.regions.includes(r), `默认没有包含优先地区 ${r}`)
 })
 
-/* -------------------------------- versions ------------------------------- */
-
-check('每篇文章都有可比较的版本历史', () => {
-  const rows = []
-  for (const a of S0.articles) {
-    const vs = sel.versionsOf(S0, a.id)
-    assert(vs.length >= 2, `${a.id} 只有 ${vs.length} 个版本`)
-    assert(vs.some((v) => v.id === a.currentVersionId), `${a.id} 的 currentVersionId 不在版本列表中`)
-    const first = vs[vs.length - 1]
-    const d = diffArticles(first.snapshot, a)
-    assert(d.stats.added + d.stats.removed + d.stats.changed > 0, `${a.id} 的初稿与当前版本没有任何差异`)
-    rows.push(`${a.id}:${vs.length}版/+${d.stats.added}-${d.stats.removed}~${d.stats.changed}`)
-  }
-  return rows.join('  ')
+test('暂停对外显示不会删任何东西', () => {
+  const s0 = fresh()
+  const s1 = reducer(s0, { type: 'public-offline', off: true, who: ME })
+  eq(s1.publicOffline, true, '开关状态')
+  eq(s1.news.length, s0.news.length, '内容条数不该变')
+  eq(reducer(s1, { type: 'public-offline', off: false, who: ME }).publicOffline, false, '应能恢复')
 })
 
-check('采用新版本不会销毁历史快照', () => {
-  const proposal = S0.versions.find((v) => v.state === 'proposal')
-  assert(proposal, '演示数据中没有待确认的版本提案')
-  const before = S0.versions.length
-  const s = reducer(S0, { type: 'version-adopt', versionId: proposal.id })
-  assert(s.versions.length === before, '版本数量发生变化')
-  const older = sel.versionsOf(s, proposal.articleId).filter((v) => v.n < proposal.n)
-  assert(older.length >= 1 && older.every((v) => v.snapshot), '旧版本快照丢失')
-  const a = s.articles.find((x) => x.id === proposal.articleId)
-  assert(a.currentVersionId === proposal.id, '当前版本未切换')
-  return `${proposal.articleId} → v${proposal.n}，保留 ${older.length} 个旧快照`
+test('每一步改动都记进「最近改动」', () => {
+  const s0 = fresh()
+  const s1 = reducer(s0, { type: 'news-hide', id: s0.news[0].id, who: ME })
+  ok(s1.changes.length > s0.changes.length, '改动没有被记下来')
+  ok(s1.changes[0].text.trim().length > 0, '改动记录应当有一句人话')
+  eq(s1.changes[0].who, ME, '应记下是谁改的')
 })
 
-/* --------------------------- Further Vibe Coding ------------------------- */
+/* ------------------------------ 结果 ------------------------------ */
 
-const KNOWN_SOURCES = new Set(S0.sources.map((s) => s.id))
-
-check('每条 Vibe 指令都产生可解释的修改，且不凭空创造来源', () => {
-  const article = S0.articles.find((a) => a.id === 'art-kalisan') ?? S0.articles[0]
-  const rows = []
-  for (const preset of VIBE_PRESETS) {
-    const steps = planSteps(preset.instruction)
-    assert(steps.length >= 3, `${preset.id}: planSteps 只返回 ${steps.length} 步`)
-    const outcome = applyVibeInstruction(preset.instruction, article, S0, NOW)
-    assert(outcome.snapshot && outcome.snapshot.id === article.id, `${preset.id}: 快照缺失`)
-    assert(outcome.summary && outcome.rationale, `${preset.id}: 缺少 summary/rationale`)
-    for (const id of outcome.refDelta.added) {
-      assert(KNOWN_SOURCES.has(id), `${preset.id}: 引入了不存在的来源 ${id}`)
-    }
-    // The engine must never silently no-op.
-    const changed = outcome.stats.added + outcome.stats.removed + outcome.stats.changed
-    assert(changed > 0 || outcome.notes.length > 0,
-      `${preset.id}: 既没有修改，也没有说明为什么没有修改`)
-    // Citations must stay resolvable.
-    const cit = new Set(outcome.snapshot.citations.map((c) => c.id))
-    for (const sec of outcome.snapshot.sections) {
-      for (const b of sec.blocks) {
-        const txt = b.type === 'paragraph' || b.type === 'heading' ? b.text
-          : b.type === 'callout' ? `${b.title}${b.text}`
-          : b.type === 'list' ? b.items.join('') : ''
-        for (const mm of String(txt).matchAll(/\[\[c:([a-zA-Z0-9_-]+)\]\]/g)) {
-          assert(cit.has(mm[1]), `${preset.id}: 产生了悬空引用 ${mm[1]}`)
-        }
-      }
-    }
-    rows.push(`${preset.id}:+${outcome.stats.added}~${outcome.stats.changed}/refs+${outcome.refDelta.added.length}`)
-  }
-  return rows.join('  ')
-})
-
-check('无法识别的指令必须说明而不是静默不做事', () => {
-  const article = S0.articles[0]
-  const o = applyVibeInstruction('请把这篇文章翻译成克林贡语并配一段配乐', article, S0, NOW)
-  const changed = o.stats.added + o.stats.removed + o.stats.changed
-  assert(o.notes.length > 0, '未给出任何说明')
-  assert(changed > 0 || o.notes.length > 0, '既未修改也未说明')
-  return o.notes[0].slice(0, 60)
-})
-
-check('Vibe 修改产生的是提案，原文不被覆盖', () => {
-  const article = S0.articles.find((a) => a.sections.length > 0) ?? S0.articles[0]
-  const before = JSON.stringify(article)
-  applyVibeInstruction('加入韦拉共和国的法律背景。', article, S0, NOW)
-  assert(JSON.stringify(article) === before, 'applyVibeInstruction 直接修改了原文对象')
-  return '原文对象未被修改'
-})
-
-/* ------------------------------ diff sanity ------------------------------ */
-
-check('中文词级差异是最小差异', () => {
-  const ops = m.diffWords('法院在判决中认定强制医疗要件违宪。', '法院在判决中明确认定强制医疗要件违宪。')
-  const added = ops.filter((o) => o.type === 'add').map((o) => o.text).join('')
-  const removed = ops.filter((o) => o.type === 'del').map((o) => o.text).join('')
-  assert(added === '明确', `期望新增「明确」，实际「${added}」`)
-  assert(removed === '', `不应有删除，实际「${removed}」`)
-  return `+${added}`
-})
-
-check('references 增删可被单独追踪', () => {
-  const a = S0.articles.find((x) => x.sourceIds.length > 2 && x.citations.length > 0)
-  assert(a, '没有足够来源的文章')
-  // diffRefs unions sourceIds with the sources actually cited, so a source is
-  // only "removed" once nothing cites it any more — drop both.
-  const gone = a.sourceIds[a.sourceIds.length - 1]
-  const stripped = {
-    ...a,
-    sourceIds: a.sourceIds.filter((id) => id !== gone),
-    citations: a.citations.filter((c) => c.sourceId !== gone),
-  }
-  const d = diffRefs(a, stripped)
-  assert(d.removed.length === 1 && d.removed[0] === gone,
-    `期望仅删除 ${gone}，实际 [${d.removed.join(', ')}]`)
-  return `删除 ${d.removed[0]}`
-})
-
-check('已记录处理说明的「资源未找到」不再阻断发布', () => {
-  const a = S0.articles.find((x) => sel.blockingChecks(x).length > 0)
-  assert(a, '演示数据中没有未处理的「资源未找到」条目')
-  const before = sel.publishGate(a, S0)
-  assert(before.blockers.some((b) => b.includes('资源未找到')), '资源未找到的引用未阻断发布')
-  let s = S0
-  for (const c of sel.blockingChecks(a)) {
-    s = reducer(s, { type: 'ack-citation', articleId: a.id, citationId: c.citationId, note: '已改为归因表述' })
-  }
-  const a2 = s.articles.find((x) => x.id === a.id)
-  const after = sel.publishGate(a2, s)
-  assert(!after.blockers.some((b) => b.includes('资源未找到')), '记录处理说明后仍被阻断')
-  assert(after.warnings.some((w) => w.includes('已记录处理说明')), '处理说明未降级为警告')
-  assert(sel.failedChecks(a2).length === sel.failedChecks(a).length, '失败记录被抹掉了')
-  return `${a.id}：${sel.failedChecks(a).length} 项「资源未找到」保留在记录中，但不再阻断`
-})
-
-/* ------------------------- editorial decisions --------------------------- */
-
-check('七种编辑决定都改变状态并留下记录', () => {
-  const target = S0.articles.find((a) => a.status === 'in-review') ?? S0.articles[0]
-  const expect = {
-    'approve-schedule': 'scheduled', 'save-draft': 'drafting', 'request-sources': 'needs-sources',
-    'return-research': 'changes-requested', reject: 'rejected', archive: 'archived',
-    'approve-publish': 'published',
-  }
-  const rows = []
-  for (const [decision, status] of Object.entries(expect)) {
-    const s = reducer(S0, { type: 'decide', articleId: target.id, decision, note: '冒烟测试', scheduledFor: '2026-09-02T10:00:00Z' })
-    const a = s.articles.find((x) => x.id === target.id)
-    assert(a.status === status, `${decision}: 期望 ${status}，实际 ${a.status}`)
-    assert(s.audit.length === S0.audit.length + 1, `${decision}: 未写入操作记录`)
-    rows.push(`${decision}→${status}`)
-  }
-  return rows.join(' ')
-})
-
-check('撤回会改变状态并留下记录，但不对外发布公告', () => {
-  const pub = S0.articles.find((a) => a.status === 'published')
-  assert(pub, '没有已发布条目')
-  const s = reducer(S0, { type: 'retract', articleId: pub.id, reason: '冒烟测试：新证据推翻核心陈述' })
-  const a = s.articles.find((x) => x.id === pub.id)
-  assert(a.status === 'retracted', '状态未变为 retracted')
-  assert(s.audit[0].action === 'retracted', '操作记录未写入撤回')
-  assert(s.audit[0].detail.includes('新证据'), '撤回理由未记录')
-  assert(!('corrections' in a), '文章上不应再保留公开更正记录')
-  return `${pub.id} 已撤回，理由留在操作记录中`
-})
-
-check('每篇公开条目都带有可解析的行内引用', () => {
-  const rows = []
-  for (const a of sel.publicArticles(S0)) {
-    const cit = new Set(a.citations.map((c) => c.id))
-    const known = new Set(S0.sources.map((x) => x.id))
-    let inline = 0
-    for (const sec of a.sections) {
-      for (const b of sec.blocks) {
-        const txt = b.type === 'paragraph' || b.type === 'heading' ? b.text
-          : b.type === 'callout' ? `${b.title}${b.text}`
-          : b.type === 'list' ? b.items.join('') : ''
-        for (const m of String(txt).matchAll(/\[\[c:([a-zA-Z0-9_-]+)\]\]/g)) {
-          inline += 1
-          assert(cit.has(m[1]), `${a.id}: 悬空引用 ${m[1]}`)
-        }
-      }
-    }
-    for (const c of a.citations) assert(known.has(c.sourceId), `${a.id}/${c.id}: 来源不存在`)
-    assert(inline >= 20, `${a.id} 只有 ${inline} 处行内引用`)
-    rows.push(`${a.id.replace('art-', '')}:${inline}处/${a.citations.length}条`)
-  }
-  return rows.join('  ')
-})
-
-/* --------------------------------- report -------------------------------- */
-
-const W = 46
+const failed = results.filter(([passed]) => !passed)
 console.log('PRISM 行为冒烟测试')
-console.log('—'.repeat(72))
-for (const [state, name, note] of results) {
-  const tag = state === 'pass' ? ' 通过 ' : ' 失败 '
-  console.log(`${tag} ${name.padEnd(W, '·')} ${note}`)
+console.log('—'.repeat(64))
+for (const [passed, name, msg] of results) {
+  console.log(`  ${passed ? '通过' : '失败'}  ${name}${passed ? '' : `\n         ${msg}`}`)
 }
-console.log('—'.repeat(72))
-const words = S0.articles.map((a) => articleWordCount(a))
-console.log(`条目字数：${words.map((w, i) => `${S0.articles[i].id.replace('art-', '')} ${w}`).join(' · ')}`)
-console.log(`${results.length - failures}/${results.length} 通过`)
-
-rmSync(out, { recursive: true, force: true })
-process.exit(failures ? 1 : 0)
+console.log('—'.repeat(64))
+console.log(failed.length ? `${results.length} 项，${failed.length} 项失败` : `${results.length} 项全部通过`)
+process.exit(failed.length ? 1 : 0)

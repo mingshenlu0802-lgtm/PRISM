@@ -1,14 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
 import type {
-  Article, ArticleStatus, AuditAction, AuditEntry, ID, ImageAsset,
-  PrismState, ReviewDecision, Version, VibeRun,
+  Account, Appearance, ChangeEntry, ChangeKind, CollectConfig, CollectRun,
+  GitHubConfig, ID, MediaLink, NewsItem, PrismState, SiteCopy, StudyItem,
 } from './types'
-import { ENGINE_MAP } from './constants'
+import { OWNER_EMAIL } from './types'
 import { buildInitialState } from './demo'
 import { nowIso, uid } from './util'
 
-const STORAGE_KEY = 'prism.console.v1'
-/** Bumped whenever the demo dataset changes shape, so stale state is dropped. */
+const STORAGE_KEY = 'prism.site.v3'
 const SCHEMA = 3
 
 /* ------------------------------------------------------------------ *
@@ -17,77 +16,51 @@ const SCHEMA = 3
 
 export type Action =
   | { type: 'reset' }
-  | { type: 'audit'; entry: AuditEntry }
-  | { type: 'decide'; articleId: ID; decision: ReviewDecision; note?: string; scheduledFor?: string }
-  | { type: 'publish'; articleId: ID }
-  | { type: 'retract'; articleId: ID; reason: string }
-  | { type: 'update-published'; articleId: ID; kind: 'update' | 'clarification'; note: string }
-  | { type: 'set-status'; articleId: ID; status: ArticleStatus }
-  | { type: 'resolve-risk'; articleId: ID; riskId: ID; note: string }
-  | { type: 'recheck-citations'; articleId: ID }
-  | { type: 'ack-citation'; articleId: ID; citationId: ID; note: string }
-  | { type: 'attach-source'; articleId: ID; sourceId: ID }
-  | { type: 'edit-block'; articleId: ID; sectionId: ID; blockId: ID; text: string }
-  | { type: 'edit-meta'; articleId: ID; patch: Partial<Pick<Article, 'title' | 'standfirst' | 'contentNotice'>> }
-  | { type: 'vibe-start'; run: VibeRun }
-  | { type: 'vibe-propose'; runId: ID; version: Version; rationale: string }
-  | { type: 'vibe-adopt'; runId: ID }
-  | { type: 'vibe-discard'; runId: ID }
-  | { type: 'version-adopt'; versionId: ID }
-  | { type: 'version-discard'; versionId: ID }
-  | { type: 'asset-add'; asset: ImageAsset }
-  | { type: 'asset-status'; assetId: ID; status: ImageAsset['status'] }
-  | { type: 'set-cover'; articleId: ID; assetId: ID }
-  | { type: 'lock'; engaged: boolean; reason?: string }
-  | { type: 'signal-decline'; signalId: ID; reason: string }
-  | { type: 'signal-promote'; signalId: ID }
-  | { type: 'brief-sent'; briefId: ID }
-  | { type: 'set-retrieval-engine'; engineId: string }
+  | { type: 'hydrate'; state: PrismState }
+  /* content */
+  | { type: 'news-add'; items: NewsItem[]; who: string }
+  | { type: 'news-edit'; id: ID; patch: Partial<NewsItem>; who: string }
+  | { type: 'news-hide'; id: ID; who: string }
+  | { type: 'news-restore'; id: ID; who: string }
+  | { type: 'news-delete'; id: ID; who: string }
+  | { type: 'news-link-add'; id: ID; link: MediaLink; who: string }
+  | { type: 'news-link-edit'; id: ID; linkId: ID; patch: Partial<MediaLink>; who: string }
+  | { type: 'news-link-remove'; id: ID; linkId: ID; who: string }
+  | { type: 'study-add'; items: StudyItem[]; who: string }
+  | { type: 'study-edit'; id: ID; patch: Partial<StudyItem>; who: string }
+  | { type: 'study-hide'; id: ID; who: string }
+  | { type: 'study-restore'; id: ID; who: string }
+  | { type: 'study-delete'; id: ID; who: string }
+  /* collection */
+  | { type: 'collect-config'; patch: Partial<CollectConfig> }
+  | { type: 'run-start'; run: CollectRun }
+  | { type: 'run-step'; runId: ID; index: number }
+  | { type: 'run-finish'; runId: ID; addedNews: ID[]; addedStudies: ID[]; skipped: CollectRun['skipped'] }
+  | { type: 'run-stop'; runId: ID }
+  | { type: 'run-undo'; runId: ID; who: string }
+  /* appearance & copy */
+  | { type: 'appearance'; patch: Partial<Appearance>; who: string }
+  | { type: 'copy'; patch: Partial<SiteCopy>; who: string }
+  /* accounts */
+  | { type: 'signin'; email: string; name?: string; picture?: string }
+  | { type: 'signout' }
+  | { type: 'client-id'; clientId: string }
+  | { type: 'admin-add'; email: string; who: string }
+  | { type: 'admin-remove'; email: string; who: string }
+  /* system */
+  | { type: 'github'; patch: Partial<GitHubConfig> }
+  | { type: 'public-offline'; off: boolean; who: string }
 
 /* ------------------------------------------------------------------ *
- * Helpers
+ * Change log
  * ------------------------------------------------------------------ */
 
-const EDITOR = '主编（你）'
-const DESK = 'PRISM 自动编辑台'
-
-function audit(state: PrismState, action: AuditAction, target: string, detail: string, articleId?: ID, actorKind: AuditEntry['actorKind'] = 'editor'): AuditEntry[] {
-  const entry: AuditEntry = {
-    id: uid('aud'),
-    at: nowIso(),
-    actor: actorKind === 'editor' ? EDITOR : actorKind === 'ai-desk' ? DESK : '系统',
-    actorKind,
-    action,
-    articleId,
-    target,
-    detail,
-  }
-  return [entry, ...state.audit]
+function log(state: PrismState, who: string, kind: ChangeKind, text: string, undo?: ChangeEntry['undo']): ChangeEntry[] {
+  const entry: ChangeEntry = { id: uid('chg'), at: nowIso(), who, kind, text, undo }
+  return [entry, ...state.changes].slice(0, 300)
 }
 
-function mapArticle(state: PrismState, id: ID, fn: (a: Article) => Article): Article[] {
-  return state.articles.map((a) => (a.id === id ? fn({ ...a, updatedAt: nowIso() }) : a))
-}
-
-const DECISION_STATUS: Record<ReviewDecision, ArticleStatus> = {
-  'approve-publish': 'published',
-  'approve-schedule': 'scheduled',
-  'save-draft': 'drafting',
-  'request-sources': 'needs-sources',
-  'return-research': 'changes-requested',
-  reject: 'rejected',
-  archive: 'archived',
-}
-
-const DECISION_AUDIT: Record<ReviewDecision, AuditAction> = {
-  'approve-publish': 'published',
-  'approve-schedule': 'scheduled',
-  'save-draft': 'edited',
-  'request-sources': 'more-sources-requested',
-  'return-research': 'returned-for-research',
-  reject: 'rejected',
-  archive: 'archived',
-}
+const short = (s: string, n = 22) => (s.length > n ? `${s.slice(0, n)}…` : s)
 
 /* ------------------------------------------------------------------ *
  * Reducer
@@ -95,311 +68,250 @@ const DECISION_AUDIT: Record<ReviewDecision, AuditAction> = {
 
 export function reducer(state: PrismState, action: Action): PrismState {
   switch (action.type) {
-    case 'reset':
-      return buildInitialState()
+    case 'reset': return buildInitialState()
+    case 'hydrate': return action.state
 
-    case 'audit':
-      return { ...state, audit: [action.entry, ...state.audit] }
+    /* ------------------------------- news ------------------------------- */
 
-    case 'decide': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
-      // The desk can never publish on its own, and the global lock outranks
-      // every approval: an "approve & publish" under lock lands as approved.
-      const locked = state.lock.engaged
-      const wantsPublish = action.decision === 'approve-publish'
-      const status: ArticleStatus = wantsPublish && locked ? 'approved' : DECISION_STATUS[action.decision]
-      const at = nowIso()
+    case 'news-add': {
+      if (action.items.length === 0) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a,
-          status,
-          publishedAt: status === 'published' ? at : a.publishedAt,
-          scheduledFor: action.decision === 'approve-schedule' ? action.scheduledFor : undefined,
-        })),
-        audit: audit(
-          state,
-          wantsPublish && locked ? 'approved' : DECISION_AUDIT[action.decision],
-          article.title,
-          wantsPublish && locked
-            ? 'Global Publishing Lock 已开启：批准已记录，内容未公开发布。'
-            : action.note || '—',
-          action.articleId,
-        ),
+        news: [...action.items, ...state.news],
+        changes: log(state, action.who, 'collected',
+          `搜集到 ${action.items.length} 条新闻：${action.items.map((i) => short(i.headline, 14)).join('、')}`),
       }
     }
 
-    case 'publish': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article || state.lock.engaged) return state
-      const at = nowIso()
+    case 'news-edit': {
+      const item = state.news.find((n) => n.id === action.id)
+      if (!item) return state
+      const touchedSummary = action.patch.summary !== undefined && action.patch.summary !== item.summary
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a, status: 'published', publishedAt: at, scheduledFor: undefined,
-        })),
-        audit: audit(state, 'published', article.title, '经发布前确认后公开。', action.articleId),
+        news: state.news.map((n) => (n.id === action.id
+          ? { ...n, ...action.patch, updatedAt: nowIso(), editedByHuman: n.editedByHuman || touchedSummary }
+          : n)),
+        changes: log(state, action.who, 'edited', `修改了「${short(item.headline)}」`),
       }
     }
 
-    case 'retract': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
-      // The reason lives in the audit log rather than on the article: the
-      // record is kept for the editor, not published as a notice.
+    case 'news-hide': {
+      const item = state.news.find((n) => n.id === action.id)
+      if (!item) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({ ...a, status: 'retracted' })),
-        audit: audit(state, 'retracted', article.title, action.reason, action.articleId),
+        news: state.news.map((n) => (n.id === action.id ? { ...n, status: 'hidden', updatedAt: nowIso() } : n)),
+        changes: log(state, action.who, 'hidden', `下架了「${short(item.headline)}」，公众站不再显示`,
+          { type: 'restore-news', id: action.id }),
       }
     }
 
-    case 'update-published': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
+    case 'news-restore': {
+      const item = state.news.find((n) => n.id === action.id)
+      if (!item) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a,
-          status: a.status === 'retracted' ? 'retracted' : 'published',
-        })),
-        audit: audit(state, 'updated', article.title,
-          `${action.kind === 'update' ? '更新' : '补充说明'}：${action.note}`, action.articleId),
+        news: state.news.map((n) => (n.id === action.id ? { ...n, status: 'live', updatedAt: nowIso() } : n)),
+        changes: log(state, action.who, 'restored', `恢复了「${short(item.headline)}」`),
       }
     }
 
-    case 'set-status':
+    case 'news-delete': {
+      const item = state.news.find((n) => n.id === action.id)
+      if (!item) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({ ...a, status: action.status })),
-      }
-
-    case 'resolve-risk': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
-      const flag = article.riskFlags.find((r) => r.id === action.riskId)
-      return {
-        ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a,
-          riskFlags: a.riskFlags.map((r) =>
-            r.id === action.riskId ? { ...r, resolved: true, resolutionNote: action.note } : r),
-        })),
-        audit: audit(state, 'edited', `${article.title} · 风险项`, `${flag?.note ?? action.riskId} → ${action.note}`, action.articleId),
+        news: state.news.filter((n) => n.id !== action.id),
+        changes: log(state, action.who, 'deleted', `永久删除了「${short(item.headline)}」`),
       }
     }
 
-    case 'recheck-citations': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
-      const at = nowIso()
+    case 'news-link-add': {
+      const item = state.news.find((n) => n.id === action.id)
+      if (!item) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a,
-          // Re-checking never launders a failure into a pass, and never
-          // clears an acknowledgement the editor already recorded.
-          citationChecks: a.citationChecks.map((c) =>
-            c.status === 'missing' && !c.acknowledged
-              ? { ...c, reason: `${c.reason}（已重新核查：仍未取得可验证的一手记录，等待人工判断）`, checkedAt: at }
-              : { ...c, checkedAt: at }),
-        })),
-        audit: audit(state, 'ai-review', `${article.title} · 资源检索`, '重新检索全部 references。', action.articleId, 'ai-desk'),
+        news: state.news.map((n) => (n.id === action.id
+          ? { ...n, links: [...n.links, action.link], updatedAt: nowIso() } : n)),
+        changes: log(state, action.who, 'link-added', `给「${short(item.headline)}」加了一个链接：${action.link.outlet}`),
       }
     }
 
-    case 'ack-citation': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
+    case 'news-link-edit':
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a,
-          citationChecks: a.citationChecks.map((c) =>
-            c.citationId === action.citationId
-              ? { ...c, acknowledged: true, acknowledgedNote: action.note, acknowledgedBy: EDITOR }
-              : c),
-        })),
-        audit: audit(state, 'edited', `${article.title} · ${action.citationId}`,
-          `资源未找到的引用已记录处理说明：${action.note}`, action.articleId),
+        news: state.news.map((n) => (n.id === action.id
+          ? { ...n, links: n.links.map((l) => (l.id === action.linkId ? { ...l, ...action.patch } : l)), updatedAt: nowIso() }
+          : n)),
+        changes: log(state, action.who, 'edited', '修改了一个媒体链接'),
+      }
+
+    case 'news-link-remove': {
+      const item = state.news.find((n) => n.id === action.id)
+      const link = item?.links.find((l) => l.id === action.linkId)
+      if (!item || !link) return state
+      return {
+        ...state,
+        news: state.news.map((n) => (n.id === action.id
+          ? { ...n, links: n.links.filter((l) => l.id !== action.linkId), updatedAt: nowIso() } : n)),
+        changes: log(state, action.who, 'link-removed', `从「${short(item.headline)}」移除了 ${link.outlet} 的链接`),
       }
     }
 
-    case 'attach-source': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article || article.sourceIds.includes(action.sourceId)) return state
-      const src = state.sources.find((s) => s.id === action.sourceId)
+    /* ------------------------------ studies ----------------------------- */
+
+    case 'study-add': {
+      if (action.items.length === 0) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({ ...a, sourceIds: [...a.sourceIds, action.sourceId] })),
-        audit: audit(state, 'edited', article.title, `加入来源：${src?.title ?? action.sourceId}`, action.articleId),
+        studies: [...action.items, ...state.studies],
+        changes: log(state, action.who, 'collected', `搜集到 ${action.items.length} 项研究/数据`),
       }
     }
 
-    case 'edit-block':
+    case 'study-edit': {
+      const item = state.studies.find((s) => s.id === action.id)
+      if (!item) return state
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a,
-          sections: a.sections.map((s) =>
-            s.id !== action.sectionId ? s : {
-              ...s,
-              blocks: s.blocks.map((b) =>
-                b.id === action.blockId && (b.type === 'paragraph' || b.type === 'heading' || b.type === 'pullquote')
-                  ? { ...b, text: action.text }
-                  : b),
-            }),
-        })),
-      }
-
-    case 'edit-meta':
-      return {
-        ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({ ...a, ...action.patch })),
-      }
-
-    case 'vibe-start':
-      return {
-        ...state,
-        vibeRuns: [action.run, ...state.vibeRuns],
-        audit: audit(state, 'vibe-instruction', '文章工作台', action.run.instruction, action.run.articleId),
-      }
-
-    case 'vibe-propose':
-      return {
-        ...state,
-        versions: [...state.versions, action.version],
-        vibeRuns: state.vibeRuns.map((r) =>
-          r.id === action.runId
-            ? { ...r, state: 'proposed', proposedVersionId: action.version.id, rationale: action.rationale, steps: r.steps.map((s) => ({ ...s, done: true })) }
-            : r),
-      }
-
-    case 'vibe-adopt': {
-      const run = state.vibeRuns.find((r) => r.id === action.runId)
-      const version = state.versions.find((v) => v.id === run?.proposedVersionId)
-      if (!run || !version) return state
-      return {
-        ...state,
-        vibeRuns: state.vibeRuns.map((r) => (r.id === action.runId ? { ...r, state: 'adopted' } : r)),
-        versions: state.versions.map((v) => (v.id === version.id ? { ...v, state: 'adopted' } : v)),
-        articles: state.articles.map((a) =>
-          a.id === version.articleId
-            ? { ...version.snapshot, currentVersionId: version.id, updatedAt: nowIso(), status: a.status }
-            : a),
-        audit: audit(state, 'version-adopted', `${version.snapshot.title} · v${version.n}`, version.summary, version.articleId),
+        studies: state.studies.map((s) => (s.id === action.id ? { ...s, ...action.patch, editedByHuman: true } : s)),
+        changes: log(state, action.who, 'edited', `修改了研究「${short(item.title)}」`),
       }
     }
 
-    case 'vibe-discard': {
-      const run = state.vibeRuns.find((r) => r.id === action.runId)
+    case 'study-hide': {
+      const item = state.studies.find((s) => s.id === action.id)
+      if (!item) return state
+      return {
+        ...state,
+        studies: state.studies.map((s) => (s.id === action.id ? { ...s, status: 'hidden' } : s)),
+        changes: log(state, action.who, 'hidden', `下架了研究「${short(item.title)}」`,
+          { type: 'restore-study', id: action.id }),
+      }
+    }
+
+    case 'study-restore':
+      return {
+        ...state,
+        studies: state.studies.map((s) => (s.id === action.id ? { ...s, status: 'live' } : s)),
+        changes: log(state, action.who, 'restored', '恢复了一项研究'),
+      }
+
+    case 'study-delete': {
+      const item = state.studies.find((s) => s.id === action.id)
+      if (!item) return state
+      return {
+        ...state,
+        studies: state.studies.filter((s) => s.id !== action.id),
+        changes: log(state, action.who, 'deleted', `永久删除了研究「${short(item.title)}」`),
+      }
+    }
+
+    /* ---------------------------- collection ---------------------------- */
+
+    case 'collect-config':
+      return { ...state, collect: { ...state.collect, ...action.patch } }
+
+    case 'run-start':
+      return { ...state, runs: [action.run, ...state.runs].slice(0, 20) }
+
+    case 'run-step':
+      return {
+        ...state,
+        runs: state.runs.map((r) => (r.id === action.runId
+          ? { ...r, steps: r.steps.map((s, i) => (i <= action.index ? { ...s, done: true } : s)) }
+          : r)),
+      }
+
+    case 'run-finish':
+      return {
+        ...state,
+        runs: state.runs.map((r) => (r.id === action.runId
+          ? { ...r, state: 'done', finishedAt: nowIso(), addedNewsIds: action.addedNews, addedStudyIds: action.addedStudies, skipped: action.skipped }
+          : r)),
+      }
+
+    case 'run-stop':
+      return {
+        ...state,
+        runs: state.runs.map((r) => (r.id === action.runId ? { ...r, state: 'stopped', finishedAt: nowIso() } : r)),
+      }
+
+    case 'run-undo': {
+      const run = state.runs.find((r) => r.id === action.runId)
       if (!run) return state
+      const n = new Set(run.addedNewsIds)
+      const s = new Set(run.addedStudyIds)
       return {
         ...state,
-        vibeRuns: state.vibeRuns.map((r) => (r.id === action.runId ? { ...r, state: 'discarded' } : r)),
-        versions: state.versions.map((v) => (v.id === run.proposedVersionId ? { ...v, state: 'discarded' } : v)),
-        audit: audit(state, 'version-discarded', '文章工作台', `未采用：${run.instruction}`, run.articleId),
+        news: state.news.filter((x) => !n.has(x.id)),
+        studies: state.studies.filter((x) => !s.has(x.id)),
+        runs: state.runs.map((r) => (r.id === action.runId ? { ...r, addedNewsIds: [], addedStudyIds: [] } : r)),
+        changes: log(state, action.who, 'deleted', `撤销了一次搜集，移除 ${n.size + s.size} 条内容`),
       }
     }
 
-    case 'version-adopt': {
-      const version = state.versions.find((v) => v.id === action.versionId)
-      if (!version) return state
+    /* --------------------------- appearance ----------------------------- */
+
+    case 'appearance':
       return {
         ...state,
-        versions: state.versions.map((v) => (v.id === version.id ? { ...v, state: 'adopted' } : v)),
-        articles: state.articles.map((a) =>
-          a.id === version.articleId
-            ? { ...version.snapshot, currentVersionId: version.id, updatedAt: nowIso(), status: a.status }
-            : a),
-        audit: audit(state, 'version-adopted', `${version.snapshot.title} · v${version.n}`, version.summary, version.articleId),
+        appearance: { ...state.appearance, ...action.patch },
+        changes: log(state, action.who, 'appearance', '调整了网站外观'),
+      }
+
+    case 'copy':
+      return {
+        ...state,
+        copy: { ...state.copy, ...action.patch },
+        changes: log(state, action.who, 'copy', '修改了网站文案'),
+      }
+
+    /* ----------------------------- accounts ----------------------------- */
+
+    case 'signin':
+      return { ...state, auth: { ...state.auth, email: action.email, name: action.name, picture: action.picture } }
+
+    case 'signout':
+      return { ...state, auth: { ...state.auth, email: undefined, name: undefined, picture: undefined } }
+
+    case 'client-id':
+      return { ...state, auth: { ...state.auth, clientId: action.clientId.trim() } }
+
+    case 'admin-add': {
+      const email = action.email.trim().toLowerCase()
+      if (!email || state.auth.admins.some((a) => a.email === email)) return state
+      const account: Account = { email, role: 'admin', addedAt: nowIso() }
+      return {
+        ...state,
+        auth: { ...state.auth, admins: [...state.auth.admins, account] },
+        changes: log(state, action.who, 'admin', `把 ${email} 加为管理员`),
       }
     }
 
-    case 'version-discard':
+    case 'admin-remove': {
+      // The owner can never be removed, by anyone, including the owner.
+      if (action.email === OWNER_EMAIL) return state
       return {
         ...state,
-        versions: state.versions.map((v) => (v.id === action.versionId ? { ...v, state: 'discarded' } : v)),
-      }
-
-    case 'asset-add':
-      return {
-        ...state,
-        assets: [action.asset, ...state.assets],
-        articles: action.asset.articleId
-          ? mapArticle(state, action.asset.articleId, (a) => ({ ...a, assetIds: [action.asset.id, ...a.assetIds] }))
-          : state.articles,
-        audit: audit(state, 'image-generated', action.asset.label, action.asset.guardrail, action.asset.articleId, 'ai-desk'),
-      }
-
-    case 'asset-status': {
-      const asset = state.assets.find((a) => a.id === action.assetId)
-      if (!asset) return state
-      return {
-        ...state,
-        assets: state.assets.map((a) => (a.id === action.assetId ? { ...a, status: action.status } : a)),
-        audit: audit(state, action.status === 'approved' ? 'image-approved' : 'image-rejected', asset.label, `图片状态 → ${action.status}`, asset.articleId),
+        auth: { ...state.auth, admins: state.auth.admins.filter((a) => a.email !== action.email) },
+        changes: log(state, action.who, 'admin', `移除了管理员 ${action.email}`),
       }
     }
 
-    case 'set-cover': {
-      const article = state.articles.find((a) => a.id === action.articleId)
-      if (!article) return state
-      return {
-        ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a, assetIds: [action.assetId, ...a.assetIds.filter((id) => id !== action.assetId)],
-        })),
-        audit: audit(state, 'edited', article.title, '更换封面图。', action.articleId),
-      }
-    }
+    /* ------------------------------ system ------------------------------ */
 
-    case 'lock':
-      return {
-        ...state,
-        lock: action.engaged
-          ? { engaged: true, since: nowIso(), reason: action.reason, by: EDITOR }
-          : { engaged: false },
-        audit: audit(
-          state,
-          action.engaged ? 'lock-engaged' : 'lock-released',
-          'Global Publishing Lock',
-          action.engaged ? (action.reason || '未填写原因') : '发布已恢复。',
-        ),
-      }
+    case 'github':
+      return { ...state, github: { ...state.github, ...action.patch } }
 
-    case 'signal-decline':
+    case 'public-offline':
       return {
         ...state,
-        signals: state.signals.map((s) =>
-          s.id === action.signalId ? { ...s, status: 'declined', declineReason: action.reason } : s),
+        publicOffline: action.off,
+        changes: log(state, action.who, 'lock',
+          action.off ? '把公众站切换为「暂停对外显示」' : '恢复了公众站的对外显示'),
       }
-
-    case 'signal-promote':
-      return {
-        ...state,
-        signals: state.signals.map((s) => (s.id === action.signalId ? { ...s, status: 'drafted' } : s)),
-      }
-
-    case 'set-retrieval-engine': {
-      const engine = ENGINE_MAP[action.engineId]
-      // Authoring is not reassignable, so only the retrieval slot moves.
-      if (!engine || !engine.jobs.includes('retrieval')) return state
-      return {
-        ...state,
-        engines: { ...state.engines, retrieval: action.engineId },
-        audit: audit(state, 'edited', '资料检索引擎', `检索引擎改为：${engine.name}`),
-      }
-    }
-
-    case 'brief-sent': {
-      const brief = state.briefs.find((b) => b.id === action.briefId)
-      return {
-        ...state,
-        audit: audit(state, 'brief-sent', `Daily Editorial Brief · ${brief?.date ?? ''}`, '简报仅含摘要与安全链接；审批与发布只能在控制端完成。', undefined, 'system'),
-      }
-    }
 
     default:
       return state
@@ -419,57 +331,28 @@ function load(): PrismState {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return fresh
     const parsed = JSON.parse(raw) as Persisted
-    // Stale or reshaped demo data is dropped rather than half-migrated.
     if (!parsed || parsed.__schema !== SCHEMA) return fresh
-    if (!Array.isArray(parsed.articles) || parsed.articles.length !== fresh.articles.length) return fresh
-    if (!Array.isArray(parsed.sources) || parsed.sources.length !== fresh.sources.length) return fresh
-    // Version snapshots may have been dropped under storage pressure; restore
-    // the deterministic ones from the freshly built dataset.
-    const rebuilt = new Map(fresh.versions.map((v) => [v.id, v.snapshot]))
-    const versions = parsed.versions.flatMap((v) => {
-      if (v.snapshot) return [v]
-      const snapshot = rebuilt.get(v.id) ?? parsed.articles.find((a) => a.id === v.articleId)
-      // A version we can neither restore nor rebuild is dropped rather than
-      // left dangling — the version list must never contain an empty snapshot.
-      return snapshot ? [{ ...v, snapshot }] : []
-    })
-    return { ...parsed, versions }
+    if (!Array.isArray(parsed.news) || !Array.isArray(parsed.studies)) return fresh
+    // Fill in anything a newer build added, so an old save never blanks a field.
+    return {
+      ...fresh,
+      ...parsed,
+      appearance: { ...fresh.appearance, ...parsed.appearance },
+      collect: { ...fresh.collect, ...parsed.collect },
+      auth: { ...fresh.auth, ...parsed.auth },
+      github: { ...fresh.github, ...parsed.github },
+      copy: { ...fresh.copy, ...parsed.copy },
+    }
   } catch {
     return fresh
   }
 }
 
-/**
- * Version snapshots are whole articles, so a corpus of long entries can push
- * past the ~5MB localStorage budget. Degrade in stages rather than losing the
- * editor's decisions: full state first, then without the snapshots that
- * buildInitialState() can deterministically rebuild, then metadata only.
- */
 function persist(state: PrismState): void {
-  const attempts: (() => string)[] = [
-    () => JSON.stringify({ ...state, __schema: SCHEMA }),
-    () => JSON.stringify({
-      ...state,
-      __schema: SCHEMA,
-      versions: state.versions.map((v) =>
-        v.state === 'proposal' || state.articles.some((a) => a.currentVersionId === v.id)
-          ? v
-          : { ...v, snapshot: undefined }),
-    }),
-    () => JSON.stringify({
-      ...state,
-      __schema: SCHEMA,
-      versions: state.versions.map((v) => ({ ...v, snapshot: undefined })),
-      audit: state.audit.slice(0, 120),
-    }),
-  ]
-  for (const attempt of attempts) {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, attempt())
-      return
-    } catch {
-      /* quota exceeded or storage unavailable — try the next, smaller shape */
-    }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, __schema: SCHEMA }))
+  } catch {
+    // Storage full or blocked. The app keeps working from memory.
   }
 }
 
@@ -477,13 +360,17 @@ function persist(state: PrismState): void {
  * Context
  * ------------------------------------------------------------------ */
 
-interface PrismContextValue {
+interface Ctx {
   state: PrismState
   dispatch: React.Dispatch<Action>
-  resetDemo: () => void
+  reset: () => void
+  /** Signed-in email, or '' — used as the `who` on every change. */
+  who: string
+  isOwner: boolean
+  isAdmin: boolean
 }
 
-const PrismContext = createContext<PrismContextValue | null>(null)
+const PrismContext = createContext<Ctx | null>(null)
 
 export function PrismProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, load)
@@ -494,25 +381,34 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
     persist(state)
   }, [state])
 
-  const resetDemo = useCallback(() => {
+  // Appearance is applied to <html> so both surfaces follow it.
+  useEffect(() => {
+    const el = document.documentElement
+    el.dataset.theme = state.appearance.theme
+    el.dataset.accent = state.appearance.accent
+    el.dataset.fs = String(state.appearance.fontScale)
+    el.dataset.roomy = String(state.appearance.roomy)
+    el.dataset.body = state.appearance.bodyFont
+  }, [state.appearance])
+
+  const reset = useCallback(() => {
     try { window.localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
     dispatch({ type: 'reset' })
   }, [])
 
-  const value = useMemo(() => ({ state, dispatch, resetDemo }), [state, resetDemo])
+  const email = state.auth.email ?? ''
+  const isOwner = email.toLowerCase() === OWNER_EMAIL
+  const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email.toLowerCase())
+
+  const value = useMemo<Ctx>(
+    () => ({ state, dispatch, reset, who: email || '未登录', isOwner, isAdmin }),
+    [state, reset, email, isOwner, isAdmin],
+  )
   return <PrismContext.Provider value={value}>{children}</PrismContext.Provider>
 }
 
-export function usePrism(): PrismContextValue {
+export function usePrism(): Ctx {
   const ctx = useContext(PrismContext)
   if (!ctx) throw new Error('usePrism must be used inside <PrismProvider>')
   return ctx
-}
-
-export function useArticle(idOrSlug: string | undefined): Article | undefined {
-  const { state } = usePrism()
-  return useMemo(
-    () => state.articles.find((a) => a.id === idOrSlug || a.slug === idOrSlug),
-    [state.articles, idOrSlug],
-  )
 }

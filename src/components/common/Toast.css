@@ -35,9 +35,9 @@
 }
 
 .ptoast__item--info { --pt-tone: var(--prism-6); }
-.ptoast__item--go   { --pt-tone: var(--v-supported); }
-.ptoast__item--warn { --pt-tone: var(--risk-medium); }
-.ptoast__item--stop { --pt-tone: var(--v-false); }
+.ptoast__item--go   { --pt-tone: var(--go); }
+.ptoast__item--warn { --pt-tone: var(--warn); }
+.ptoast__item--stop { --pt-tone: var(--danger); }
 
 .ptoast__icon {
   flex: none;

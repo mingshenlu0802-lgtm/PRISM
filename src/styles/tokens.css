@@ -1,140 +1,97 @@
 /* ==========================================================================
    PRISM 棱镜 — design tokens
-   "全球独立媒体 ＋ 研究期刊 ＋ 未来编辑室"
-   Deep indigo · warm white · coral · restrained prism light · map texture.
-   No rainbow gradients, no gendered pictograms.
+   深靛蓝 · 暖白 · 珊瑚红 · 克制的棱镜光线
+   主题、强调色与字号都由 data- 属性驱动，可在界面上实时切换。
    ========================================================================== */
 
 :root {
-  /* --- Ink: deep indigo spine ------------------------------------------- */
-  --ink-950: #06081A;
-  --ink-900: #0B0E24;
-  --ink-850: #0E1230;
-  --ink-800: #12173A;
-  --ink-750: #171D48;
-  --ink-700: #1C2354;
-  --ink-600: #262E6B;
-  --ink-500: #343E85;
-  --ink-400: #4A55A3;
-  --ink-300: #6E79BE;
+  /* --- ink ------------------------------------------------------------- */
+  --ink-950: #06081A; --ink-900: #0B0E24; --ink-850: #0E1230; --ink-800: #12173A;
+  --ink-700: #1C2354; --ink-600: #262E6B; --ink-500: #343E85; --ink-400: #4A55A3;
+  --ink-300: #6E79BE; --ink-200: #9AA2D6;
 
-  /* --- Paper: warm white ------------------------------------------------ */
-  --paper-0:   #FFFDFA;
-  --paper-50:  #FBF8F2;
-  --paper-100: #F5F1E8;
-  --paper-200: #ECE6DA;
-  --paper-300: #DED6C7;
-  --paper-400: #C4BAA8;
+  /* --- paper ----------------------------------------------------------- */
+  --paper-0: #FFFDFA; --paper-50: #FBF8F2; --paper-100: #F5F1E8;
+  --paper-200: #ECE6DA; --paper-300: #DED6C7; --paper-400: #C4BAA8;
 
-  /* --- Coral: the single loud voice ------------------------------------- */
-  --coral-700: #96301F;
-  --coral-600: #B93E29;
-  --coral-500: #D64F37;
-  --coral-400: #E8705A;
-  --coral-300: #F2A08F;
-  --coral-100: #FBE3DD;
+  /* --- accents --------------------------------------------------------- */
+  --coral-700: #96301F; --coral-600: #B93E29; --coral-500: #D64F37;
+  --coral-400: #E8705A; --coral-300: #F2A08F; --coral-100: #FBE3DD;
 
-  /* --- Prism light: refracted, desaturated, used sparingly -------------- */
-  --prism-1: #5E72C8; /* indigo   */
-  --prism-2: #3F9A93; /* teal     */
-  --prism-3: #B8912C; /* ochre    */
-  --prism-4: #A65E8C; /* mauve    */
-  --prism-5: #D64F37; /* coral    */
-  --prism-6: #4C86B4; /* slate blue */
+  /* --- prism spectrum, used sparingly ---------------------------------- */
+  --prism-1: #5E72C8; --prism-2: #3F9A93; --prism-3: #B8912C;
+  --prism-4: #A65E8C; --prism-5: #D64F37; --prism-6: #4C86B4;
 
-  /* --- Neutrals (warm-tinted) ------------------------------------------ */
-  --grey-900: #1A1A1F;
-  --grey-700: #3D3E47;
-  --grey-600: #55565F;
-  --grey-500: #71727C;
-  --grey-400: #96979F;
-  --grey-300: #BFC0C6;
-  --grey-200: #DCDDE1;
+  /* --- topic hues ------------------------------------------------------ */
+  --t-rights: #5E72C8;  --t-violence: #B93E29; --t-repro: #A65E8C;
+  --t-trans: #3F9A93;   --t-hate: #C25C2E;     --t-equality: #4C86B4;
+  --t-displacement: #B8912C; --t-movement: #6E79BE;
 
-  /* --- Verdict scale (fact-check) -------------------------------------- */
-  --v-supported:   #2E7D6B;
-  --v-caution:     #A9791F;
-  --v-contested:   #7A5BA6;
-  --v-unsupported: #5C6480;
-  --v-false:       #B23A28;
-  --v-unknown:     #6E7183;
+  /* --- region hues ----------------------------------------------------- */
+  --r-cn: #C0392B;    --r-hk: #C77B2E;   --r-tw: #2E8B74;  --r-jpkr: #8C4F79;
+  --r-us: #3F6FB5;    --r-eu: #4A55A3;   --r-anz: #2E7D6B; --r-ru: #7A5BA6;
+  --r-mena: #B8912C;  --r-africa: #A8552E; --r-sea: #2F8F8F; --r-sasia: #B06A2C;
+  --r-latam: #C05A66; --r-global: #55607F;
 
-  /* --- Risk scale ------------------------------------------------------- */
-  --risk-low:      #4B7F6E;
-  --risk-medium:   #A9791F;
-  --risk-high:     #C25C2E;
-  --risk-critical: #B23A28;
-
-  /* --- Topic hues (subtle) --------------------------------------------- */
-  --topic-rights:       var(--prism-1);
-  --topic-violence:     var(--coral-600);
-  --topic-repro:        var(--prism-4);
-  --topic-trans:        var(--prism-2);
-  --topic-hate:         var(--prism-5);
-  --topic-equality:     var(--prism-6);
-  --topic-displacement: var(--prism-3);
-  --topic-movement:     var(--ink-400);
-
-  /* --- Type ------------------------------------------------------------- */
-  /* Latin from Inter, Chinese from Noto Sans SC — both loaded in index.html,
-     with the platform stacks kept behind them so the design still holds if
-     the fonts never arrive. */
+  /* --- type ------------------------------------------------------------ */
   --font-sans: "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI",
     "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  /* The journal voice. Noto Serif SC carries the Chinese; Georgia-class faces
-     carry the Latin that sits inside it. */
   --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC",
-    "Iowan Old Style", Georgia, "Times New Roman", serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, "Cascadia Mono",
-    "Noto Sans Mono CJK SC", monospace;
+    "Iowan Old Style", Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, "Noto Sans Mono CJK SC", monospace;
 
-  --fs-2xs: 0.6875rem;
-  --fs-xs:  0.75rem;
-  --fs-sm:  0.8125rem;
-  --fs-base:0.9375rem;
-  --fs-md:  1rem;
-  --fs-lg:  1.125rem;
-  --fs-xl:  1.375rem;
-  --fs-2xl: 1.75rem;
-  --fs-3xl: 2.25rem;
-  --fs-4xl: 3rem;
+  /* Every size derives from --fs, so one slider rescales the whole site. */
+  --fs: 1;
+  --fs-2xs: calc(0.6875rem * var(--fs));
+  --fs-xs:  calc(0.75rem   * var(--fs));
+  --fs-sm:  calc(0.8125rem * var(--fs));
+  --fs-base:calc(0.9375rem * var(--fs));
+  --fs-md:  calc(1rem      * var(--fs));
+  --fs-lg:  calc(1.125rem  * var(--fs));
+  --fs-xl:  calc(1.375rem  * var(--fs));
+  --fs-2xl: calc(1.75rem   * var(--fs));
+  --fs-3xl: calc(2.25rem   * var(--fs));
+  --fs-4xl: calc(3rem      * var(--fs));
 
-  --lh-tight: 1.2;
-  --lh-snug: 1.4;
-  --lh-normal: 1.65;
-  --lh-prose: 1.85;
+  --lh-tight: 1.2; --lh-snug: 1.4; --lh-normal: 1.65; --lh-prose: 1.8;
 
-  /* --- Space ------------------------------------------------------------ */
-  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
-  --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 40px;
-  --s-9: 56px; --s-10: 72px; --s-11: 96px;
+  /* --- space ----------------------------------------------------------- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px; --s-5: 20px;
+  --s-6: 24px; --s-7: 32px; --s-8: 40px; --s-9: 56px; --s-10: 72px; --s-11: 96px;
 
-  /* --- Radius / border / shadow ---------------------------------------- */
   --r-xs: 3px; --r-sm: 5px; --r-md: 8px; --r-lg: 12px; --r-xl: 18px; --r-full: 999px;
   --bw: 1px;
 
-  --shadow-sm: 0 1px 2px rgba(11, 14, 36, .06), 0 1px 3px rgba(11, 14, 36, .05);
-  --shadow-md: 0 2px 6px rgba(11, 14, 36, .07), 0 8px 24px rgba(11, 14, 36, .07);
-  --shadow-lg: 0 4px 12px rgba(11, 14, 36, .09), 0 24px 56px rgba(11, 14, 36, .12);
+  --shadow-sm: 0 1px 2px rgba(11,14,36,.06), 0 1px 3px rgba(11,14,36,.05);
+  --shadow-md: 0 2px 6px rgba(11,14,36,.07), 0 8px 24px rgba(11,14,36,.07);
+  --shadow-lg: 0 4px 12px rgba(11,14,36,.09), 0 24px 56px rgba(11,14,36,.12);
 
   --ease: cubic-bezier(.22,.61,.36,1);
-  --dur-fast: 120ms;
-  --dur: 200ms;
-  --dur-slow: 380ms;
+  --dur-fast: 120ms; --dur: 200ms; --dur-slow: 380ms;
 
-  /* --- Layout ----------------------------------------------------------- */
   --measure: 68ch;
-  --page-max: 1280px;
-  --wide-max: 1680px;
+  --page-max: 1180px;
+  --wide-max: 1560px;
   --header-h: 60px;
 }
 
 /* --------------------------------------------------------------------------
-   Surfaces. The public site reads as a warm research journal; the console
-   reads as a low-light editing room. Both derive from the same ink/paper set.
+   Font scale — set on <html> by the appearance control.
+   -------------------------------------------------------------------------- */
+:root[data-fs="0.9"]  { --fs: 0.9; }
+:root[data-fs="1"]    { --fs: 1; }
+:root[data-fs="1.15"] { --fs: 1.15; }
+:root[data-fs="1.3"]  { --fs: 1.3; }
+:root[data-fs="1.45"] { --fs: 1.45; }
+
+:root[data-roomy="true"] { --lh-normal: 1.85; --lh-prose: 2.05; }
+
+/* --------------------------------------------------------------------------
+   Themes. Every surface reads only the semantic tokens below, so a theme is
+   just a different set of six or so values.
    -------------------------------------------------------------------------- */
 
-[data-surface="public"] {
+:root, :root[data-theme="warm"] {
   color-scheme: light;
   --bg: var(--paper-50);
   --bg-raised: var(--paper-0);
@@ -147,65 +104,118 @@
   --line: var(--paper-300);
   --line-soft: var(--paper-200);
   --line-strong: #C3BAA9;
-  --accent: var(--coral-600);
-  --accent-fg: #FFFFFF;
-  --accent-soft: var(--coral-100);
   --link: var(--ink-600);
-  --focus: var(--ink-500);
-  --overlay: rgba(11, 14, 36, .48);
-  --chip-bg: rgba(28, 35, 84, .06);
+  --overlay: rgba(11,14,36,.48);
+  --chip-bg: rgba(28,35,84,.06);
 }
 
-[data-surface="public"][data-theme="dark"] {
+:root[data-theme="paper"] {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #F6F7F9;
+  --bg-inset: #EDEFF3;
+  --fg: #14161F;
+  --fg-muted: #454956;
+  --fg-subtle: #666B7A;
+  --fg-faint: #8A8F9C;
+  --line: #E1E4EA;
+  --line-soft: #EDEFF3;
+  --line-strong: #C9CDD6;
+  --link: var(--ink-600);
+  --overlay: rgba(20,22,31,.46);
+  --chip-bg: rgba(20,22,31,.05);
+}
+
+:root[data-theme="ink"] {
   color-scheme: dark;
   --bg: var(--ink-950);
   --bg-raised: var(--ink-900);
-  --bg-sunken: #040614;
+  --bg-sunken: #04050F;
   --bg-inset: var(--ink-850);
   --fg: #EDEAE3;
   --fg-muted: #B6B4C4;
   --fg-subtle: #8E8DA2;
   --fg-faint: #6E6D82;
-  --line: rgba(150, 160, 220, .16);
-  --line-soft: rgba(150, 160, 220, .09);
-  --line-strong: rgba(150, 160, 220, .3);
-  --accent: var(--coral-400);
-  --accent-fg: #120A08;
-  --accent-soft: rgba(214, 79, 55, .16);
+  --line: rgba(150,160,220,.17);
+  --line-soft: rgba(150,160,220,.09);
+  --line-strong: rgba(150,160,220,.32);
   --link: #A9B4E8;
-  --focus: var(--prism-1);
-  --overlay: rgba(2, 3, 12, .66);
-  --chip-bg: rgba(150, 160, 220, .1);
+  --overlay: rgba(2,3,12,.66);
+  --chip-bg: rgba(150,160,220,.1);
 }
 
-[data-surface="command"] {
-  color-scheme: dark;
-  --bg: var(--ink-950);
-  --bg-raised: var(--ink-900);
-  --bg-sunken: #040614;
-  --bg-inset: var(--ink-850);
-  --bg-panel: rgba(23, 29, 72, .5);
-  --fg: #E9E7EF;
-  --fg-muted: #ADAFC6;
-  --fg-subtle: #8386A0;
-  --fg-faint: #63667E;
-  --line: rgba(140, 152, 214, .17);
-  --line-soft: rgba(140, 152, 214, .09);
-  --line-strong: rgba(140, 152, 214, .34);
-  --accent: var(--coral-400);
-  --accent-fg: #150907;
-  --accent-soft: rgba(214, 79, 55, .15);
-  --link: #A9B4E8;
-  --focus: var(--prism-1);
-  --overlay: rgba(2, 3, 12, .72);
-  --chip-bg: rgba(140, 152, 214, .1);
+:root[data-theme="contrast"] {
+  color-scheme: light;
+  --bg: #FFFFFF;
+  --bg-raised: #FFFFFF;
+  --bg-sunken: #F2F2F2;
+  --bg-inset: #E6E6E6;
+  --fg: #000000;
+  --fg-muted: #1A1A1A;
+  --fg-subtle: #333333;
+  --fg-faint: #4D4D4D;
+  --line: #000000;
+  --line-soft: #666666;
+  --line-strong: #000000;
+  --link: #0033CC;
+  --overlay: rgba(0,0,0,.6);
+  --chip-bg: rgba(0,0,0,.08);
+  --bw: 2px;
 }
 
 /* --------------------------------------------------------------------------
-   Textures. A faint graticule (map grid) and a single refracted edge — the
-   only "prism" motif in the system.
+   Status — 三种状态色，跟主题走。
+   go = 成功/已完成，warn = 提醒/要看一眼，danger = 删除/不可撤销。
    -------------------------------------------------------------------------- */
 
+:root {
+  --go: #2E7D5B;      --go-soft: #E3F1E9;
+  --warn: #9A6B14;    --warn-soft: #FAF0DC;
+  --danger: #B4331F;  --danger-soft: #FBE6E1;
+  --focus: var(--accent);
+}
+:root[data-theme="paper"] {
+  --go: #1F7A55;      --go-soft: #E6F4EC;
+  --warn: #8A5D0F;    --warn-soft: #FBF1DC;
+  --danger: #B02E1B;  --danger-soft: #FCE8E4;
+}
+:root[data-theme="ink"] {
+  --go: #62C79A;      --go-soft: rgba(98,199,154,.14);
+  --warn: #D7A63F;    --warn-soft: rgba(215,166,63,.14);
+  --danger: #F0806A;  --danger-soft: rgba(240,128,106,.15);
+}
+:root[data-theme="contrast"] {
+  --go: #006B33;      --go-soft: #DDF3E5;
+  --warn: #7A4B00;    --warn-soft: #FBEED6;
+  --danger: #B3001B;  --danger-soft: #FFE4E8;
+  --focus: #0033CC;
+}
+
+/* --------------------------------------------------------------------------
+   Accent — independent of theme.
+   -------------------------------------------------------------------------- */
+
+:root, :root[data-accent="coral"] {
+  --accent: var(--coral-600);
+  --accent-strong: var(--coral-700);
+  --accent-fg: #FFFFFF;
+  --accent-soft: var(--coral-100);
+}
+:root[data-accent="indigo"] { --accent: #4A55A3; --accent-strong: #343E85; --accent-fg: #fff; --accent-soft: #E7E9F6; }
+:root[data-accent="teal"]   { --accent: #2E7D6B; --accent-strong: #1F5C4E; --accent-fg: #fff; --accent-soft: #E1F1EC; }
+:root[data-accent="plum"]   { --accent: #8C4F79; --accent-strong: #6D3B5D; --accent-fg: #fff; --accent-soft: #F6E7F1; }
+:root[data-accent="amber"]  { --accent: #9A6B14; --accent-strong: #7A540E; --accent-fg: #fff; --accent-soft: #F8EED8; }
+
+:root[data-theme="ink"][data-accent="coral"]  { --accent: var(--coral-400); --accent-fg: #150907; --accent-soft: rgba(214,79,55,.16); }
+:root[data-theme="ink"][data-accent="indigo"] { --accent: #8F99DC; --accent-fg: #0A0C1C; --accent-soft: rgba(143,153,220,.16); }
+:root[data-theme="ink"][data-accent="teal"]   { --accent: #5FBFA9; --accent-fg: #04140F; --accent-soft: rgba(95,191,169,.16); }
+:root[data-theme="ink"][data-accent="plum"]   { --accent: #CE8FB8; --accent-fg: #170A12; --accent-soft: rgba(206,143,184,.16); }
+:root[data-theme="ink"][data-accent="amber"]  { --accent: #D7A63F; --accent-fg: #160F02; --accent-soft: rgba(215,166,63,.16); }
+
+:root[data-theme="contrast"] { --accent: #B3001B; --accent-strong: #800013; --accent-fg: #fff; --accent-soft: #FFE8EB; }
+
+/* --- textures --------------------------------------------------------- */
 .tex-graticule {
   background-image:
     linear-gradient(to right, var(--line-soft) 1px, transparent 1px),
@@ -213,25 +223,11 @@
   background-size: 48px 48px;
 }
 
-.tex-dots {
-  background-image: radial-gradient(var(--line) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-/* A 1px refracted rule. Used at most once per view. */
-/* A refracted edge, not a rainbow band. The spectrum stays folded into the
-   indigo end and only opens toward coral at the very tail, so it reads as
-   light through glass rather than as a flag. */
 .prism-rule {
-  height: 2px;
-  border: 0;
+  height: 2px; border: 0;
   background: linear-gradient(90deg,
-    var(--ink-500) 0%,
-    var(--prism-1) 26%,
-    var(--prism-6) 48%,
-    var(--prism-2) 66%,
-    var(--prism-3) 82%,
-    var(--coral-500) 100%);
+    var(--ink-500) 0%, var(--prism-1) 26%, var(--prism-6) 48%,
+    var(--prism-2) 66%, var(--prism-3) 82%, var(--accent) 100%);
   opacity: .38;
 }
 

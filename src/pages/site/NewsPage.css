@@ -1,0 +1,16 @@
+.npage { padding-block: var(--s-6) var(--s-9); display: grid; gap: var(--s-6); max-width: 860px; }
+.npage__back { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); width: fit-content; }
+.npage__body { display: grid; gap: var(--s-4); }
+.npage__stamp { font-size: var(--fs-2xs); color: var(--fg-faint); }
+.npage__related { display: grid; gap: var(--s-3); padding-top: var(--s-5); border-top: var(--bw) solid var(--line); }
+.npage__reltitle { font-size: var(--fs-md); }
+.npage__rellist { list-style: none; display: grid; gap: var(--s-2); }
+.npage__rel {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-raised); text-decoration: none; color: inherit;
+}
+.npage__rel:hover { border-color: var(--accent); }
+.npage__relhead { font-size: var(--fs-sm); font-weight: 600; line-height: 1.5; }
+.npage__relmeta { flex: none; font-size: 10px; color: var(--fg-faint); }

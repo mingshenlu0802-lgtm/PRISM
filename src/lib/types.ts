@@ -1,584 +1,293 @@
 /**
- * PRISM 棱镜 — domain model.
+ * PRISM 棱镜 — 领域模型。
  *
- * Everything in this prototype is DEMO DATA. Jurisdictions, organisations,
- * publications and people below are deliberately fictional, and every source
- * record carries `demo: true` plus a placeholder URL so that nothing in this
- * repository can be mistaken for a real news report, a real citation or a real
- * person's words.
+ * The site publishes SHORT summaries plus the links to the outlets that
+ * reported the story. It does not publish long essays, and it does not
+ * publish verification conclusions of its own — the summary tells you what
+ * happened, the links let you go read it yourself.
+ *
+ * Everything shipped in this repository is demo data. Demo sources sit on the
+ * reserved `.invalid` domain and can never resolve; real links render as real
+ * clickable links.
  */
 
+import type { RegionKey } from './regions'
+
 export type ID = string
-export type ISODate = string // 'YYYY-MM-DD'
-export type ISODateTime = string // 'YYYY-MM-DDTHH:mm:ssZ'
+export type ISODate = string      // 'YYYY-MM-DD'
+export type ISODateTime = string  // 'YYYY-MM-DDTHH:mm:ssZ'
 
 /* ------------------------------------------------------------------ *
- * Topics
+ * Topics — a story can carry several
  * ------------------------------------------------------------------ */
 
 export type TopicKey =
-  | 'rights'          // 女性主义与 LGBTQIA+ 权利
-  | 'violence'        // 性暴力、家庭暴力与性骚扰
-  | 'repro'           // 生育权与身体自主权
-  | 'trans'           // 跨性别权利与医疗
-  | 'hate'            // 仇恨犯罪与网络暴力
-  | 'equality'        // 法律、政治、教育、医疗与职场平等
-  | 'displacement'    // 战争、移民及交叉边缘群体
-  | 'movement'        // 运动内部的重要争议
+  | 'rights'        // 女性主义与 LGBTQIA+ 权利
+  | 'violence'      // 性暴力、家庭暴力与性骚扰
+  | 'repro'         // 生育权与身体自主权
+  | 'trans'         // 跨性别权利与医疗
+  | 'hate'          // 仇恨犯罪与网络暴力
+  | 'equality'      // 法律、政治、教育、医疗与职场平等
+  | 'displacement'  // 战争、移民及交叉边缘群体
+  | 'movement'      // 运动内部的重要争议
 
 export interface Topic {
   key: TopicKey
   zh: string
+  short: string
   en: string
   blurb: string
-  /** CSS custom-property name carrying the topic's restrained prism hue. */
   hue: string
 }
 
 /* ------------------------------------------------------------------ *
- * Sources, citations, fact-checks
+ * Links
  * ------------------------------------------------------------------ */
 
-export type SourceType =
-  | 'primary-research'
-  | 'legal-document'
-  | 'court-ruling'
-  | 'government-data'
-  | 'international-body'
-  | 'ngo-report'
-  | 'local-media'
-  | 'news-agency'
-  | 'academic-review'
-  | 'statement'
-  | 'social-post'
-  | 'other'
-
-/** Tiering used across the console. Primary evidence outranks reporting. */
-export type SourceTier = 'primary' | 'secondary' | 'tertiary'
-
-export interface Source {
+/** One outlet's report on a story, or one document behind a study. */
+export interface MediaLink {
   id: ID
+  /** Outlet or publisher name, as it should be shown. */
+  outlet: string
+  /** The headline as that outlet ran it. */
   title: string
-  publisher: string
-  sourceType: SourceType
-  tier: SourceTier
-  /** Placeholder URL — never a real-world link. */
   url: string
-  date: ISODate
-  /** BCP-47-ish tag, e.g. 'es', 'ar', 'zh-Hans'. */
-  language: string
-  /** Fictional jurisdiction name. */
-  country: string
-  /** 0–100, derived from `credibilityBasis`, never a black box. */
-  credibility: number
-  credibilityBasis: string
-  accessedAt: ISODate
-  /** True when the record is a primary document (law, ruling, dataset, study). */
-  isPrimary: boolean
-  /** Always true in this prototype. */
-  demo: true
-  notes?: string
-  /** Why an editor may need to treat this source with care. */
-  caution?: string
-}
-
-export interface Citation {
-  id: ID
-  sourceId: ID
-  /** Page / article / paragraph pointer inside the source. */
-  locator?: string
-  /** The specific claim this citation is carrying. */
-  claim: string
-}
-
-/* ------------------------------------------------------------------ *
- * Article content blocks
- * ------------------------------------------------------------------ */
-
-/**
- * Inline citation syntax inside `text`: `[[c:cit-004]]`.
- * Rendered as a numbered, clickable superscript that opens the source card.
- */
-export type Block =
-  | { id: ID; type: 'paragraph'; text: string }
-  | { id: ID; type: 'heading'; text: string; level: 3 | 4 }
-  | { id: ID; type: 'list'; ordered?: boolean; items: string[] }
-  | { id: ID; type: 'callout'; tone: 'note' | 'caution' | 'evidence' | 'unknown'; title: string; text: string }
-  | { id: ID; type: 'pullquote'; text: string; attribution?: string }
-  | { id: ID; type: 'figure'; assetId: ID; caption: string }
-  | { id: ID; type: 'chart'; chartId: ID }
-  | { id: ID; type: 'timeline'; entries: TimelineEntry[] }
-  | { id: ID; type: 'table'; columns: string[]; rows: string[][]; caption?: string }
-  | { id: ID; type: 'divergence'; positions: DivergencePosition[] }
-
-export interface TimelineEntry {
-  date: ISODate
-  title: string
-  text: string
-  citationIds?: ID[]
-  /** 'documented' = supported by a primary record; 'reported' = single report. */
-  standing: 'documented' | 'reported' | 'contested'
-}
-
-export interface DivergencePosition {
-  label: string
-  /** Who holds this position (fictional org / outlet). */
-  holder: string
-  position: string
-  evidence: string
-  citationIds: ID[]
-  /** Editorial read on the strength of this position. */
-  weight: 'strong' | 'moderate' | 'weak'
-}
-
-export type SectionKind =
-  | 'facts'        // 事件及核心事实
-  | 'context'      // 法律、历史和社会背景
-  | 'power'        // 权力结构与交叉性分析
-  | 'research'     // 相关研究与数据
-  | 'divergence'   // 不同来源之间的分歧
-  | 'unknowns'     // 尚未确定的信息
-  | 'why'          // 事件为何重要
-  | 'watch'        // 后续值得关注的进展
-
-export interface ArticleSection {
-  id: ID
-  kind: SectionKind
-  title: string
-  blocks: Block[]
-}
-
-/* ------------------------------------------------------------------ *
- * Visual assets & charts
- * ------------------------------------------------------------------ */
-
-export type AssetKind = 'cover' | 'map' | 'chart' | 'timeline' | 'social'
-
-export interface ImageAsset {
-  id: ID
-  articleId?: ID
-  kind: AssetKind
-  label: string
-  caption: string
-  /** AI-generated imagery is always surfaced as 「概念插图」. */
-  conceptual: boolean
-  /** Generation instruction kept on the record for auditability. */
-  prompt?: string
-  /** Palette keys drawn from the design tokens. */
-  palette: string[]
-  /** Abstract motif the renderer draws — no depiction of real people or scenes. */
-  motif: 'prism-fold' | 'graticule' | 'strata' | 'aperture' | 'ledger' | 'signal'
-  status: 'draft' | 'approved' | 'rejected'
-  /** Editor-facing guardrail note, e.g. why no victim likeness is shown. */
-  guardrail: string
-  createdAt: ISODateTime
-  /** Set for data-bearing assets; charts must cite real underlying rows. */
-  chartId?: ID
-}
-
-export type ChartKind = 'bar' | 'line' | 'stacked' | 'range' | 'donut'
-
-export interface ChartSpec {
-  id: ID
-  kind: ChartKind
-  title: string
-  subtitle?: string
-  /** Units label for the value axis. */
-  unit: string
-  /** Every chart names the dataset it came from. */
-  sourceId: ID
-  sourceNote: string
-  series: { name: string; color?: string; points: { label: string; value: number; lowValue?: number; highValue?: number }[] }[]
-  /** Explicit statement of what the data cannot show. */
-  limitation: string
-}
-
-/* ------------------------------------------------------------------ *
- * Risk, review, workflow state
- * ------------------------------------------------------------------ */
-
-export type RiskKind =
-  | 'sexual-violence'
-  | 'minors'
-  | 'active-litigation'
-  | 'identity-exposure'
-  | 'defamation'
-  | 'graphic-content'
-  | 'source-safety'
-  | 'victim-blaming'
-  | 'bias'
-  | 'image-ethics'
-
-export type RiskSeverity = 'low' | 'medium' | 'high' | 'critical'
-
-export interface RiskFlag {
-  id: ID
-  kind: RiskKind
-  severity: RiskSeverity
-  note: string
-  /** When true, publishing demands a second, typed confirmation. */
-  requiresSecondConfirm: boolean
-  raisedBy: 'ai-review' | 'editor' | 'legal-check'
-  resolved?: boolean
-  resolutionNote?: string
-}
-
-/**
- * The automated desk performs RESOURCE RETRIEVAL, not verification.
- *
- * - 'found'   the cited resource was located and the locator resolves
- * - 'partial' the resource was located but the specific locator could not be
- *             resolved (a paywalled annex, a low-resolution scan, a page that
- *             has since been replaced)
- * - 'missing' the resource could not be located at all
- *
- * A 'found' result means the source EXISTS and is reachable. It does not mean
- * the source is reliable, and it certainly does not mean the claim resting on
- * it is true. Judging reliability and truth is editorial work, done by a
- * person; the desk only establishes what can be retrieved.
- */
-export type CitationCheckStatus = 'found' | 'partial' | 'missing'
-
-export interface CitationCheck {
-  citationId: ID
-  status: CitationCheckStatus
-  /** What the desk was and was not able to retrieve. */
-  reason: string
-  checkedAt: ISODateTime
-  /**
-   * A missing resource that the editor has explicitly seen and handled —
-   * normally by weakening or re-attributing the sentence that rested on it.
-   * It stays visible as missing, but it no longer blocks publishing, because
-   * the claim it could not support is no longer being made.
-   */
-  acknowledged?: boolean
-  acknowledgedNote?: string
-  acknowledgedBy?: string
-}
-
-export type ArticleStatus =
-  | 'drafting'
-  | 'in-review'
-  | 'needs-sources'
-  | 'changes-requested'
-  | 'approved'
-  | 'scheduled'
-  | 'published'
-  | 'update-needed'
-  | 'retracted'
-  | 'archived'
-  | 'rejected'
-
-export interface Translation {
+  /** BCP-47-ish, e.g. 'zh-Hans', 'en', 'ja'. */
   lang: string
-  label: string
-  status: 'machine-draft' | 'human-reviewed' | 'not-started'
-  title?: string
-  standfirst?: string
+  date?: ISODate
+  /** Marks the document the story rests on (a ruling, a bill, a dataset). */
+  primary?: boolean
+  /** Editor's one-line note about this link. */
+  note?: string
 }
 
-export interface Article {
+/* ------------------------------------------------------------------ *
+ * News
+ * ------------------------------------------------------------------ */
+
+export type ItemStatus = 'live' | 'hidden'
+
+/** Who put it on the site. */
+export type ItemOrigin = 'auto' | 'editor'
+
+export interface NewsItem {
+  id: ID
+  slug: string
+  headline: string
+  /** Two to four sentences. This is the whole article. */
+  summary: string
+  /** Optional key points; keep to one line each. */
+  bullets: string[]
+  regions: RegionKey[]
+  topics: TopicKey[]
+  publishedAt: ISODateTime
+  updatedAt: ISODateTime
+  status: ItemStatus
+  origin: ItemOrigin
+  /** The outlets that reported it. At least one. */
+  links: MediaLink[]
+  /** Anything the editor wants to add above the links. */
+  editorNote?: string
+  /** Set when the editor has touched the summary, so the desk stops overwriting it. */
+  editedByHuman?: boolean
+  /** Shown above the summary for material that needs a heads-up. */
+  contentNotice?: string
+  featured?: boolean
+  demo: boolean
+}
+
+/* ------------------------------------------------------------------ *
+ * Studies & open data
+ * ------------------------------------------------------------------ */
+
+export type StudyKind =
+  | 'peer-reviewed'
+  | 'preprint'
+  | 'official-statistics'
+  | 'dataset'
+  | 'ngo-report'
+  | 'systematic-review'
+
+export interface StudyFigure {
+  label: string
+  value: string
+  /** What the number does not say. Always shown next to it. */
+  note: string
+}
+
+export interface StudyItem {
   id: ID
   slug: string
   title: string
-  titleEn: string
-  standfirst: string
-  /** Fictional jurisdiction(s) the story sits in. */
-  countries: string[]
-  region: string
-  topics: TopicKey[]
-  status: ArticleStatus
-  createdAt: ISODateTime
-  updatedAt: ISODateTime
-  publishedAt?: ISODateTime
-  scheduledFor?: ISODateTime
-  /** Minutes. */
-  readingTime: number
-  /** 0–100 aggregate editorial confidence with a stated basis. */
-  confidence: number
-  confidenceBasis: string
-  /** Trauma-informed content notice shown above the fold. */
-  contentNotice?: string
-  sections: ArticleSection[]
-  citations: Citation[]
-  sourceIds: ID[]
-  riskFlags: RiskFlag[]
-  citationChecks: CitationCheck[]
-  assetIds: ID[]
-  chartIds: ID[]
-  translations: Translation[]
-  /** Which version in `versions` this article currently reflects. */
-  currentVersionId: ID
-  byline: string
-  featured?: boolean
-  demo: true
-}
-
-/* ------------------------------------------------------------------ *
- * Versions & Vibe Coding
- * ------------------------------------------------------------------ */
-
-export interface VersionRefDelta {
-  added: ID[]
-  removed: ID[]
-}
-
-export interface Version {
-  id: ID
-  articleId: ID
-  n: number
-  label: string
-  createdAt: ISODateTime
-  author: 'ai-desk' | 'editor'
-  /** The natural-language instruction that produced this version, if any. */
-  instruction?: string
-  summary: string
-  refDelta: VersionRefDelta
-  /** Full article snapshot — versions never overwrite each other. */
-  snapshot: Article
-  /** 'adopted' once the editor confirms; proposals wait for confirmation. */
-  state: 'proposal' | 'adopted' | 'discarded'
-  /** Aggregate line counts for the diff summary strip. */
-  stats: { added: number; removed: number; changed: number }
-}
-
-export interface VibePreset {
-  id: ID
-  label: string
-  instruction: string
-  category: 'context' | 'sources' | 'ethics' | 'depth' | 'imagery' | 'verification'
-}
-
-/** A queued natural-language edit that has produced a proposal version. */
-export interface VibeRun {
-  id: ID
-  articleId: ID
-  instruction: string
-  startedAt: ISODateTime
-  state: 'running' | 'proposed' | 'adopted' | 'discarded'
-  steps: { label: string; detail: string; done: boolean }[]
-  proposedVersionId?: ID
-  /** Human-readable account of what changed and why. */
-  rationale?: string
-}
-
-/* ------------------------------------------------------------------ *
- * Daily pipeline: intake signals, research watch, brief
- * ------------------------------------------------------------------ */
-
-export interface Signal {
-  id: ID
-  headline: string
-  country: string
-  region: string
-  language: string
-  topics: TopicKey[]
-  firstSeen: ISODateTime
-  /** Reports merged into this cluster. */
-  reportCount: number
-  independentSourceCount: number
-  primarySourceCount: number
-  /** 0–100 editorial value score with a stated basis. */
-  newsValue: number
-  newsValueBasis: string
-  /** Corroboration state across independent outlets. */
-  corroboration: 'multi-source' | 'single-source' | 'contested' | 'unverified'
-  status: 'new' | 'clustered' | 'drafted' | 'declined'
-  declineReason?: string
-  linkedArticleId?: ID
-  mergedFrom: string[]
-  demo: true
-}
-
-export interface ResearchItem {
-  id: ID
-  title: string
-  body: string
   publisher: string
-  type: 'peer-reviewed' | 'preprint' | 'official-statistics' | 'ngo-study' | 'systematic-review'
+  kind: StudyKind
   date: ISODate
+  regions: RegionKey[]
   topics: TopicKey[]
+  /** Two to four sentences, same length discipline as the news. */
   summary: string
-  /** What the study can and cannot support. */
-  strength: string
+  /** What the design can and cannot support. */
   limitation: string
-  sourceId: ID
-  demo: true
-}
-
-export interface DailyBrief {
-  id: ID
-  date: ISODate
-  greeting: string
-  topFive: { signalId: ID; why: string }[]
-  recommended: { articleId: ID; why: string }[]
-  pendingArticleIds: ID[]
-  researchIds: ID[]
-  riskAlerts: { articleId: ID; note: string; severity: RiskSeverity }[]
-  citationFailures: { articleId: ID; citationId: ID; reason: string }[]
-  updateNeeded: { articleId: ID; why: string }[]
-  /** Coverage stats for the footer strip. */
-  coverage: { countries: number; languages: number; primaryDocs: number; clustersMerged: number }
-  sentTo: string
-  demo: true
+  figures: StudyFigure[]
+  links: MediaLink[]
+  /** Direct link to the data, when the data is open. */
+  datasetUrl?: string
+  status: ItemStatus
+  origin: ItemOrigin
+  editedByHuman?: boolean
+  demo: boolean
 }
 
 /* ------------------------------------------------------------------ *
- * Pipeline run (the nightly automated desk)
+ * The collector
  * ------------------------------------------------------------------ */
 
-export type PipelineStageKey =
-  | 'collect'
-  | 'dedupe'
-  | 'locate'
-  | 'draft'
-  | 'visuals'
-  | 'review'
-  | 'handoff'
+export type CollectMode = 'news' | 'studies' | 'both'
 
-export interface PipelineStage {
-  key: PipelineStageKey
-  zh: string
-  en: string
-  detail: string
-  /** Metric shown while the stage runs. */
-  metricLabel: string
-  metricValue: string
-  state: 'idle' | 'running' | 'done' | 'blocked'
-  /** Sub-steps surfaced in the console log. */
-  log: string[]
+export interface CollectConfig {
+  regions: RegionKey[]
+  topics: TopicKey[]
+  mode: CollectMode
+  /** Publish straight to the site, or hold for the editor. */
+  autoPublish: boolean
+  /** Retrieval engine id, from ENGINES. */
+  engine: string
+  /** How many items a single run may add. */
+  perRun: number
+  /** Skip anything whose headline closely matches something already live. */
+  dedupe: boolean
 }
 
-export interface PipelineRun {
+export type RunStage = 'search' | 'dedupe' | 'summarise' | 'links' | 'publish'
+
+export interface RunStep {
+  stage: RunStage
+  label: string
+  detail: string
+  done: boolean
+}
+
+export interface CollectRun {
   id: ID
-  date: ISODate
   startedAt: ISODateTime
   finishedAt?: ISODateTime
-  stages: PipelineStage[]
-  /** The desk never publishes; it can only hand off. */
-  outcome: 'handed-off' | 'running' | 'blocked'
-  producedArticleIds: ID[]
-  producedSignalIds: ID[]
-  demo: true
+  config: CollectConfig
+  steps: RunStep[]
+  /** Ids added by this run, so a run can be undone in one action. */
+  addedNewsIds: ID[]
+  addedStudyIds: ID[]
+  /** Headlines the run skipped, with the reason. Nothing vanishes silently. */
+  skipped: { headline: string; reason: string }[]
+  state: 'running' | 'done' | 'stopped'
 }
 
 /* ------------------------------------------------------------------ *
- * Engines
- *
- * Two different jobs, two different rules.
- *
- * Retrieval — searching the open web for the material a citation points at —
- * is swappable: it is bounded, cheap to run, and easy to check, so the editor
- * may point it at a free or self-hosted open-source model.
- *
- * Authoring — drafting, rewriting, and everything Further Vibe Coding does to
- * a manuscript inside the console — is fixed to Claude and cannot be
- * reassigned from the interface.
+ * Appearance — both surfaces
  * ------------------------------------------------------------------ */
 
-export type EngineJob = 'retrieval' | 'authoring'
+export type ThemeKey = 'warm' | 'ink' | 'paper' | 'contrast'
+export type AccentKey = 'coral' | 'indigo' | 'teal' | 'plum' | 'amber'
 
-export interface EngineOption {
-  id: string
-  name: string
-  /** 'open-source' can be self-hosted or run free; 'hosted' is an API. */
-  kind: 'open-source' | 'hosted'
-  /** What it costs the editor to run. */
-  cost: string
-  note: string
-  /** Retrieval is open to every option; authoring is not. */
-  jobs: EngineJob[]
-}
-
-export interface EngineSettings {
-  /** The editor's choice for overnight resource search. */
-  retrieval: string
-  /** Fixed. Present so the UI can name it, not so it can be changed. */
-  authoring: 'claude'
+export interface Appearance {
+  theme: ThemeKey
+  accent: AccentKey
+  /** 0.9 – 1.4, multiplies every type size on the site. */
+  fontScale: number
+  /** Body face for the summaries. */
+  bodyFont: 'sans' | 'serif'
+  /** Wider line spacing for easier reading. */
+  roomy: boolean
 }
 
 /* ------------------------------------------------------------------ *
- * Audit, approvals, global lock
+ * Accounts
  * ------------------------------------------------------------------ */
 
-export type AuditAction =
-  | 'discovered'
-  | 'drafted'
-  | 'ai-review'
-  | 'edited'
-  | 'vibe-instruction'
-  | 'version-adopted'
-  | 'version-discarded'
-  | 'approved'
-  | 'scheduled'
-  | 'published'
-  | 'more-sources-requested'
-  | 'returned-for-research'
-  | 'rejected'
-  | 'archived'
-  | 'updated'
-  | 'retracted'
-  | 'lock-engaged'
-  | 'lock-released'
-  | 'image-generated'
-  | 'image-approved'
-  | 'image-rejected'
-  | 'brief-sent'
+/** The one account that can never be removed. */
+export const OWNER_EMAIL = 'mingshen.lu0802@gmail.com'
 
-export interface AuditEntry {
+export interface Account {
+  email: string
+  name?: string
+  picture?: string
+  role: 'owner' | 'admin'
+  addedAt: ISODateTime
+}
+
+export interface AuthState {
+  /** The signed-in Google account, if any. */
+  email?: string
+  name?: string
+  picture?: string
+  /** Google OAuth client id; empty until the owner pastes one in. */
+  clientId: string
+  admins: Account[]
+}
+
+/* ------------------------------------------------------------------ *
+ * GitHub sync
+ * ------------------------------------------------------------------ */
+
+export interface GitHubConfig {
+  owner: string
+  repo: string
+  branch: string
+  /** Personal access token, kept in this browser only. */
+  token: string
+  /** Where the site content is written. */
+  path: string
+  lastSyncedAt?: ISODateTime
+  lastResult?: string
+}
+
+/* ------------------------------------------------------------------ *
+ * Site copy the editor can change without touching code
+ * ------------------------------------------------------------------ */
+
+export interface SiteCopy {
+  title: string
+  tagline: string
+  intro: string
+  aboutLead: string
+  aboutBody: string
+  footerNote: string
+}
+
+/* ------------------------------------------------------------------ *
+ * Change log — every edit, in plain language
+ * ------------------------------------------------------------------ */
+
+export type ChangeKind =
+  | 'collected' | 'published' | 'hidden' | 'restored' | 'deleted'
+  | 'edited' | 'link-added' | 'link-removed' | 'appearance' | 'copy'
+  | 'admin' | 'sync' | 'lock'
+
+export interface ChangeEntry {
   id: ID
   at: ISODateTime
-  actor: string
-  actorKind: 'editor' | 'ai-desk' | 'system'
-  action: AuditAction
-  articleId?: ID
-  target: string
-  detail: string
-}
-
-export interface GlobalLock {
-  engaged: boolean
-  since?: ISODateTime
-  reason?: string
-  by?: string
-}
-
-/** Decisions available on the approval queue. */
-export type ReviewDecision =
-  | 'approve-publish'
-  | 'approve-schedule'
-  | 'save-draft'
-  | 'request-sources'
-  | 'return-research'
-  | 'reject'
-  | 'archive'
-
-export interface DecisionMeta {
-  key: ReviewDecision
-  zh: string
-  en: string
-  tone: 'go' | 'hold' | 'stop'
-  hint: string
+  who: string
+  kind: ChangeKind
+  /** One sentence, written for a person, not a log parser. */
+  text: string
+  /** Present when the change can be put back. */
+  undo?: { type: 'restore-news' | 'restore-study'; id: ID }
 }
 
 /* ------------------------------------------------------------------ *
- * Store shape
+ * Store
  * ------------------------------------------------------------------ */
 
 export interface PrismState {
-  articles: Article[]
-  sources: Source[]
-  signals: Signal[]
-  research: ResearchItem[]
-  assets: ImageAsset[]
-  charts: ChartSpec[]
-  versions: Version[]
-  vibeRuns: VibeRun[]
-  briefs: DailyBrief[]
-  pipelineRuns: PipelineRun[]
-  audit: AuditEntry[]
-  lock: GlobalLock
-  engines: EngineSettings
-  /** Prototype clock: fixed so the demo is deterministic. */
+  news: NewsItem[]
+  studies: StudyItem[]
+  runs: CollectRun[]
+  collect: CollectConfig
+  appearance: Appearance
+  auth: AuthState
+  github: GitHubConfig
+  copy: SiteCopy
+  changes: ChangeEntry[]
+  /** Stops everything from being publicly visible, in one switch. */
+  publicOffline: boolean
   today: ISODate
 }

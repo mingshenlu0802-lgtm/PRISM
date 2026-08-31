@@ -1,0 +1,18 @@
+.lpage { padding-block: var(--s-7) var(--s-9); display: grid; gap: var(--s-4); }
+.lpage__back { font-size: var(--fs-xs); }
+.lpage__head { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.lpage__dot { width: 14px; height: 14px; border-radius: 50%; flex: none; }
+.lpage__gem { width: 14px; height: 14px; border-radius: 2px; transform: rotate(45deg); flex: none; }
+.lpage__title { font-size: var(--fs-2xl); letter-spacing: -0.015em; }
+.lpage__en { font-size: var(--fs-2xs); color: var(--fg-faint); font-family: var(--font-mono); }
+.lpage__badge {
+  padding: 3px 10px; border-radius: var(--r-full);
+  background: var(--accent-soft); color: var(--accent);
+  font-size: var(--fs-2xs); font-weight: 660;
+}
+.lpage__scope { font-size: var(--fs-sm); line-height: 1.75; color: var(--fg-muted); max-width: 62ch; }
+.lpage__count { font-size: var(--fs-xs); color: var(--fg-subtle); }
+.lpage__feed { display: grid; gap: var(--s-4); margin-top: var(--s-2); }
+@media (min-width: 1000px) { .lpage__feed { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.lpage__section { margin-top: var(--s-6); display: grid; gap: var(--s-3); }
+.lpage__sectitle { font-size: var(--fs-lg); padding-top: var(--s-4); border-top: var(--bw) solid var(--line); }

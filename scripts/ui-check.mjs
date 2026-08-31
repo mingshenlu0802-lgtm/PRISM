@@ -49,21 +49,14 @@ const base = `http://127.0.0.1:${port}/#`
 
 const ROUTES = [
   ['home', '/'],
+  ['news', '/news/cn-workplace-harassment-guideline'],
+  ['region-cn', '/region/cn'],
+  ['region-tw', '/region/tw'],
   ['topic', '/topic/violence'],
-  ['article', '/article/kalisan-domestic-violence-data-gap'],
-  ['article-risk', '/article/veyra-gender-recognition-ruling'],
+  ['studies', '/studies'],
   ['about', '/about'],
-  ['cmd-dashboard', '/command'],
-  ['cmd-queue', '/command/queue'],
-  ['cmd-workbench', '/command/article/art-maran'],
-  ['cmd-versions', '/command/article/art-maran/versions'],
-  ['cmd-studio', '/command/article/art-maran/studio'],
-  ['cmd-signals', '/command/signals'],
-  ['cmd-research', '/command/research'],
-  ['cmd-sources', '/command/sources'],
-  ['cmd-brief', '/command/brief'],
-  ['cmd-audit', '/command/audit'],
-  ['cmd-settings', '/command/settings'],
+  ['console-search', '/console'],
+  ['console-manage', '/console/manage'],
 ]
 
 const VIEWPORTS = [
@@ -140,7 +133,7 @@ for (const [vpName, w, h] of VIEWPORTS) {
         main: document.querySelectorAll('main').length,
         h1: document.querySelectorAll('h1').length,
         iconOnly,
-        surface: de.dataset.surface ?? '(unset)',
+        surface: document.querySelector('.slyt') ? '公众站' : document.querySelector('.clyt') ? '控制端' : '(未知)',
       }
     })
 

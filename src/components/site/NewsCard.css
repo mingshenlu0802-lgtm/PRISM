@@ -1,0 +1,81 @@
+.ncard {
+  padding: var(--s-6);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  display: grid;
+  gap: var(--s-4);
+  align-content: start;
+}
+.ncard--full { border: 0; background: transparent; padding: 0; }
+
+.ncard__head { display: grid; gap: var(--s-3); }
+.ncard__title {
+  font-size: var(--fs-xl);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  font-weight: 660;
+}
+.ncard--full .ncard__title { font-size: var(--fs-3xl); line-height: 1.3; }
+.ncard__title a { color: inherit; text-decoration: none; }
+.ncard__title a:hover { color: var(--accent); }
+.ncard__when { font-size: var(--fs-2xs); color: var(--fg-faint); display: flex; gap: 6px; }
+.ncard__edited { color: var(--accent); }
+
+.ncard__notice {
+  display: flex; gap: var(--s-3); align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  font-size: var(--fs-xs); line-height: 1.7; color: var(--fg-muted);
+}
+.ncard__notice svg { flex: none; margin-top: 3px; color: var(--accent); }
+
+.ncard__summary {
+  font-size: var(--fs-md);
+  line-height: var(--lh-prose);
+  color: var(--fg);
+}
+:root[data-body="serif"] .ncard__summary { font-family: var(--font-serif); }
+.ncard--full .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
+
+.ncard__bullets { list-style: none; display: grid; gap: var(--s-2); }
+.ncard__bullets > li {
+  position: relative; padding-left: var(--s-5);
+  font-size: var(--fs-sm); line-height: 1.7; color: var(--fg-muted);
+}
+.ncard__bullets > li::before {
+  content: ""; position: absolute; left: 3px; top: .62em;
+  width: 6px; height: 6px; border-radius: 1px;
+  background: var(--accent); opacity: .8; transform: rotate(45deg);
+}
+
+.ncard__editornote {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  font-size: var(--fs-sm); line-height: 1.7; color: var(--fg-muted);
+}
+.ncard__editornote-k {
+  display: block; font-size: var(--fs-2xs); font-weight: 660;
+  color: var(--fg); margin-bottom: 4px;
+}
+
+.ncard__links { display: grid; gap: var(--s-3); }
+.ncard__linkhead {
+  display: flex; align-items: center; gap: var(--s-2);
+  font-size: var(--fs-xs); font-weight: 640; color: var(--fg-muted);
+  padding-top: var(--s-3);
+  border-top: var(--bw) solid var(--line-soft);
+}
+
+.ncard__perma {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .ncard { padding: var(--s-5); }
+  .ncard--full { padding: 0; }
+}
