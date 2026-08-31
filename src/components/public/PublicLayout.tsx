@@ -24,19 +24,10 @@ const THEME_KEY = 'prism.theme'
 
 const NAV: { to: string; label: string; end?: boolean }[] = [
   { to: '/', label: '今日', end: true },
-  { to: '/fact-checks', label: '事实核查' },
-  { to: '/method', label: '方法与标准' },
-  { to: '/corrections', label: '更正记录' },
   { to: '/about', label: '关于' },
 ]
 
 /** Four one-line principles, drawn verbatim in substance from docs/EDITORIAL_POLICY.md. */
-const PRINCIPLES: { title: string; text: string }[] = [
-  { title: '批准与发布只由人完成', text: '自动编辑台没有发布权限，最后一步只能是移交控制端等待审批。' },
-  { title: '证据下限写在流程里', text: '每篇至少 2 份一手材料，每个关键事实至少 2 个独立来源。' },
-  { title: '不制造虚假平衡', text: '证据一边倒时就说一边倒；立场契合也不降低证据标准。' },
-  { title: '更正永久公开', text: '更正、澄清、更新与撤回附时间与执行人保存，不静默修改。' },
-]
 
 function systemTheme(): Theme {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light'
@@ -297,18 +288,15 @@ export default function PublicLayout(): JSX.Element {
             <PrismMark size={30} />
             <div>
               <p className="plyt__footer-word">PRISM 棱镜</p>
-              <p className="plyt__footer-tag">每日全球女性主义与 LGBTQIA+ 深度报道、研究与事实核查</p>
+              <p className="plyt__footer-tag">每日全球女性主义与 LGBTQIA+ 深度报道与研究资料</p>
             </div>
           </div>
 
           <div className="plyt__cols">
             <section className="plyt__col" aria-labelledby="plyt-col-about">
-              <h2 className="plyt__col-title u-eyebrow" id="plyt-col-about">关于与方法</h2>
+              <h2 className="plyt__col-title u-eyebrow" id="plyt-col-about">关于</h2>
               <ul className="plyt__col-list">
                 <li><Link to="/about">关于 PRISM 与本原型</Link></li>
-                <li><Link to="/method">编辑方法与证据标准</Link></li>
-                <li><Link to="/fact-checks">事实核查索引</Link></li>
-                <li><Link to="/corrections">更正、更新与撤回记录</Link></li>
                 <li><Link to="/command">进入 PRISM Command（编辑控制端）</Link></li>
               </ul>
             </section>
@@ -327,24 +315,13 @@ export default function PublicLayout(): JSX.Element {
               </ul>
             </section>
 
-            <section className="plyt__col" aria-labelledby="plyt-col-principles">
-              <h2 className="plyt__col-title u-eyebrow" id="plyt-col-principles">编辑原则</h2>
-              <ul className="plyt__col-list plyt__col-list--principles">
-                {PRINCIPLES.map((p) => (
-                  <li key={p.title}>
-                    <span className="plyt__principle-title">{p.title}</span>
-                    <span className="plyt__principle-text">{p.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
           </div>
 
           <div className="plyt__notice">
             <p className="plyt__notice-zh">{DEMO_NOTICE}</p>
             <p className="plyt__notice-en">{DEMO_NOTICE_EN}</p>
             <p className="plyt__notice-meta u-mono">
-              PRISM 棱镜 · interactive prototype · {state.today} · 无真实来源，无真实引用
+              PRISM 棱镜 · interactive prototype · {state.today} · 演示数据
             </p>
           </div>
         </div>

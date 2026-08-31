@@ -223,7 +223,7 @@ export function SourceDrawer({
                 </section>
               ) : (
                 <section className="sdrawer__check sdrawer__check--none">
-                  <p className="sdrawer__checkreason">这条引用尚未进入自动核查记录。</p>
+                  <p className="sdrawer__checkreason">这条引用尚未进入资源检索记录。</p>
                 </section>
               )}
 

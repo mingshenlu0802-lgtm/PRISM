@@ -23,7 +23,6 @@ import './ContentNotice.css'
  */
 
 /** Anchors the article page is expected to provide. */
-export const FACTCHECK_ANCHOR = 'article-factchecks'
 export const EVIDENCE_ANCHOR = 'article-references'
 
 const TOPIC_NOTE: Partial<Record<TopicKey, string>> = {
@@ -69,26 +68,17 @@ export function ContentNotice({ text, topics }: ContentNoticeProps): JSX.Element
         ) : null}
 
         <p className="cnotice__meta">
-          议题范围：{named || '未标注'}。本文把指控、证据、编辑判断与司法结论分开标注；
-          任何未经审理认定的主张都写明由谁提出、向谁提出、何时提出。
+          议题范围：{named || '未标注'}。文中任何未经审理认定的主张，都写明由谁提出、向谁提出、何时提出。
         </p>
 
         <div className="cnotice__actions">
           <button
             type="button"
             className="cnotice__jump"
-            onClick={() => jumpToAnchor(FACTCHECK_ANCHOR)}
-          >
-            <Icon name="check-double" size={14} />
-            <span>直接跳到事实核查</span>
-          </button>
-          <button
-            type="button"
-            className="cnotice__jump"
             onClick={() => jumpToAnchor(EVIDENCE_ANCHOR)}
           >
             <Icon name="book" size={14} />
-            <span>跳到我们如何取证</span>
+            <span>直接跳到参考文献</span>
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-import { DEMO_NOTICE, DEMO_NOTICE_EN, TOPICS, VERDICTS } from '../../lib/constants'
+import { DEMO_NOTICE, DEMO_NOTICE_EN, TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
 import { Badge, DemoTag, Icon, PrismMark } from '../../components/common'
@@ -90,7 +90,7 @@ export default function AboutPage() {
           { n: primary, k: '一手材料' },
           { n: countries.size, k: '虚构辖区' },
           { n: languages.size, k: '语种' },
-          { n: state.factChecks.length, k: '事实核查' },
+          { n: live.reduce((t, a) => t + a.citations.length, 0), k: '行内引用' },
         ].map((s) => (
           <div key={s.k} className="aboutpg__stat">
             <span className="aboutpg__stat-n u-num">{s.n}</span>
@@ -126,23 +126,6 @@ export default function AboutPage() {
             </li>
           ))}
         </ol>
-      </section>
-
-      <section className="aboutpg__section" aria-labelledby="about-ladder">
-        <h2 id="about-ladder" className="aboutpg__h2">事实核查的八级结论</h2>
-        <p className="aboutpg__p">
-          我们不用「真／假」两分法。每一级都对应一个明确的证据门槛，写在
-          <Link to="/method">方法与标准</Link>里。其中最容易被误读的一级是
-          「缺乏足够证据」——它不等于「基本不实」。
-        </p>
-        <ul className="aboutpg__ladder">
-          {VERDICTS.map((v) => (
-            <li key={v.key} className="aboutpg__rung">
-              <span className="aboutpg__rung-k">{v.zh}</span>
-              <span className="aboutpg__rung-en u-mono">{v.en}</span>
-            </li>
-          ))}
-        </ul>
       </section>
 
       <section className="aboutpg__section" aria-labelledby="about-not">

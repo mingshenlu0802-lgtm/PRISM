@@ -40,7 +40,6 @@ const sourceIds = new Set(s.sources.map((x) => x.id))
 const chartIds = new Set(s.charts.map((x) => x.id))
 const assetIds = new Set(s.assets.map((x) => x.id))
 const articleIds = new Set(s.articles.map((x) => x.id))
-const factCheckIds = new Set(s.factChecks.map((x) => x.id))
 const signalIds = new Set(s.signals.map((x) => x.id))
 
 /* ---------------------------- safety invariants --------------------------- */
@@ -92,13 +91,12 @@ for (const a of s.articles) {
     else if (!a.sourceIds.includes(c.sourceId)) err(`${a.id}/${c.id}: cites ${c.sourceId} but it is not in article.sourceIds`)
     if (!c.claim) err(`${a.id}/${c.id}: citation carries no claim`)
   }
-  for (const fid of a.factCheckIds) if (!factCheckIds.has(fid)) err(`${a.id}: factCheckIds contains unknown ${fid}`)
   for (const aid of a.assetIds) if (!assetIds.has(aid)) err(`${a.id}: assetIds contains unknown ${aid}`)
   for (const cid of a.chartIds) if (!chartIds.has(cid)) err(`${a.id}: chartIds contains unknown ${cid}`)
   for (const chk of a.citationChecks) if (!citIds.has(chk.citationId)) err(`${a.id}: citationCheck for unknown citation ${chk.citationId}`)
 
   const kinds = a.sections.map((x) => x.kind)
-  const REQUIRED = ['facts', 'context', 'power', 'research', 'divergence', 'factcheck', 'unknowns', 'why', 'watch']
+  const REQUIRED = ['facts', 'context', 'power', 'research', 'divergence', 'unknowns', 'why', 'watch']
   for (const k of REQUIRED) if (!kinds.includes(k)) err(`${a.id}: missing required section '${k}'`)
 
   let inlineCount = 0
@@ -122,6 +120,9 @@ for (const a of s.articles) {
 
   const live = a.status === 'published' || a.status === 'update-needed'
   if (live && a.citations.length < 12) warn(`${a.id}: published entry has only ${a.citations.length} citations`)
+  // References are the point of the site now: every published entry must carry
+  // inline markers that resolve, and enough of them to follow the reporting.
+  if (live && a.sourceIds.length < 5) warn(`${a.id}: published entry rests on only ${a.sourceIds.length} sources`)
   if (a.topics.includes('violence') && !a.contentNotice) warn(`${a.id}: violence topic without a contentNotice`)
   for (const r of a.riskFlags) {
     const mustConfirm = ['sexual-violence', 'minors', 'active-litigation', 'identity-exposure']
@@ -129,21 +130,6 @@ for (const a of s.articles) {
   }
   if (live && !s.versions.some((v) => v.id === a.currentVersionId)) err(`${a.id}: currentVersionId ${a.currentVersionId} has no version record`)
 }
-
-for (const f of s.factChecks) {
-  const a = s.articles.find((x) => x.id === f.articleId)
-  if (!a) { err(`factcheck ${f.id}: unknown articleId ${f.articleId}`); continue }
-  if (!a.factCheckIds.includes(f.id)) err(`factcheck ${f.id}: article ${a.id} does not list it`)
-  const citIds = new Set(a.citations.map((c) => c.id))
-  for (const cid of f.citationIds) if (!citIds.has(cid)) err(`factcheck ${f.id}: citationIds contains unknown ${cid}`)
-  if (!f.whatWouldChangeIt) err(`factcheck ${f.id}: must state what would change the verdict`)
-  if (!f.reasoning || f.reasoning.length < 2) err(`factcheck ${f.id}: needs at least two reasoning steps`)
-}
-
-const LADDER = ['well-supported', 'true-missing-context', 'partly-true', 'conflicting-evidence',
-  'insufficient-evidence', 'misleading', 'mostly-false', 'unverifiable']
-const used = new Set(s.factChecks.map((f) => f.verdict))
-for (const v of LADDER) if (!used.has(v)) warn(`verdict '${v}' is never used anywhere in the corpus`)
 
 for (const sig of s.signals) {
   if (sig.linkedArticleId && !articleIds.has(sig.linkedArticleId)) err(`signal ${sig.id}: unknown linkedArticleId ${sig.linkedArticleId}`)
@@ -159,7 +145,6 @@ for (const sig of s.signals) {
 }
 
 for (const r of s.research) if (!sourceIds.has(r.sourceId)) err(`research ${r.id}: unknown sourceId ${r.sourceId}`)
-for (const c of s.suspiciousClaims) if (c.linkedFactCheckId && !factCheckIds.has(c.linkedFactCheckId)) err(`claim ${c.id}: unknown linkedFactCheckId ${c.linkedFactCheckId}`)
 
 for (const b of s.briefs) {
   for (const t of b.topFive) if (!signalIds.has(t.signalId)) err(`brief ${b.date}: unknown signalId ${t.signalId}`)
@@ -190,7 +175,7 @@ for (const a of s.assets) {
 
 const counts = {
   articles: s.articles.length, sources: s.sources.length, charts: s.charts.length,
-  factChecks: s.factChecks.length, signals: s.signals.length, research: s.research.length,
+  signals: s.signals.length, research: s.research.length,
   assets: s.assets.length, versions: s.versions.length, audit: s.audit.length, briefs: s.briefs.length,
   citations: s.articles.reduce((n, a) => n + a.citations.length, 0),
 }

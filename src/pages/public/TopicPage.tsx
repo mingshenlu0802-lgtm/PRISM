@@ -8,7 +8,7 @@ import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
 import { fmtDate, isPrimarySource, relTime, sortBy } from '../../lib/util'
 import {
-  Badge, DemoTag, EmptyState, Icon, Meter, StatusBadge, TopicChip, VerdictBadge,
+  Badge, DemoTag, EmptyState, Icon, Meter, StatusBadge, TopicChip,
 } from '../../components/common'
 import { DistributionBars } from '../../components/charts'
 import { ConceptImage } from '../../components/visual/ConceptImage'
@@ -41,10 +41,6 @@ export default function TopicPage(): JSX.Element {
     [state, key],
   )
 
-  const checks = useMemo(() => {
-    const ids = new Set(entries.map((a) => a.id))
-    return sortBy(sel.publicFactChecks(state).filter((f) => ids.has(f.articleId)), (f) => f.checkedAt, 'desc')
-  }, [state, entries])
 
   const research = useMemo(
     () => sortBy(state.research.filter((r) => r.topics.includes(key)), (r) => r.date, 'desc'),
@@ -109,8 +105,8 @@ export default function TopicPage(): JSX.Element {
               <span className="topicpg__count-k">公开条目</span>
             </li>
             <li>
-              <span className="topicpg__count-v u-num">{checks.length}</span>
-              <span className="topicpg__count-k">事实核查</span>
+              <span className="topicpg__count-v u-num">{sources.length}</span>
+              <span className="topicpg__count-k">来源记录</span>
             </li>
             <li>
               <span className="topicpg__count-v u-num">{sources.length}</span>
@@ -216,7 +212,7 @@ export default function TopicPage(): JSX.Element {
                         <ul className="topicpg__entry-nums">
                           <li><span>来源</span><span className="u-num">{article.sourceIds.length}</span></li>
                           <li><span>一手</span><span className="u-num">{primary}</span></li>
-                          <li><span>核查</span><span className="u-num">{article.factCheckIds.length}</span></li>
+                          <li><span>引用</span><span className="u-num">{article.citations.length}</span></li>
                         </ul>
                       </div>
                     </div>
@@ -226,61 +222,6 @@ export default function TopicPage(): JSX.Element {
             })}
           </ul>
         )}
-      </section>
-
-      {/* ---------------------------------------------------- fact-checks -- */}
-      <section className="topicpg__band" aria-labelledby="topicpg-checks">
-        <div className="u-shell">
-          <div className="topicpg__sec-head topicpg__sec-head--row">
-            <div>
-              <h2 className="topicpg__sec-title" id="topicpg-checks">该议题的事实核查</h2>
-              <p className="topicpg__sec-note">结论、依据，以及什么样的新证据会改变它。</p>
-            </div>
-            <Link to="/fact-checks" className="topicpg__link">
-              全部核查记录
-              <Icon name="arrow-right" size={13} />
-            </Link>
-          </div>
-
-          {checks.length === 0 ? (
-            <EmptyState
-              title="该议题下暂无公开的核查记录"
-              hint="核查随其所属条目一同公开。"
-              icon="check-double"
-            />
-          ) : (
-            <ul className="topicpg__checks">
-              {checks.map((check) => {
-                const article = state.articles.find((a) => a.id === check.articleId)
-                return (
-                  <li key={check.id}>
-                    <article className="topicpg__check">
-                      <VerdictBadge verdict={check.verdict} size="md" showEn />
-                      <h3 className="topicpg__check-claim">
-                        <Link to={`/fact-checks/${check.id}`}>{check.claim}</Link>
-                      </h3>
-                      <p className="topicpg__check-summary">{check.summary}</p>
-                      <p className="topicpg__check-origin">
-                        <span className="topicpg__check-k">流传情况</span>
-                        {check.spreadNote}
-                      </p>
-                      <footer className="topicpg__check-foot">
-                        <span className="u-num">{fmtDate(check.checkedAt)}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{check.reviewedBy}</span>
-                        {article ? (
-                          <Link to={`/article/${article.slug}`} className="topicpg__check-article">
-                            {article.title}
-                          </Link>
-                        ) : null}
-                      </footer>
-                    </article>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
       </section>
 
       {/* ------------------------------------------------------- research -- */}

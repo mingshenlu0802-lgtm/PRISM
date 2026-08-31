@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import type { Article, Correction, FactCheck, Translation } from '../../lib/types'
+import type { Article, Translation } from '../../lib/types'
 import { citationNumbers, cx, fmtDateTime, relTime } from '../../lib/util'
 import { usePrism, useArticle } from '../../lib/store'
 import * as sel from '../../lib/selectors'
@@ -13,8 +13,7 @@ import { ConceptImage } from '../../components/visual/ConceptImage'
 
 import { ArticleBody, jumpToAnchor, sectionAnchor } from '../../components/public/ArticleBody'
 import { ArticleCard } from '../../components/public/ArticleCard'
-import { ContentNotice, EVIDENCE_ANCHOR, FACTCHECK_ANCHOR } from '../../components/public/ContentNotice'
-import { FactCheckCard } from '../../components/public/FactCheckCard'
+import { ContentNotice, EVIDENCE_ANCHOR } from '../../components/public/ContentNotice'
 import { ReferenceList } from '../../components/public/ReferenceList'
 import { SourceDrawer } from '../../components/public/SourceDrawer'
 
@@ -30,15 +29,7 @@ import './ArticlePage.css'
  * page furniture rather than a footer nobody reaches.
  */
 
-const CORRECTIONS_ANCHOR = 'article-corrections'
-const PROVENANCE_ANCHOR = 'article-provenance'
 
-const CORRECTION_META: Record<Correction['kind'], { zh: string; tone: 'info' | 'warn' | 'stop' }> = {
-  correction: { zh: '更正', tone: 'warn' },
-  clarification: { zh: '澄清', tone: 'info' },
-  update: { zh: '更新', tone: 'info' },
-  retraction: { zh: '撤回', tone: 'stop' },
-}
 
 const TRANSLATION_STATUS: Record<Translation['status'], { zh: string; tone: 'go' | 'warn' | 'neutral'; note: string }> = {
   'human-reviewed': {
@@ -58,14 +49,6 @@ const TRANSLATION_STATUS: Record<Translation['status'], { zh: string; tone: 'go'
   },
 }
 
-const DIVISION: { role: string; who: '自动编辑台' | '人类主编'; detail: string }[] = [
-  { role: '多国家、多语言搜集', who: '自动编辑台', detail: '按议题与辖区抓取，合并重复报道并给出选题价值评分。' },
-  { role: '多来源资源检索', who: '自动编辑台', detail: '检索每条引用指向的材料，标注哪些说法只有单一来源。' },
-  { role: '深度草稿与图表', who: '自动编辑台', detail: '按九个固定章节撰写初稿，生成概念插图与数据图。' },
-  { role: '事实、引用、偏见与法律风险清单', who: '自动编辑台', detail: '只生成清单，不作判断。' },
-  { role: '证据强度与分歧权重', who: '人类主编', detail: '逐条复核，改写把转述写成认定的表述。' },
-  { role: '批准与公开发布', who: '人类主编', detail: '自动编辑台没有发布权限，它唯一能做的最后一步是移交等待审批。' },
-]
 
 /* ------------------------------------------------------------------ *
  * Page
@@ -109,13 +92,6 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
   const profile = useMemo(() => sel.sourceProfile(article, state), [article, state])
   const cover = sel.coverOf(state, article)
 
-  const checks: FactCheck[] = useMemo(
-    () => article.factCheckIds
-      .map((id) => state.factChecks.find((f) => f.id === id))
-      .filter((f): f is FactCheck => Boolean(f)),
-    [article.factCheckIds, state.factChecks],
-  )
-
   const health = sel.citationHealth(article)
   const fails = sel.failedChecks(article)
   const blocking = sel.blockingChecks(article)
@@ -132,7 +108,6 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
 
   const brief = sel.latestBrief(state)
   const updateReason = brief?.updateNeeded.find((u) => u.articleId === article.id)?.why
-  const retraction = article.corrections.find((c) => c.kind === 'retraction')
 
   const navItems = useMemo(() => {
     const items = article.sections.map((s) => ({
@@ -140,12 +115,9 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
       zh: s.title,
       kind: s.kind as string,
     }))
-    if (checks.length > 0) items.push({ id: FACTCHECK_ANCHOR, zh: '事实核查记录', kind: 'records' })
     items.push({ id: EVIDENCE_ANCHOR, zh: '参考文献', kind: 'refs' })
-    items.push({ id: CORRECTIONS_ANCHOR, zh: '更正与更新', kind: 'corrections' })
-    items.push({ id: PROVENANCE_ANCHOR, zh: '生成与署名', kind: 'provenance' })
     return items
-  }, [article.sections, checks.length])
+  }, [article.sections])
 
   /* Scroll-spy + reading progress, rAF-throttled onto one listener. */
   useEffect(() => {
@@ -222,13 +194,9 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
               <p className="apage__bannertitle">本文已进入「需更新」队列。</p>
               <p className="apage__bannertext">
                 {updateReason
-                  ?? '出现了可能影响本文结论的新材料，编辑台正在核实。原文保持可访问，更新完成后会写入更正记录，不静默修改。'}
+                  ?? '出现了可能影响本文内容的新材料，本文保持可访问，更新完成后会替换正文。'}
               </p>
             </div>
-            <button type="button" className="apage__bannerbtn" onClick={() => goto(CORRECTIONS_ANCHOR)}>
-              查看更正记录
-              <Icon name="arrow-right" size={14} />
-            </button>
           </div>
         </div>
       ) : null}
@@ -240,15 +208,9 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
             <div className="apage__bannerbody">
               <p className="apage__bannertitle">本文已被撤回。</p>
               <p className="apage__bannertext">
-                {retraction
-                  ? retraction.text
-                  : '本文已被撤回。原文保留可访问性，撤回理由记录在更正与更新一节，本站不删除历史。'}
+                本文已被撤回。原文保留可访问性，本站不删除历史。
               </p>
             </div>
-            <button type="button" className="apage__bannerbtn" onClick={() => goto(CORRECTIONS_ANCHOR)}>
-              查看撤回记录
-              <Icon name="arrow-right" size={14} />
-            </button>
           </div>
         </div>
       ) : null}
@@ -558,42 +520,6 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
               anchors
             />
 
-            {/* ---------------------------- fact-checks --------------------------- */}
-
-            {checks.length > 0 ? (
-              <section
-                className="apage__section"
-                id={FACTCHECK_ANCHOR}
-                tabIndex={-1}
-                aria-labelledby="apage-fc-title"
-              >
-                <header className="apage__sectionhead">
-                  <p className="apage__sectioneyebrow">
-                    <span className="apage__sectionn u-num">FC</span>
-                    <span>Fact-check records</span>
-                  </p>
-                  <h2 className="apage__sectiontitle" id="apage-fc-title">事实核查记录</h2>
-                  <p className="apage__sectionnote">
-                    逐条核查正在流传的具体说法。每一条都写明说法从哪里来、怎么传播、依据什么材料，
-                    以及什么样的新证据会改变结论。
-                  </p>
-                  <hr className="apage__sectionrule" />
-                </header>
-
-                <div className="apage__checks">
-                  {checks.map((check) => (
-                    <FactCheckCard
-                      key={check.id}
-                      check={check}
-                      article={article}
-                      link
-                      onCite={setCitationId}
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
             {/* ----------------------------- references ---------------------------- */}
 
             <section
@@ -618,111 +544,13 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
               <ReferenceList article={article} numbers={numbers} onOpen={setCitationId} />
             </section>
 
-            {/* ---------------------------- corrections ---------------------------- */}
-
-            <section
-              className="apage__section"
-              id={CORRECTIONS_ANCHOR}
-              tabIndex={-1}
-              aria-labelledby="apage-cor-title"
-            >
-              <header className="apage__sectionhead">
-                <p className="apage__sectioneyebrow">
-                  <span className="apage__sectionn u-num">LOG</span>
-                  <span>Corrections &amp; updates</span>
-                </p>
-                <h2 className="apage__sectiontitle" id="apage-cor-title">更正与更新</h2>
-                <p className="apage__sectionnote">
-                  更正、澄清、更新与撤回四类记录永久公开保存，附时间与执行人。已发布内容出现新证据时进入
-                  「需更新」队列，不静默修改。
-                </p>
-                <hr className="apage__sectionrule" />
-              </header>
-
-              {article.corrections.length === 0 ? (
-                <p className="apage__nocorrections">
-                  本文发布后尚无更正、澄清或更新记录。
-                  <Link className="apage__inlinelink" to="/corrections">查看全站更正记录</Link>
-                </p>
-              ) : (
-                <ol className="apage__corrections">
-                  <li className="apage__correctionsfoot">
-                    <Icon name="history" size={13} />
-                    <span>
-                      本文共 {article.corrections.length} 条记录，全部永久保留。
-                      <Link className="apage__inlinelink" to="/corrections">查看全站更正记录</Link>
-                    </span>
-                  </li>
-                  {article.corrections.map((c) => (
-                    <li key={c.id} className={cx('apage__correction', `apage__correction--${c.kind}`)}>
-                      <div className="apage__correctionhead">
-                        <Badge tone={CORRECTION_META[c.kind].tone} size="sm">
-                          {CORRECTION_META[c.kind].zh}
-                        </Badge>
-                        <time className="apage__correctiontime u-num" dateTime={c.at}>{fmtDateTime(c.at)}</time>
-                        <span className="apage__correctionby">{c.by}</span>
-                      </div>
-                      <p className="apage__correctiontext">{c.text}</p>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </section>
-
-            {/* ----------------------------- provenance ---------------------------- */}
-
-            <section
-              className="apage__section"
-              id={PROVENANCE_ANCHOR}
-              tabIndex={-1}
-              aria-labelledby="apage-prov-title"
-            >
-              <header className="apage__sectionhead">
-                <p className="apage__sectioneyebrow">
-                  <span className="apage__sectionn u-num">AI</span>
-                  <span>Provenance &amp; disclosure</span>
-                </p>
-                <h2 className="apage__sectiontitle" id="apage-prov-title">生成与署名</h2>
-                <p className="apage__sectionnote">
-                  这篇报道由自动编辑台与人类主编共同完成。以下写明各自做了什么 —— 披露不是免责声明，
-                  它是让读者可以质问具体环节的前提。
-                </p>
-                <hr className="apage__sectionrule" />
-              </header>
-
-              <div className="apage__prov">
-                <p className="apage__provtext">{article.provenance}</p>
-
-                <ul className="apage__division">
-                  {DIVISION.map((d) => (
-                    <li
-                      key={d.role}
-                      className={cx('apage__divitem', d.who === '人类主编' && 'apage__divitem--human')}
-                    >
-                      <span className="apage__divwho">
-                        <Icon name={d.who === '人类主编' ? 'users' : 'sparkle'} size={12} />
-                        {d.who}
-                      </span>
-                      <span className="apage__divrole">{d.role}</span>
-                      <span className="apage__divdetail">{d.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <p className="apage__provfoot">
-                  <Icon name="lock" size={13} />
-                  <span>
-                    自动编辑台没有发布权限。未经主编明确批准，任何内容只能停留在草稿状态。
-                    完整方法与证据标准见
-                    <Link className="apage__inlinelink" to="/method">方法与标准</Link>。
-                  </span>
-                </p>
-
-                {/* --------------------------- translations -------------------------- */}
-
-                {article.translations.length > 0 ? (
+            {/* --------------------------- translations --------------------------- */}
+            {article.translations.length > 0 ? (
+              <section className="apage__records" aria-labelledby="apage-tr-title">
+                <div className="apage__recordshead">
+                  <h2 className="apage__sectiontitle" id="apage-tr-title">语言版本</h2>
+                </div>
                   <div className="apage__translations">
-                    <p className="apage__transtitle">语言版本</p>
                     <Segmented<string>
                       value={lang}
                       onChange={setLang}
@@ -768,9 +596,8 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
                       </div>
                     ) : null}
                   </div>
-                ) : null}
-              </div>
-            </section>
+              </section>
+            ) : null}
 
             {/* ------------------------------- related ----------------------------- */}
 

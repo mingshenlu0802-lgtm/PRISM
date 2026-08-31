@@ -276,7 +276,7 @@ export function SourcePanel({ article, className }: SourcePanelProps): JSX.Eleme
                                   <span className="u-num">本文引用 {use.count} 处</span>
                                   <span className="srcp__sep" aria-hidden="true">·</span>
                                   <span className="u-num">
-                                    核查 {use.pass} 通过 / {use.warn} 保留 / {use.fail} 未通过
+                                    资源 {use.pass} 已找到 / {use.warn} 部分可得 / {use.fail} 未找到
                                   </span>
                                 </>
                               ) : (

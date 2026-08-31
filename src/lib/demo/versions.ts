@@ -96,7 +96,6 @@ function firstDraft(a: Article): Article {
     confidence: Math.max(30, a.confidence - 16),
     confidenceBasis: '自动编辑台初稿：尚未完成一手材料回溯，可信度按未核实状态给出。',
     riskFlags: a.riskFlags.map((r) => ({ ...r, resolved: false, resolutionNote: undefined })),
-    corrections: [],
   }
 }
 
@@ -109,7 +108,6 @@ function crossChecked(a: Article): Article {
     confidence: Math.max(35, a.confidence - 7),
     confidenceBasis: '交叉核实后：一手材料已回溯，但交叉性分析与不确定性章节尚未补齐。',
     riskFlags: a.riskFlags.map((r) => ({ ...r, resolved: false, resolutionNote: undefined })),
-    corrections: [],
   }
 }
 
@@ -122,7 +120,6 @@ function contextPass(a: Article): Article {
       r.kind === 'victim-blaming' || r.kind === 'sexual-violence'
         ? { ...r, resolved: false, resolutionNote: undefined }
         : r),
-    corrections: [],
   }
 }
 

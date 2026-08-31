@@ -464,3 +464,7 @@
 .reflist--compact .reflist__entry { padding: var(--s-3); }
 .reflist--compact .reflist__title { font-size: var(--fs-sm); }
 .reflist--compact .reflist__groups { gap: var(--s-6); }
+
+/* A real reference gets a real link. */
+.reflist__link--live { color: var(--link); border-style: solid; cursor: pointer; text-decoration: none; }
+.reflist__link--live:hover { border-color: var(--accent); color: var(--accent); }

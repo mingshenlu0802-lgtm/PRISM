@@ -7,10 +7,6 @@ import CommandLayout from './components/command/CommandLayout'
 import HomePage from './pages/public/HomePage'
 import TopicPage from './pages/public/TopicPage'
 import ArticlePage from './pages/public/ArticlePage'
-import FactCheckIndexPage from './pages/public/FactCheckIndexPage'
-import FactCheckPage from './pages/public/FactCheckPage'
-import MethodPage from './pages/public/MethodPage'
-import CorrectionsPage from './pages/public/CorrectionsPage'
 import AboutPage from './pages/public/AboutPage'
 
 import DashboardPage from './pages/command/DashboardPage'
@@ -44,10 +40,6 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/topic/:topicKey" element={<TopicPage />} />
           <Route path="/article/:slug" element={<ArticlePage />} />
-          <Route path="/fact-checks" element={<FactCheckIndexPage />} />
-          <Route path="/fact-checks/:id" element={<FactCheckPage />} />
-          <Route path="/method" element={<MethodPage />} />
-          <Route path="/corrections" element={<CorrectionsPage />} />
           <Route path="/about" element={<AboutPage />} />
         </Route>
 

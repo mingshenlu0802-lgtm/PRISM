@@ -1,4 +1,4 @@
-import type { CitationCheckStatus, DecisionMeta, EngineOption, RiskKind, RiskSeverity, SectionKind, SourceType, Topic, TopicKey, VerdictDef, VerdictKey } from './types'
+import type { CitationCheckStatus, DecisionMeta, EngineOption, RiskKind, RiskSeverity, SectionKind, SourceType, Topic, TopicKey } from './types'
 
 /* ------------------------------------------------------------------ *
  * Topics
@@ -20,34 +20,6 @@ export const TOPIC_MAP: Record<TopicKey, Topic> = Object.fromEntries(
 ) as Record<TopicKey, Topic>
 
 /* ------------------------------------------------------------------ *
- * Fact-check verdict ladder — deliberately granular.
- * ------------------------------------------------------------------ */
-
-export const VERDICTS: VerdictDef[] = [
-  { key: 'well-supported', zh: '有充分证据支持', en: 'Well supported', tone: 'supported', standard: '多个独立的一手来源一致支持该说法，且没有质量相当的反证。' },
-  { key: 'true-missing-context', zh: '基本属实但缺乏语境', en: 'True but missing context', tone: 'caution', standard: '核心事实成立，但省略了会改变读者理解的关键背景。' },
-  { key: 'partly-true', zh: '部分属实', en: 'Partly true', tone: 'caution', standard: '说法中可拆分的部分成立、部分不成立，需逐条说明。' },
-  { key: 'conflicting-evidence', zh: '证据存在冲突', en: 'Conflicting evidence', tone: 'contested', standard: '质量相当的可靠来源给出互相矛盾的结论，且无法在现有证据下判定。' },
-  { key: 'insufficient-evidence', zh: '缺乏足够证据', en: 'Insufficient evidence', tone: 'unsupported', standard: '现有证据不足以支持或否定该说法；不等于该说法为假。' },
-  { key: 'misleading', zh: '具有误导性', en: 'Misleading', tone: 'contested', standard: '所引用的事实本身可查证，但呈现方式导致读者得出与证据不符的结论。' },
-  { key: 'mostly-false', zh: '基本不实', en: 'Mostly false', tone: 'false', standard: '核心主张与一手证据相悖，仅保留边缘性的真实成分。' },
-  { key: 'unverifiable', zh: '无法核实', en: 'Unverifiable', tone: 'unknown', standard: '因取证受限、来源无法接触或记录不存在而无法核实；明确记录受阻原因。' },
-]
-
-export const VERDICT_MAP: Record<VerdictKey, VerdictDef> = Object.fromEntries(
-  VERDICTS.map((v) => [v.key, v]),
-) as Record<VerdictKey, VerdictDef>
-
-export const VERDICT_TONE_VAR: Record<VerdictDef['tone'], string> = {
-  supported: 'var(--v-supported)',
-  caution: 'var(--v-caution)',
-  contested: 'var(--v-contested)',
-  unsupported: 'var(--v-unsupported)',
-  false: 'var(--v-false)',
-  unknown: 'var(--v-unknown)',
-}
-
-/* ------------------------------------------------------------------ *
  * Article section labels
  * ------------------------------------------------------------------ */
 
@@ -57,14 +29,13 @@ export const SECTION_LABEL: Record<SectionKind, { zh: string; en: string; note: 
   power: { zh: '权力结构与交叉性分析', en: 'Power & intersectionality', note: '谁掌握决定权，谁承担后果。' },
   research: { zh: '相关研究与数据', en: 'Research & data', note: '注明研究方法、样本与局限。' },
   divergence: { zh: '不同来源之间的分歧', en: 'Where sources diverge', note: '呈现分歧，但不制造虚假平衡。' },
-  factcheck: { zh: '事实核查', en: 'Fact-checks', note: '逐条核查正在流传的具体说法。' },
   unknowns: { zh: '尚未确定的信息', en: "What we don't know", note: '公开承认不确定性与取证限制。' },
   why: { zh: '事件为何重要', en: 'Why it matters', note: '分析而非说教；标明这是编辑判断。' },
   watch: { zh: '后续值得关注的进展', en: 'What to watch', note: '具体、可验证、有时间点的观察项。' },
 }
 
 export const SECTION_ORDER: SectionKind[] = [
-  'facts', 'context', 'power', 'research', 'divergence', 'factcheck', 'unknowns', 'why', 'watch',
+  'facts', 'context', 'power', 'research', 'divergence', 'unknowns', 'why', 'watch',
 ]
 
 /* ------------------------------------------------------------------ *
@@ -240,7 +211,7 @@ export const STATUS_LABEL: Record<string, { zh: string; tone: 'draft' | 'review'
 
 /** Global, always-visible statement that this build carries no real reporting. */
 export const DEMO_NOTICE =
-  '本站为交互原型。所有条目、来源、数据与人物均为演示用虚构内容，不构成真实报道或真实引用。'
+  '本站为交互原型。所有条目、来源、数据与人物均为演示用虚构内容，不构成真实报道。'
 
 export const DEMO_NOTICE_EN =
   'Interactive prototype. All entries, sources, data and people are fictional demonstration content — not real reporting and not real citations.'

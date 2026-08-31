@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 
 import type { Article, Citation, CitationCheck, Source, SourceTier } from '../../lib/types'
 import { SOURCE_TYPE_LABEL } from '../../lib/constants'
+import { isPlaceholderUrl } from '../../lib/sourceLink'
 import { cx, fmtDate, isPrimarySource, sortBy } from '../../lib/util'
 import { usePrism } from '../../lib/store'
 
@@ -142,12 +143,27 @@ function Credibility({ source, compact }: { source: Source; compact: boolean }):
   )
 }
 
-function DemoLink({ url }: { url: string }): JSX.Element {
+/**
+ * A reference is only useful if you can open it. Real URLs render as real
+ * links; only the prototype's reserved placeholder domain stays inert.
+ */
+function SourceLink({ url }: { url: string }): JSX.Element {
+  if (!isPlaceholderUrl(url)) {
+    return (
+      <span className="reflist__linkwrap">
+        <a className="reflist__link reflist__link--live" href={url} target="_blank" rel="noreferrer noopener">
+          <Icon name="external" size={12} />
+          <span className="reflist__linktext">{url}</span>
+          <span className="u-sr">（在新标签页打开）</span>
+        </a>
+      </span>
+    )
+  }
   return (
     <span className="reflist__linkwrap">
       <Tooltip
         side="top"
-        label="示例链接（不可访问）：本原型中的所有网址均位于保留域名 .invalid，永远不会解析，也不会跳转。"
+        label="示例链接（不可访问）：本原型的演示来源位于保留域名 .invalid，永远不会解析。真实来源会渲染为可点击链接。"
       >
         <button
           type="button"
@@ -311,7 +327,7 @@ export function ReferenceList({
 
           {renderClaims(entry)}
 
-          <DemoLink url={entry.source.url} />
+          <SourceLink url={entry.source.url} />
         </div>
       </li>
     )
@@ -414,7 +430,7 @@ export function ReferenceList({
                       <h4 className="reflist__title">{source.title}</h4>
                       <SourceMeta source={source} />
                       <Credibility source={source} compact />
-                      <DemoLink url={source.url} />
+                      <SourceLink url={source.url} />
                     </div>
                   </li>
                 ))}
@@ -455,7 +471,7 @@ export function ReferenceList({
                     <Badge tone="neutral" size="sm">可信度 {source.credibility}</Badge>
                     {check ? <CheckChip check={check} /> : null}
                   </div>
-                  <DemoLink url={source.url} />
+                  <SourceLink url={source.url} />
                 </div>
               </li>
             )

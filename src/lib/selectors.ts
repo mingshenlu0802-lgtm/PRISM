@@ -1,5 +1,5 @@
 import type {
-  Article, DailyBrief, FactCheck, ID, ImageAsset, PrismState, RiskFlag, Signal, Source, Version,
+  Article, DailyBrief, ID, ImageAsset, PrismState, RiskFlag, Signal, Source, Version,
 } from './types'
 import { SECOND_CONFIRM_KINDS } from './constants'
 import { articleSources, isPrimarySource, sortBy } from './util'
@@ -37,10 +37,6 @@ export function publicArticles(state: PrismState): Article[] {
   )
 }
 
-export function publicFactChecks(state: PrismState): FactCheck[] {
-  const live = new Set(publicArticles(state).map((a) => a.id))
-  return state.factChecks.filter((f) => live.has(f.articleId))
-}
 
 /* ------------------------------- risk ------------------------------------ */
 

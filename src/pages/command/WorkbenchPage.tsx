@@ -14,7 +14,6 @@ import {
 } from '../../components/common'
 import { ArticleBody, sectionAnchor } from '../../components/public/ArticleBody'
 import { SourceDrawer } from '../../components/public/SourceDrawer'
-import { FactCheckCard } from '../../components/public/FactCheckCard'
 import { ConceptImage } from '../../components/visual/ConceptImage'
 
 import { SourcePanel } from '../../components/command/SourcePanel'
@@ -42,7 +41,7 @@ import './WorkbenchPage.css'
  */
 
 type ViewKey = 'sources' | 'article' | 'assist'
-type TabKey = 'assistant' | 'vibe' | 'factcheck' | 'risk' | 'publish'
+type TabKey = 'assistant' | 'vibe' | 'refs' | 'risk' | 'publish'
 
 const CHECK_META: Record<CitationCheck['status'], { zh: string; tone: 'go' | 'warn' | 'stop'; mark: string }> = {
   found: { zh: '已找到', tone: 'go', mark: '✓' },
@@ -176,10 +175,6 @@ function Workbench({ article }: { article: Article }): JSX.Element {
     [state.versions, article.id],
   )
   const proposals = useMemo(() => sel.proposalsOf(state, article.id), [state, article.id])
-  const factChecks = useMemo(
-    () => state.factChecks.filter((f) => article.factCheckIds.includes(f.id)),
-    [state.factChecks, article.factCheckIds],
-  )
   const assets = useMemo(
     () => article.assetIds.map((x) => state.assets.find((a) => a.id === x)).filter((a): a is NonNullable<typeof a> => Boolean(a)),
     [article.assetIds, state.assets],
@@ -262,7 +257,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
         leftRef.current?.focus({ preventScroll: true })
         leftRef.current?.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'nearest' })
         break
-      case 'factcheck': setTab('factcheck'); setView('assist'); break
+      case 'refs': setTab('refs'); setView('assist'); break
       case 'risk': setTab('risk'); setView('assist'); break
       case 'vibe': setTab('vibe'); setView('assist'); break
       case 'publish': setTab('publish'); setView('assist'); break
@@ -408,7 +403,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
 
               <div className="wbp__docmeters">
                 <Meter value={article.confidence} label="整体可信度" size="sm" hint={article.confidenceBasis} />
-                <Meter value={health} label="引用核查健康度" size="sm" />
+                <Meter value={health} label="资源可得率" size="sm" />
               </div>
 
               <p className="wbp__byline">
@@ -601,7 +596,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
               options={[
                 { value: 'assistant', label: 'AI 编辑助手' },
                 { value: 'vibe', label: 'Vibe Coding' },
-                { value: 'factcheck', label: '事实检查', count: factChecks.length },
+                { value: 'refs', label: '来源与引用', count: article.citations.length },
                 { value: 'risk', label: '风险提示', count: openRisks.length },
                 { value: 'publish', label: '发布控制', count: gate.blockers.length },
               ]}
@@ -615,30 +610,9 @@ function Workbench({ article }: { article: Article }): JSX.Element {
 
             {tab === 'risk' ? <RiskPanel article={article} /> : null}
 
-            {/* ---------------------------- 事实检查 ---------------------- */}
-            {tab === 'factcheck' ? (
+            {/* ------------------------- 来源与引用 ---------------------- */}
+            {tab === 'refs' ? (
               <div className="wbp__fc">
-                <section aria-label="本条目的事实核查">
-                  <h3 className="wbp__sectiontitle">
-                    <Icon name="check-double" size={13} />
-                    事实核查（{factChecks.length}）
-                  </h3>
-                  {factChecks.length === 0 ? (
-                    <p className="wbp__note">
-                      这篇条目没有独立的事实核查条目。核查针对的是「正在流传的具体说法」，
-                      不是文章本身；没有流传中的说法时，不硬造一条。
-                    </p>
-                  ) : (
-                    <ul className="wbp__fclist">
-                      {factChecks.map((check) => (
-                        <li key={check.id}>
-                          <FactCheckCard check={check} article={article} compact />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-
                 <section aria-label="资源检索结果">
                   <div className="wbp__fchead">
                     <h3 className="wbp__sectiontitle">
@@ -826,17 +800,6 @@ function Workbench({ article }: { article: Article }): JSX.Element {
                         撤回这篇条目
                       </button>
                     </div>
-                    {article.corrections.length > 0 ? (
-                      <ol className="wbp__corrections">
-                        {article.corrections.map((c) => (
-                          <li key={c.id} className="wbp__correction">
-                            <span className="wbp__correctionkind">{c.kind}</span>
-                            <span className="wbp__correctiontext">{c.text}</span>
-                            <span className="wbp__correctionat u-num">{fmtDateTime(c.at)} · {c.by}</span>
-                          </li>
-                        ))}
-                      </ol>
-                    ) : null}
                   </section>
                 ) : null}
 

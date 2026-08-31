@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import type { Article, ImageAsset, ResearchItem, TopicKey } from '../../lib/types'
-import { TOPIC_MAP, TOPICS, VERDICTS } from '../../lib/constants'
+import { TOPIC_MAP, TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
 import { cx, fmtDate, primaryCount, relTime, sortBy } from '../../lib/util'
 import {
-  Badge, DemoTag, EmptyState, Icon, Meter, Segmented, StatusBadge, TopicChip, VerdictBadge,
+  Badge, DemoTag, EmptyState, Icon, Meter, Segmented, StatusBadge, TopicChip,
 } from '../../components/common'
 import { DistributionBars, WorldGraticule } from '../../components/charts'
 import { ConceptImage } from '../../components/visual/ConceptImage'
@@ -88,22 +88,16 @@ function useMinWidth(px: number): boolean {
   return match
 }
 
-function scrollBehavior(): ScrollBehavior {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'auto'
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
-}
 
 export default function HomePage(): JSX.Element {
   const { state } = usePrism()
   const navigate = useNavigate()
 
   const live = useMemo(() => sel.publicArticles(state), [state])
-  const allChecks = useMemo(
-    () => sortBy(sel.publicFactChecks(state), (f) => f.checkedAt, 'desc'),
-    [state],
+  const totalCitations = useMemo(
+    () => live.reduce((n, a) => n + a.citations.length, 0),
+    [live],
   )
-  /** The rail carries the newest ten; the index page carries the rest. */
-  const checks = useMemo(() => allChecks.slice(0, 10), [allChecks])
   const countries = useMemo(() => sel.countryDistribution(state), [state])
   const languages = useMemo(() => sel.languageDistribution(state), [state])
   const topics = useMemo(() => sel.topicDistribution(state), [state])
@@ -124,31 +118,6 @@ export default function HomePage(): JSX.Element {
 
   const wide = useMinWidth(1080)
 
-  /* --------------------------- fact-check rail --------------------------- */
-  const railRef = useRef<HTMLDivElement | null>(null)
-  const [railEdge, setRailEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: false })
-
-  const syncRail = useCallback(() => {
-    const el = railRef.current
-    if (!el) return
-    const max = el.scrollWidth - el.clientWidth
-    setRailEdge({ start: el.scrollLeft <= 4, end: el.scrollLeft >= max - 4 })
-  }, [])
-
-  useEffect(() => {
-    syncRail()
-    const onResize = () => syncRail()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [syncRail, checks.length])
-
-  const nudgeRail = (dir: -1 | 1) => {
-    const el = railRef.current
-    if (!el) return
-    el.scrollBy({ left: dir * Math.max(300, el.clientWidth * 0.82), behavior: scrollBehavior() })
-  }
-
-  /* ------------------------------ coverage ------------------------------- */
   const [picked, setPicked] = useState<string | null>(null)
 
   const points = useMemo(
@@ -194,16 +163,7 @@ export default function HomePage(): JSX.Element {
   /* ------------------------------ research ------------------------------- */
   const research = useMemo(() => sortBy(state.research, (r) => r.date, 'desc').slice(0, 5), [state.research])
 
-  /* ------------------------- updates & corrections ----------------------- */
   const updateNeeded = useMemo(() => live.filter((a) => a.status === 'update-needed'), [live])
-  const corrections = useMemo(
-    () => sortBy(
-      state.articles.flatMap((a) => a.corrections.map((c) => ({ article: a, correction: c }))),
-      (row) => row.correction.at,
-      'desc',
-    ).slice(0, 4),
-    [state.articles],
-  )
 
   const coverFor = useCallback(
     (article: Article): ImageAsset | undefined => sel.coverOf(state, article),
@@ -240,18 +200,14 @@ export default function HomePage(): JSX.Element {
               <p className="phome__stat-note">共 {state.sources.length} 份来源记录</p>
             </div>
             <div className="phome__stat">
-              <dt>事实核查</dt>
-              <dd className="u-num">{allChecks.length}</dd>
-              <p className="phome__stat-note">八级结论阶梯</p>
+              <dt>行内引用</dt>
+              <dd className="u-num">{totalCitations}</dd>
+              <p className="phome__stat-note">每条都指向具体来源</p>
             </div>
           </dl>
 
           <div className="phome__dateline-foot">
             <DemoTag />
-            <Link to="/method" className="phome__inline-link">
-              这些数字怎么来的
-              <Icon name="arrow-right" size={13} />
-            </Link>
           </div>
         </div>
       </section>
@@ -323,110 +279,12 @@ export default function HomePage(): JSX.Element {
         </section>
       )}
 
-      {/* ---------------------------------------------------------------- 3 */}
-      <section className="phome__checks" aria-labelledby="phome-checks-title">
-        <div className="u-shell">
-          <div className="phome__section-head">
-            <h2 className="phome__section-title" id="phome-checks-title">今日核查</h2>
-            <p className="phome__section-note">
-              每条核查都写明：结论是什么、依据是什么、什么样的新证据会改变它。
-            </p>
-          </div>
-
-          <div className="phome__ladder">
-            <p className="phome__ladder-label u-eyebrow">八级结论阶梯</p>
-            <ul className="phome__ladder-list">
-              {VERDICTS.map((v) => (
-                <li key={v.key} title={v.standard}>
-                  <VerdictBadge verdict={v.key} size="sm" />
-                </li>
-              ))}
-            </ul>
-            <Link to="/method" className="phome__inline-link">
-              每一级的证据门槛
-              <Icon name="arrow-right" size={13} />
-            </Link>
-          </div>
-
-          {checks.length === 0 ? (
-            <EmptyState
-              title="尚无公开的事实核查"
-              hint="核查记录随其所属条目一同公开，条目未发布时核查也不会出现在这里。"
-              icon="check-double"
-            />
-          ) : (
-            <div className="phome__rail-wrap">
-              <div
-                className="phome__rail"
-                ref={railRef}
-                onScroll={syncRail}
-                tabIndex={0}
-                role="group"
-                aria-label="今日事实核查（可横向滚动）"
-              >
-                {checks.map((check) => {
-                  const article = state.articles.find((a) => a.id === check.articleId)
-                  return (
-                    <article className="phome__check" key={check.id}>
-                      <VerdictBadge verdict={check.verdict} size="md" showEn />
-                      <h3 className="phome__check-claim">
-                        <Link to={`/fact-checks/${check.id}`}>{check.claim}</Link>
-                      </h3>
-                      <p className="phome__check-summary">{check.summary}</p>
-                      <p className="phome__check-change">
-                        <span className="phome__check-change-label">什么会改变它</span>
-                        {check.whatWouldChangeIt}
-                      </p>
-                      <footer className="phome__check-foot">
-                        <span className="u-num">{fmtDate(check.checkedAt)}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{check.reviewedBy}</span>
-                        {article ? (
-                          <Link to={`/article/${article.slug}`} className="phome__check-article">
-                            {article.title}
-                          </Link>
-                        ) : null}
-                      </footer>
-                    </article>
-                  )
-                })}
-              </div>
-
-              <div className="phome__rail-ctrl">
-                <button
-                  type="button"
-                  className="phome__rail-btn"
-                  aria-label="向前滚动核查列表"
-                  onClick={() => nudgeRail(-1)}
-                  disabled={railEdge.start}
-                >
-                  <Icon name="chevron-left" size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="phome__rail-btn"
-                  aria-label="向后滚动核查列表"
-                  onClick={() => nudgeRail(1)}
-                  disabled={railEdge.end}
-                >
-                  <Icon name="chevron-right" size={16} />
-                </button>
-                <Link to="/fact-checks" className="phome__inline-link">
-                  全部 {allChecks.length} 条核查
-                  <Icon name="arrow-right" size={13} />
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
       {/* ---------------------------------------------------------------- 4 */}
       <section className="u-shell phome__grid-sec" aria-labelledby="phome-grid-title">
         <div className="phome__section-head phome__section-head--row">
           <div>
             <h2 className="phome__section-title" id="phome-grid-title">深度报道</h2>
-            <p className="phome__section-note">九个固定章节：事实、背景、权力、研究、分歧、核查、未知、意义、后续。</p>
+            <p className="phome__section-note">八个固定章节：事实、背景、权力、研究、分歧、未知、意义、后续。</p>
           </div>
           <Segmented<SortKey>
             value={sortKey}
@@ -559,10 +417,6 @@ export default function HomePage(): JSX.Element {
             <h2 className="phome__section-title" id="phome-research-title">最新研究</h2>
             <p className="phome__section-note">研究不是新闻结论：每条都写明它能支持什么、不能支持什么。</p>
           </div>
-          <Link to="/method" className="phome__inline-link">
-            我们如何评估研究
-            <Icon name="arrow-right" size={13} />
-          </Link>
         </div>
 
         {research.length === 0 ? (
@@ -605,75 +459,6 @@ export default function HomePage(): JSX.Element {
         )}
       </section>
 
-      {/* ---------------------------------------------------------------- 7 */}
-      <section className="u-shell phome__updates" aria-labelledby="phome-updates-title">
-        <div className="phome__section-head phome__section-head--row">
-          <div>
-            <h2 className="phome__section-title" id="phome-updates-title">需要更新与更正</h2>
-            <p className="phome__section-note">已发布内容出现新证据时进入「需更新」队列，不静默修改。</p>
-          </div>
-          <Link to="/corrections" className="phome__inline-link">
-            全部更正记录
-            <Icon name="arrow-right" size={13} />
-          </Link>
-        </div>
-
-        <div className="phome__updates-grid">
-          <div className="phome__panel">
-            <div className="phome__panel-head">
-              <h3 className="phome__panel-title">标注为需更新</h3>
-              <p className="phome__panel-sub">仍可公开阅读，但顶部保留提示</p>
-            </div>
-            {updateNeeded.length === 0 ? (
-              <p className="phome__flat">目前没有条目被标注为需更新。</p>
-            ) : (
-              <ul className="phome__update-list">
-                {updateNeeded.map((a) => (
-                  <li key={a.id}>
-                    <div className="phome__update-top">
-                      <StatusBadge status={a.status} size="sm" />
-                      <span className="phome__update-date u-num">
-                        更新于 {relTime(a.updatedAt, `${state.today}T23:59:00Z`)}
-                      </span>
-                    </div>
-                    <Link to={`/article/${a.slug}`} className="phome__update-title">{a.title}</Link>
-                    <p className="phome__update-basis">{a.confidenceBasis}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <div className="phome__panel">
-            <div className="phome__panel-head">
-              <h3 className="phome__panel-title">最近的更正</h3>
-              <p className="phome__panel-sub">附时间与执行人，永久保存</p>
-            </div>
-            {corrections.length === 0 ? (
-              <p className="phome__flat">语料中尚无更正记录。</p>
-            ) : (
-              <ul className="phome__correction-list">
-                {corrections.map(({ article, correction }) => (
-                  <li key={correction.id}>
-                    <div className="phome__update-top">
-                      <Badge tone={correction.kind === 'retraction' ? 'stop' : 'warn'} size="sm">
-                        {correction.kind === 'correction' ? '更正'
-                          : correction.kind === 'clarification' ? '澄清'
-                            : correction.kind === 'update' ? '更新' : '撤回'}
-                      </Badge>
-                      <span className="phome__update-date u-num">{fmtDate(correction.at)}</span>
-                      <span className="phome__update-by">{correction.by}</span>
-                    </div>
-                    <Link to={`/article/${article.slug}`} className="phome__update-title">{article.title}</Link>
-                    <p className="phome__correction-text">{correction.text}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      </section>
-
       {/* ---------------------------------------------------------------- 8 */}
       <section className="u-shell phome__brief" aria-labelledby="phome-brief-title">
         <div className="phome__briefcard">
@@ -684,7 +469,7 @@ export default function HomePage(): JSX.Element {
             </h2>
             <p className="phome__brief-text">
               简报包含：当日最值得关注的信号与理由、建议优先审阅的草稿、待审批队列、
-              研究雷达的新增条目、正在流传且需要核查的说法、风险提示、资源未找到的条目，
+              研究雷达的新增条目、风险提示、资源未找到的条目，
               以及已发布内容中需要更新的部分。
             </p>
             <p className="phome__brief-strong">
@@ -696,10 +481,6 @@ export default function HomePage(): JSX.Element {
               <Link to="/command/brief" className="phome__brief-cta">
                 <Icon name="mail" size={14} />
                 在控制端查看今日简报
-              </Link>
-              <Link to="/method" className="phome__inline-link">
-                权限分配表
-                <Icon name="arrow-right" size={13} />
               </Link>
             </div>
           </div>
@@ -756,8 +537,8 @@ function EvidenceStrip({ article, lead = false }: { article: Article; lead?: boo
           <span className="phome__evidence-v u-num">{primary}</span>
         </li>
         <li>
-          <span className="phome__evidence-k">核查</span>
-          <span className="phome__evidence-v u-num">{article.factCheckIds.length}</span>
+          <span className="phome__evidence-k">引用</span>
+          <span className="phome__evidence-v u-num">{article.citations.length}</span>
           <span className="phome__evidence-u">条</span>
         </li>
       </ul>
@@ -766,8 +547,6 @@ function EvidenceStrip({ article, lead = false }: { article: Article; lead?: boo
 }
 
 function EntryCard({ article, cover }: { article: Article; cover?: ImageAsset }): JSX.Element {
-  const { state } = usePrism()
-  const checks = state.factChecks.filter((f) => f.articleId === article.id)
   return (
     <article className="phome__card">
       <Link to={`/article/${article.slug}`} className="phome__card-cover" tabIndex={-1} aria-hidden="true">
@@ -800,12 +579,6 @@ function EntryCard({ article, cover }: { article: Article; cover?: ImageAsset })
           <span className="u-num">{article.readingTime} 分钟</span>
           <span aria-hidden="true">·</span>
           <span>{article.countries.join('、')}</span>
-          {checks.length > 0 ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="u-num">{checks.length} 条核查</span>
-            </>
-          ) : null}
         </p>
 
         <EvidenceStrip article={article} />

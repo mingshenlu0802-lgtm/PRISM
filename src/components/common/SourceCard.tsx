@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Source, SourceType } from '../../lib/types'
 import { SOURCE_TYPE_LABEL } from '../../lib/constants'
 import { cx, fmtDate, isPrimarySource } from '../../lib/util'
+import { isPlaceholderUrl } from '../../lib/sourceLink'
 import { Badge } from './Badge'
 import { DemoTag } from './DemoTag'
 import { Icon } from './Icon'
@@ -155,22 +156,37 @@ export function SourceCard({
       {!compact && source.notes ? <p className="psource__notes">{source.notes}</p> : null}
 
       <div className="psource__link">
-        <Tooltip
-          side="bottom"
-          label="示例链接（不可访问）：本原型中的所有网址均位于保留域名 .invalid，永远不会解析，也不会跳转。"
-        >
-          <button
-            type="button"
-            className="psource__url"
-            aria-disabled="true"
-            onClick={(event) => { event.preventDefault() }}
+        {isPlaceholderUrl(source.url) ? (
+          <>
+            <Tooltip
+              side="bottom"
+              label="示例链接（不可访问）：本原型的演示来源位于保留域名 .invalid，永远不会解析。真实来源会渲染为可点击链接。"
+            >
+              <button
+                type="button"
+                className="psource__url"
+                aria-disabled="true"
+                onClick={(event) => { event.preventDefault() }}
+              >
+                <Icon name="link" size={12} />
+                <span className="psource__url-text">{source.url}</span>
+                <span className="u-sr">（示例链接，不可访问）</span>
+              </button>
+            </Tooltip>
+            <DemoTag compact />
+          </>
+        ) : (
+          <a
+            className="psource__url psource__url--live"
+            href={source.url}
+            target="_blank"
+            rel="noreferrer noopener"
           >
-            <Icon name="link" size={12} />
+            <Icon name="external" size={12} />
             <span className="psource__url-text">{source.url}</span>
-            <span className="u-sr">（示例链接，不可访问）</span>
-          </button>
-        </Tooltip>
-        <DemoTag compact />
+            <span className="u-sr">（在新标签页打开）</span>
+          </a>
+        )}
       </div>
 
       {!compact ? (

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { VERDICT_MAP, RISK_SEVERITY_LABEL } from '../../lib/constants'
+import { RISK_SEVERITY_LABEL } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
 import { fmtDate, sortBy } from '../../lib/util'
@@ -32,7 +32,6 @@ export default function BriefPage() {
   const article = (id: string) => state.articles.find((a) => a.id === id)
   const signal = (id: string) => state.signals.find((s) => s.id === id)
   const research = (id: string) => state.research.find((r) => r.id === id)
-  const claim = (id: string) => state.suspiciousClaims.find((c) => c.id === id)
 
   function send() {
     dispatch({ type: 'brief-sent', briefId: brief.id })
@@ -300,28 +299,6 @@ export default function BriefPage() {
               })}
             </ul>
             <Link className="brfp__more" to="/command/research">研究雷达 <Icon name="arrow-right" size={13} /></Link>
-          </PanelCard>
-
-          <PanelCard title="正在传播的可疑说法" icon="alert">
-            <ul className="brfp__flat">
-              {brief.suspiciousClaimIds.map((id) => {
-                const c = claim(id)
-                if (!c) return null
-                const check = c.linkedFactCheckId ? state.factChecks.find((f) => f.id === c.linkedFactCheckId) : undefined
-                return (
-                  <li key={id} className="brfp__flat-item">
-                    <Badge tone={c.status === 'published-check' ? 'go' : c.status === 'checking' ? 'warn' : 'neutral'} size="sm">
-                      {c.status === 'published-check' ? '已核查' : c.status === 'checking' ? '核查中' : '观察中'}
-                    </Badge>
-                    <span className="brfp__flat-link">{c.claim}</span>
-                    <span className="brfp__flat-meta">
-                      传播强度 {c.velocity}
-                      {check ? ` · 结论：${VERDICT_MAP[check.verdict].zh}` : ' · 尚未得出结论'}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
           </PanelCard>
 
           <PanelCard title="需要更新的已发布文章" icon="refresh" tone={brief.updateNeeded.length ? 'warn' : 'default'}>

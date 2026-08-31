@@ -91,47 +91,6 @@ export interface Citation {
   claim: string
 }
 
-export type VerdictKey =
-  | 'well-supported'
-  | 'true-missing-context'
-  | 'partly-true'
-  | 'conflicting-evidence'
-  | 'insufficient-evidence'
-  | 'misleading'
-  | 'mostly-false'
-  | 'unverifiable'
-
-export type VerdictTone = 'supported' | 'caution' | 'contested' | 'unsupported' | 'false' | 'unknown'
-
-export interface VerdictDef {
-  key: VerdictKey
-  zh: string
-  en: string
-  tone: VerdictTone
-  /** What an editor must be able to show before choosing this verdict. */
-  standard: string
-}
-
-export interface FactCheck {
-  id: ID
-  articleId: ID
-  /** The claim as it actually circulates, quoted neutrally. */
-  claim: string
-  claimOrigin: string
-  spreadNote: string
-  verdict: VerdictKey
-  /** Short, plain-language summary of the reasoning. */
-  summary: string
-  reasoning: string[]
-  citationIds: ID[]
-  /** What would change this verdict. */
-  whatWouldChangeIt: string
-  checkedAt: ISODate
-  reviewedBy: string
-  /** Set when a verdict has been revised; kept publicly. */
-  history?: { at: ISODate; verdict: VerdictKey; note: string }[]
-}
-
 /* ------------------------------------------------------------------ *
  * Article content blocks
  * ------------------------------------------------------------------ */
@@ -178,7 +137,6 @@ export type SectionKind =
   | 'power'        // 权力结构与交叉性分析
   | 'research'     // 相关研究与数据
   | 'divergence'   // 不同来源之间的分歧
-  | 'factcheck'    // 事实核查
   | 'unknowns'     // 尚未确定的信息
   | 'why'          // 事件为何重要
   | 'watch'        // 后续值得关注的进展
@@ -319,14 +277,6 @@ export interface Translation {
   standfirst?: string
 }
 
-export interface Correction {
-  id: ID
-  at: ISODateTime
-  kind: 'correction' | 'clarification' | 'update' | 'retraction'
-  text: string
-  by: string
-}
-
 export interface Article {
   id: ID
   slug: string
@@ -352,18 +302,14 @@ export interface Article {
   sections: ArticleSection[]
   citations: Citation[]
   sourceIds: ID[]
-  factCheckIds: ID[]
   riskFlags: RiskFlag[]
   citationChecks: CitationCheck[]
   assetIds: ID[]
   chartIds: ID[]
   translations: Translation[]
-  corrections: Correction[]
   /** Which version in `versions` this article currently reflects. */
   currentVersionId: ID
   byline: string
-  /** Author-side disclosure: what the AI did and what the editor did. */
-  provenance: string
   featured?: boolean
   demo: true
 }
@@ -460,18 +406,6 @@ export interface ResearchItem {
   demo: true
 }
 
-export interface SuspiciousClaim {
-  id: ID
-  claim: string
-  spread: string
-  /** Where the claim is currently circulating (fictional platforms). */
-  venues: string[]
-  velocity: number
-  status: 'watching' | 'checking' | 'published-check'
-  linkedFactCheckId?: ID
-  demo: true
-}
-
 export interface DailyBrief {
   id: ID
   date: ISODate
@@ -480,7 +414,6 @@ export interface DailyBrief {
   recommended: { articleId: ID; why: string }[]
   pendingArticleIds: ID[]
   researchIds: ID[]
-  suspiciousClaimIds: ID[]
   riskAlerts: { articleId: ID; note: string; severity: RiskSeverity }[]
   citationFailures: { articleId: ID; citationId: ID; reason: string }[]
   updateNeeded: { articleId: ID; why: string }[]
@@ -635,10 +568,8 @@ export interface DecisionMeta {
 export interface PrismState {
   articles: Article[]
   sources: Source[]
-  factChecks: FactCheck[]
   signals: Signal[]
   research: ResearchItem[]
-  suspiciousClaims: SuspiciousClaim[]
   assets: ImageAsset[]
   charts: ChartSpec[]
   versions: Version[]

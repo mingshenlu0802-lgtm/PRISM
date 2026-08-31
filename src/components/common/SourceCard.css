@@ -210,3 +210,7 @@
   .psource { padding: var(--s-5); }
   .psource--compact { padding: var(--s-3) var(--s-4); }
 }
+
+/* A real reference gets a real link. */
+.psource__url--live { color: var(--link); border-style: solid; cursor: pointer; }
+.psource__url--live:hover { border-color: var(--accent); color: var(--accent); }

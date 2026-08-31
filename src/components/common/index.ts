@@ -19,9 +19,6 @@ export type { BadgeTone, BadgeProps } from './Badge'
 export { StatusBadge } from './StatusBadge'
 export type { StatusBadgeProps } from './StatusBadge'
 
-export { VerdictBadge } from './VerdictBadge'
-export type { VerdictBadgeProps } from './VerdictBadge'
-
 export { RiskChip } from './RiskChip'
 export type { RiskChipProps } from './RiskChip'
 

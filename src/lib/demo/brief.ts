@@ -65,7 +65,7 @@ const RECOMMENDED_WHY: Record<string, string> = {
 
 function briefFor(
   date: string, articles: Article[], greeting: string,
-  topFiveIds: string[], recommendedIds: string[], researchIds: string[], claimIds: string[],
+  topFiveIds: string[], recommendedIds: string[], researchIds: string[],
   coverage: DailyBrief['coverage'],
 ): DailyBrief {
   return {
@@ -80,8 +80,7 @@ function briefFor(
       .map((articleId) => ({ articleId, why: RECOMMENDED_WHY[articleId] ?? '证据结构已经稳定，剩余问题属于编辑判断。' })),
     pendingArticleIds: pending(articles),
     researchIds,
-    suspiciousClaimIds: claimIds,
-    riskAlerts: riskAlerts(articles),
+      riskAlerts: riskAlerts(articles),
     citationFailures: citationFailures(articles),
     updateNeeded: updateNeeded(articles),
     coverage,
@@ -100,7 +99,6 @@ export function buildBriefs(articles: Article[]): DailyBrief[] {
       ['sig-001', 'sig-002', 'sig-003', 'sig-004', 'sig-005'],
       ['art-maran', 'art-amirat', 'art-estria'],
       ['res-001', 'res-006', 'res-012', 'res-014', 'res-015'],
-      ['susp-003', 'susp-010', 'susp-007', 'susp-009'],
       { countries: 11, languages: 11, primaryDocs: 15, clustersMerged: 24 },
     ),
     briefFor(
@@ -111,7 +109,6 @@ export function buildBriefs(articles: Article[]): DailyBrief[] {
       ['sig-009', 'sig-010', 'sig-008', 'sig-014', 'sig-013'],
       ['art-curriculum', 'art-estria'],
       ['res-002', 'res-007', 'res-009', 'res-013'],
-      ['susp-008', 'susp-004', 'susp-006'],
       { countries: 11, languages: 10, primaryDocs: 12, clustersMerged: 21 },
     ),
     briefFor(
@@ -122,7 +119,6 @@ export function buildBriefs(articles: Article[]): DailyBrief[] {
       ['sig-017', 'sig-018', 'sig-021', 'sig-023'],
       ['art-kalisan', 'art-funding'],
       ['res-003', 'res-005', 'res-010', 'res-011'],
-      ['susp-001', 'susp-002', 'susp-005'],
       { countries: 10, languages: 10, primaryDocs: 9, clustersMerged: 18 },
     ),
   ]

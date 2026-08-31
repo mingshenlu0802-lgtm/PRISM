@@ -41,7 +41,7 @@ const STATUS_HINT: Record<ArticleStatus, string> = {
   'changes-requested': '审核者已提出具体修改意见。',
   approved: '已获批准，等待发布或排程。',
   scheduled: '已排程；发布前会再次校验风险与引用。',
-  published: '已对外发布，更正记录公开可查。',
+  published: '已对外发布，公众站可见。',
   'update-needed': '已发布但出现新事实，需要更新。',
   retracted: '已撤回；页面保留并标注撤回理由。',
   archived: '已移出工作队列，仍可检索。',

@@ -119,15 +119,11 @@ export function ArticleCard({
                   <span className="acard__evlabel">一手</span>
                   <span className="acard__evvalue u-num">{profile.primary}</span>
                 </span>
-                {article.factCheckIds.length > 0 ? (
-                  <>
-                    <span className="acard__evsep" aria-hidden="true" />
-                    <span className="acard__ev">
-                      <span className="acard__evlabel">核查</span>
-                      <span className="acard__evvalue u-num">{article.factCheckIds.length}</span>
-                    </span>
-                  </>
-                ) : null}
+                <span className="acard__evsep" aria-hidden="true" />
+                <span className="acard__ev">
+                  <span className="acard__evlabel">引用</span>
+                  <span className="acard__evvalue u-num">{article.citations.length}</span>
+                </span>
               </p>
             ) : null}
           </>
@@ -144,11 +140,6 @@ export function ArticleCard({
           ) : null}
           {article.status === 'retracted' ? (
             <Badge tone="stop" size="sm" icon={<Icon name="x" size={11} />}>已撤回</Badge>
-          ) : null}
-          {article.corrections.length > 0 ? (
-            <Badge tone="neutral" size="sm" icon={<Icon name="history" size={11} />}>
-              {article.corrections.length} 条更正记录
-            </Badge>
           ) : null}
           <DemoTag compact className="acard__demo" />
         </div>

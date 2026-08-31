@@ -278,15 +278,40 @@ check('七种编辑决定都改变状态并留下记录', () => {
   return rows.join(' ')
 })
 
-check('撤回与更正都会追加公开记录', () => {
+check('撤回会改变状态并留下记录，但不对外发布公告', () => {
   const pub = S0.articles.find((a) => a.status === 'published')
   assert(pub, '没有已发布条目')
   const s = reducer(S0, { type: 'retract', articleId: pub.id, reason: '冒烟测试：新证据推翻核心陈述' })
   const a = s.articles.find((x) => x.id === pub.id)
   assert(a.status === 'retracted', '状态未变为 retracted')
-  assert(a.corrections.length === pub.corrections.length + 1, '撤回未追加记录')
-  assert(a.corrections[0].kind === 'retraction', '记录类型不对')
-  return `${pub.id} 撤回并保留 ${a.corrections.length} 条记录`
+  assert(s.audit[0].action === 'retracted', '操作记录未写入撤回')
+  assert(s.audit[0].detail.includes('新证据'), '撤回理由未记录')
+  assert(!('corrections' in a), '文章上不应再保留公开更正记录')
+  return `${pub.id} 已撤回，理由留在操作记录中`
+})
+
+check('每篇公开条目都带有可解析的行内引用', () => {
+  const rows = []
+  for (const a of sel.publicArticles(S0)) {
+    const cit = new Set(a.citations.map((c) => c.id))
+    const known = new Set(S0.sources.map((x) => x.id))
+    let inline = 0
+    for (const sec of a.sections) {
+      for (const b of sec.blocks) {
+        const txt = b.type === 'paragraph' || b.type === 'heading' ? b.text
+          : b.type === 'callout' ? `${b.title}${b.text}`
+          : b.type === 'list' ? b.items.join('') : ''
+        for (const m of String(txt).matchAll(/\[\[c:([a-zA-Z0-9_-]+)\]\]/g)) {
+          inline += 1
+          assert(cit.has(m[1]), `${a.id}: 悬空引用 ${m[1]}`)
+        }
+      }
+    }
+    for (const c of a.citations) assert(known.has(c.sourceId), `${a.id}/${c.id}: 来源不存在`)
+    assert(inline >= 20, `${a.id} 只有 ${inline} 处行内引用`)
+    rows.push(`${a.id.replace('art-', '')}:${inline}处/${a.citations.length}条`)
+  }
+  return rows.join('  ')
 })
 
 /* --------------------------------- report -------------------------------- */

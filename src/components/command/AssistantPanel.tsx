@@ -20,7 +20,7 @@ import './AssistantPanel.css'
  * same words the check recorded — it never smooths a gap over with prose.
  */
 
-export type AssistantAction = 'sources' | 'factcheck' | 'risk' | 'vibe' | 'publish' | 'versions'
+export type AssistantAction = 'sources' | 'refs' | 'risk' | 'vibe' | 'publish' | 'versions'
 
 export interface AssistantPanelProps {
   article: Article
@@ -100,8 +100,8 @@ function singleSourceSentences(article: Article, state: PrismState): LeanRow[] {
       if (source && !isPrimarySource(source)) reasons.push('该来源不是一手记录')
       if (source && source.tier === 'tertiary') reasons.push('属转述层级')
       if (source?.caution) reasons.push('来源本身带有使用提示')
-      if (check?.status === 'partial') reasons.push('引用核查有保留')
-      if (check?.status === 'missing') reasons.push('引用核查未通过')
+      if (check?.status === 'partial') reasons.push('引用资源仅部分可得')
+      if (check?.status === 'missing') reasons.push('引用资源未找到')
       if (reasons.length === 0) return
       rows.push({
         key: `${blockIndex}-${i}-${ids[0]}`,
@@ -241,10 +241,10 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
       out.push({
         id: 'blocking',
         tone: 'stop',
-        title: `${blocking.length} 项引用核查未通过且尚未处理`,
+        title: `${blocking.length} 项引用资源未找到且尚未处理`,
         detail: '在发布前，这些句子要么改为归因表述、要么补上一手记录、要么写下处理说明。未处理前发布被硬性阻断。',
         actionLabel: '前往事实检查',
-        target: 'factcheck',
+        target: 'refs',
       })
     }
     const criticals = openRisks.filter((r) => r.severity === 'critical')
@@ -363,7 +363,7 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
           </li>
         </ul>
         <div className="aip__meters">
-          <Meter value={health} label="引用核查健康度" size="sm" hint={`${passed.length} 通过 · ${warned.length} 保留 · ${failed.length} 未通过（其中 ${acked.length} 已记录处理说明）`} />
+          <Meter value={health} label="资源可得率" size="sm" hint={`${passed.length} 通过 · ${warned.length} 保留 · ${failed.length} 未通过（其中 ${acked.length} 已记录处理说明）`} />
           <Meter value={article.confidence} label="整体可信度" size="sm" hint={article.confidenceBasis} />
           <Meter value={profile.avgCredibility} label="来源平均可信度" size="sm" hint={profile.weakest ? `最弱一份：${profile.weakest.publisher}（${profile.weakest.credibility}）——${profile.weakest.credibilityBasis}` : undefined} />
         </div>
@@ -404,12 +404,12 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
         icon="check-double"
         count={passed.length}
         tone="go"
-        lede="引用核查逐条比对通过：引文与来源记录相符。核查只验证「这句话确实出自这份材料」，不代表该材料本身正确。"
+        lede="引用逐条比对通过：引文与来源记录相符。检索只确认「这份材料存在且能取得」。"
         open={open.verified}
         onToggle={() => toggle('verified')}
       >
         {passed.length === 0 ? (
-          <p className="aip__none">没有任何一条引用通过核查。</p>
+          <p className="aip__none">没有任何一条引用的资源被找到。</p>
         ) : (
           <ul className="aip__rows">
             {passed.map((check) => {
@@ -439,7 +439,7 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
         icon="alert"
         count={warned.length + failed.length}
         tone={blocking.length > 0 ? 'stop' : 'warn'}
-        lede="核查记录下的原话。「保留意见」表示引文相符但支撑范围有限；「未通过」表示这条引用不能用来支撑事实陈述。"
+        lede="检索记录下的原话。「仅部分可得」表示来源找到了但引用位置取不到；「未找到」表示这条引用暂时无法回溯。"
         open={open.unverified}
         onToggle={() => toggle('unverified')}
       >
@@ -486,7 +486,7 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
         icon="quote"
         count={lean.length}
         tone={lean.length > 0 ? 'warn' : 'go'}
-        lede="句中只有一个引用标记，且那个来源不是一手记录、属转述层级、带有使用提示，或核查未完全通过。"
+        lede="句中只有一个引用标记，且那个来源不是一手记录、属转述层级、带有使用提示，或资源未能完整取得。"
         open={open.lean}
         onToggle={() => toggle('lean')}
       >
@@ -589,7 +589,6 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
           <Icon name="shield" size={13} />
           机器与人各做了什么
         </h3>
-        <p className="aip__foottext">{article.provenance}</p>
         <p className="aip__footnote">
           本面板不产出新的判断：以上每一条都能回到 citationChecks、来源记录、正文引用标记或分歧对照块中的具体字段。
           自动编辑台没有发布权限，批准与发布只能由主编在本控制端完成。

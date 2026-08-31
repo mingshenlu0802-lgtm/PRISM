@@ -30,7 +30,7 @@ const CATEGORY_LABEL: Record<VibePreset['category'], string> = {
   context: '背景与语境',
   sources: '来源与视角',
   ethics: '伦理与写法',
-  verification: '核查',
+  verification: '来源检索',
   depth: '深度与可读性',
   imagery: '图像',
 }

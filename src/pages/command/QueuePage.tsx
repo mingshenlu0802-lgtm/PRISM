@@ -79,7 +79,7 @@ const TABS: TabDef[] = [
     label: '引用失败',
     match: (a) => sel.failedChecks(a).length > 0 && !CLOSED.includes(a.status),
     empty: {
-      title: '没有引用核查未通过的条目',
+      title: '没有引用资源未找到的条目',
       hint: '未通过的引用都会列在这里。尚未处理的直接阻断发布；已记录处理说明的降为警告，但仍然公开可见 —— 失败不会被抹掉。',
     },
   },

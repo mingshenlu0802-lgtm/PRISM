@@ -10,10 +10,9 @@ import type { PrismState } from '../types'
 import { SOURCES } from './sources'
 import { CHARTS } from './charts'
 import { ARTICLES } from './articles'
-import { FACT_CHECKS } from './factchecks'
 import { ASSETS } from './assets'
 import { SIGNALS } from './signals'
-import { RESEARCH, SUSPICIOUS } from './research'
+import { RESEARCH } from './research'
 import { buildVersions, currentVersionIdFor } from './versions'
 import { buildBriefs } from './brief'
 import { PIPELINE_RUNS } from './pipeline'
@@ -31,10 +30,8 @@ export function buildInitialState(): PrismState {
   return {
     articles,
     sources: SOURCES,
-    factChecks: FACT_CHECKS,
     signals: SIGNALS,
     research: RESEARCH,
-    suspiciousClaims: SUSPICIOUS,
     assets: ASSETS,
     charts: CHARTS,
     versions,

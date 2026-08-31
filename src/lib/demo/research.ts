@@ -1,16 +1,14 @@
 /**
- * 研究雷达与可疑说法观察。
+ * 研究雷达。
  *
  * Every ResearchItem states what its design can support and what it cannot,
  * with equal weight — an effect size without its limitation is a claim, not a
  * finding. Preprints are labelled as un-reviewed everywhere they appear.
  *
- * A SuspiciousClaim is a claim PRISM is WATCHING, not a claim PRISM has
- * checked. The distinction is load-bearing and the console says so.
  *
  * All journals, bodies and platforms are fictional.
  */
-import type { ResearchItem, SuspiciousClaim } from '../types'
+import type { ResearchItem } from '../types'
 
 export const RESEARCH: ResearchItem[] = [
   {
@@ -221,103 +219,6 @@ export const RESEARCH: ResearchItem[] = [
     strength: '同时公布两种口径与各自的计算方式，使最常见的误读有了可引用的纠正依据。',
     limitation: '未调整差距不能支撑任何关于个别雇主歧视的结论；把它读成「同工不同酬的幅度」是错误的，本说明对此有明确表述。',
     sourceId: 'src-pancont-equality-panel-2026',
-    demo: true,
-  },
-]
-
-export const SUSPICIOUS: SuspiciousClaim[] = [
-  {
-    id: 'susp-001',
-    claim: '「卡利桑邦的家暴案件在一年内激增了四成。」',
-    spread: '由一张只截取了 2023 与 2025 两个年份的柱状图带动；原图跨越了 2024 年的统计口径变更，两段数据不可直接相比。',
-    venues: ['聚合账号截图集', '两个视频平台的搬运号', '若干地方新闻站转载'],
-    velocity: 74,
-    status: 'published-check',
-    linkedFactCheckId: 'fc-kalisan-01',
-    demo: true,
-  },
-  {
-    id: 'susp-002',
-    claim: '「行政数据与调查数据相差六倍，说明其中一个是伪造的。」',
-    spread: '在两种口径的差距被报道后出现，把方法差异读成造假指控。',
-    venues: ['匿名论坛转贴', '聚合账号截图集'],
-    velocity: 58,
-    status: 'published-check',
-    linkedFactCheckId: 'fc-kalisan-02',
-    demo: true,
-  },
-  {
-    id: 'susp-003',
-    claim: '「某辖区即将强制登记所有跨性别者，通函已下发。」',
-    spread: '以一张通函截图流传，四小时内跨三个平台；截图无可提取文本，无法回溯到任何可查的原始记录。',
-    venues: ['聚合账号截图集', '匿名论坛转贴', '两个视频平台的搬运号'],
-    velocity: 88,
-    status: 'checking',
-    demo: true,
-  },
-  {
-    id: 'susp-004',
-    claim: '「北屿薪酬透明法三年下来毫无效果。」',
-    spread: '由一份竞选声明附表带动；该附表的两个百分比无法用监察署公开的逐家原始申报值复现。',
-    venues: ['竞选材料', '两家评论站点', '若干转载'],
-    velocity: 51,
-    status: 'published-check',
-    linkedFactCheckId: 'fc-norhold-01',
-    demo: true,
-  },
-  {
-    id: 'susp-005',
-    claim: '「保护令申请被撤回，说明其中很多是编造的。」',
-    spread: '长期存在的说法，近期因法院处理结果统计公布而重新流传。',
-    venues: ['评论专栏', '匿名论坛转贴'],
-    velocity: 46,
-    status: 'published-check',
-    linkedFactCheckId: 'fc-kalisan-03',
-    demo: true,
-  },
-  {
-    id: 'susp-006',
-    claim: '「泛洲基金把九成资源给了少数几家大型组织。」',
-    spread: '来自一份匿名转述的内部数字；基金审查的补充材料已公布申请成功率，但与该数字不符。',
-    venues: ['基金观察转载', '两个邮件列表'],
-    velocity: 39,
-    status: 'checking',
-    demo: true,
-  },
-  {
-    id: 'susp-007',
-    claim: '「阿米拉特庇护署要求申请人提供性关系证据。」',
-    spread: '源自一份流出的培训材料截图，内容尚未获任何机构确认，译文亦有出入。',
-    venues: ['西陆人权简报转载', '聚合账号截图集'],
-    velocity: 67,
-    status: 'watching',
-    demo: true,
-  },
-  {
-    id: 'susp-008',
-    claim: '「东埃斯特里亚的指南修订已经决定停止所有相关医疗服务。」',
-    spread: '把「第三轮听证仍在进行」误报为「已作出决定」；国家通讯社的措辞被进一步简化后传开。',
-    venues: ['两家转载站点', '若干社群转发'],
-    velocity: 55,
-    status: 'watching',
-    demo: true,
-  },
-  {
-    id: 'susp-009',
-    claim: '「图兰的骚扰潮是由某一境外组织统一指挥的。」',
-    spread: '在骚扰事件被报道后出现；目前所有版本都可回溯到同一条未署名的推断，无任何账号归属证据。',
-    venues: ['匿名论坛转贴', '两个视频平台的搬运号'],
-    velocity: 63,
-    status: 'watching',
-    demo: true,
-  },
-  {
-    id: 'susp-010',
-    claim: '「韦拉课程法案第 12 条要求学校向低龄学生教授性行为细节。」',
-    spread: '由一份家长团体联合声明带动；法案第 12 条原文可公开取得，与该描述不符。',
-    venues: ['家长团体联合声明', '三家评论站点', '若干群组转发'],
-    velocity: 71,
-    status: 'checking',
     demo: true,
   },
 ]

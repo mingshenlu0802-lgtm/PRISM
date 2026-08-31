@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
 import type {
-  Article, ArticleStatus, AuditAction, AuditEntry, Correction, ID, ImageAsset,
+  Article, ArticleStatus, AuditAction, AuditEntry, ID, ImageAsset,
   PrismState, ReviewDecision, Version, VibeRun,
 } from './types'
 import { ENGINE_MAP } from './constants'
@@ -21,7 +21,7 @@ export type Action =
   | { type: 'decide'; articleId: ID; decision: ReviewDecision; note?: string; scheduledFor?: string }
   | { type: 'publish'; articleId: ID }
   | { type: 'retract'; articleId: ID; reason: string }
-  | { type: 'update-published'; articleId: ID; correction: Correction }
+  | { type: 'update-published'; articleId: ID; kind: 'update' | 'clarification'; note: string }
   | { type: 'set-status'; articleId: ID; status: ArticleStatus }
   | { type: 'resolve-risk'; articleId: ID; riskId: ID; note: string }
   | { type: 'recheck-citations'; articleId: ID }
@@ -146,14 +146,11 @@ export function reducer(state: PrismState, action: Action): PrismState {
     case 'retract': {
       const article = state.articles.find((a) => a.id === action.articleId)
       if (!article) return state
-      const correction: Correction = {
-        id: uid('cor'), at: nowIso(), kind: 'retraction', text: action.reason, by: EDITOR,
-      }
+      // The reason lives in the audit log rather than on the article: the
+      // record is kept for the editor, not published as a notice.
       return {
         ...state,
-        articles: mapArticle(state, action.articleId, (a) => ({
-          ...a, status: 'retracted', corrections: [correction, ...a.corrections],
-        })),
+        articles: mapArticle(state, action.articleId, (a) => ({ ...a, status: 'retracted' })),
         audit: audit(state, 'retracted', article.title, action.reason, action.articleId),
       }
     }
@@ -166,9 +163,9 @@ export function reducer(state: PrismState, action: Action): PrismState {
         articles: mapArticle(state, action.articleId, (a) => ({
           ...a,
           status: a.status === 'retracted' ? 'retracted' : 'published',
-          corrections: [action.correction, ...a.corrections],
         })),
-        audit: audit(state, 'updated', article.title, `${action.correction.kind}：${action.correction.text}`, action.articleId),
+        audit: audit(state, 'updated', article.title,
+          `${action.kind === 'update' ? '更新' : '补充说明'}：${action.note}`, action.articleId),
       }
     }
 

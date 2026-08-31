@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Article, AuditEntry, Correction, RiskFlag } from '../../lib/types'
+import type { Article, AuditEntry, RiskFlag } from '../../lib/types'
 import { RISK_LABEL, RISK_SEVERITY_LABEL } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
@@ -62,17 +62,18 @@ const MODE_META: Record<PublishMode, {
   },
   retract: {
     title: '撤回已发布内容',
-    subtitle: '撤回不删除历史：页面保留可访问性说明与撤回理由，并写入公开的更正记录。',
+    subtitle: '撤回不删除历史：页面保留可访问性说明，撤回理由写入操作记录。',
     action: '执行撤回',
     phrase: '确认撤回',
     detailTitle: '撤回理由',
   },
 }
 
-const CORRECTION_KIND_LABEL: Record<Exclude<Correction['kind'], 'retraction'>, string> = {
-  correction: '更正 · 原文存在事实错误，已改正并说明改了什么',
-  clarification: '澄清 · 原文不算错，但表述会让读者得出与证据不符的理解',
-  update: '更新 · 出现新事实或新一手材料，原有结论需要补充',
+type UpdateKind = 'update' | 'clarification'
+
+const CORRECTION_KIND_LABEL: Record<UpdateKind, string> = {
+  update: '更新 · 出现新的一手材料，正文需要补充或替换',
+  clarification: '补充说明 · 正文不改，但需要记录一段说明',
 }
 
 const SEVERITY_ORDER: Record<RiskFlag['severity'], number> = {
@@ -130,7 +131,7 @@ export function PublishDialog({
   const [phrase, setPhrase] = useState('')
   const [override, setOverride] = useState(false)
   const [when, setWhen] = useState(nextFullHour)
-  const [correctionKind, setCorrectionKind] = useState<Exclude<Correction['kind'], 'retraction'>>('correction')
+  const [correctionKind, setCorrectionKind] = useState<UpdateKind>('update')
   const [correctionText, setCorrectionText] = useState('')
   const [retractReason, setRetractReason] = useState('')
 
@@ -143,7 +144,7 @@ export function PublishDialog({
     setPhrase('')
     setOverride(false)
     setWhen(nextFullHour())
-    setCorrectionKind('correction')
+    setCorrectionKind('update')
     setCorrectionText('')
     setRetractReason('')
     // Re-arm on every open for this article/mode; gate.warnings is only read
@@ -218,7 +219,7 @@ export function PublishDialog({
     switch (mode) {
       case 'publish':
         dispatch({ type: 'publish', articleId: article.id })
-        toast('已公开发布。更正记录与操作记录同步可查。', 'go')
+        toast('已公开发布。操作记录同步可查。', 'go')
         break
       case 'schedule':
         dispatch({
@@ -230,21 +231,18 @@ export function PublishDialog({
         })
         toast(`已排程：${utcLabel}。发布前会再次校验。`, 'go')
         break
-      case 'update': {
-        const correction: Correction = {
-          id: uid('cor'),
-          at: nowIso(),
-          kind: correctionKind,
-          text: correctionText.trim(),
-          by: '主编（你）',
-        }
-        dispatch({ type: 'update-published', articleId: article.id, correction })
-        toast('更正已发布，并加入公开的更正记录。', 'go')
+      case 'update':
+        dispatch({
+          type: 'update-published',
+          articleId: article.id,
+          kind: correctionKind === 'clarification' ? 'clarification' : 'update',
+          note: correctionText.trim(),
+        })
+        toast('已更新，说明写入操作记录。', 'go')
         break
-      }
       case 'retract':
         dispatch({ type: 'retract', articleId: article.id, reason: retractReason.trim() })
-        toast('已撤回。原文保留并标注撤回理由。', 'warn')
+        toast('已撤回。原文保留可访问，理由写入操作记录。', 'warn')
         break
       default:
         break
@@ -399,7 +397,7 @@ export function PublishDialog({
                   ))}
                 </ul>
                 <p className="pubd__blockwhy">
-                  阻断项不是建议。它们对应本站方法与标准中的硬性下限：引用未通过核查的陈述不得公开，
+                  阻断项不是建议。它们是硬性下限：引用资源未找到的陈述不得公开，
                   未处理的极高风险不得公开，未经审核的封面图不得随文发布。
                 </p>
                 <div className="pubd__blockfix">
@@ -573,7 +571,7 @@ export function PublishDialog({
               <Select
                 id="pubd-kind"
                 value={correctionKind}
-                onChange={(e) => setCorrectionKind(e.currentTarget.value as Exclude<Correction['kind'], 'retraction'>)}
+                onChange={(e) => setCorrectionKind(e.currentTarget.value as UpdateKind)}
               >
                 {(Object.keys(CORRECTION_KIND_LABEL) as (keyof typeof CORRECTION_KIND_LABEL)[]).map((k) => (
                   <option key={k} value={k}>{CORRECTION_KIND_LABEL[k]}</option>
@@ -621,7 +619,7 @@ export function PublishDialog({
               <span className="u-num">{retractReason.trim().length}</span> 字 · 至少 10 字
             </p>
             <p className="pubd__note">
-              撤回不删除页面。条目会标为「已撤回」，正文保留可访问性说明，撤回记录进入公开的更正记录。
+              撤回不删除页面。条目会标为「已撤回」，正文保留可访问性说明，撤回记录写入操作记录。
             </p>
           </section>
         ) : null}

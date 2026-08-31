@@ -345,13 +345,11 @@ function cloneArticle(a: Article): Article {
     sections: a.sections.map((s) => ({ ...s, blocks: s.blocks.map(cloneBlock) })),
     citations: a.citations.map((c) => ({ ...c })),
     sourceIds: [...a.sourceIds],
-    factCheckIds: [...a.factCheckIds],
     riskFlags: a.riskFlags.map((r) => ({ ...r })),
     citationChecks: a.citationChecks.map((c) => ({ ...c })),
     assetIds: [...a.assetIds],
     chartIds: [...a.chartIds],
     translations: a.translations.map((t) => ({ ...t })),
-    corrections: a.corrections.map((c) => ({ ...c })),
   }
 }
 

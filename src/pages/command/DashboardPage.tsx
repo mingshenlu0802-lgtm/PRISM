@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import type { Article, ResearchItem, Signal, SuspiciousClaim } from '../../lib/types'
+import type { Article, ResearchItem, Signal } from '../../lib/types'
 import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
 import { SOURCE_TYPE_LABEL } from '../../lib/constants'
 import { citationNumbers, cx, fmtDate, fmtDateTime, relTime } from '../../lib/util'
 import {
-  Badge, DemoTag, EmptyState, Icon, Meter, RiskChip, Segmented, Sparkline, StatusBadge, TopicChip, toast,
+  Badge, DemoTag, EmptyState, Icon, Meter, RiskChip, Segmented, StatusBadge, TopicChip, toast,
 } from '../../components/common'
 import { DistributionBars, WorldGraticule } from '../../components/charts'
 import { PanelCard } from '../../components/command/PanelCard'
@@ -47,11 +47,6 @@ const RESEARCH_TYPE: Record<ResearchItem['type'], string> = {
   'systematic-review': '系统综述',
 }
 
-const CLAIM_STATUS: Record<SuspiciousClaim['status'], { zh: string; tone: 'neutral' | 'warn' | 'go' }> = {
-  watching: { zh: '观察中', tone: 'neutral' },
-  checking: { zh: '核查进行中', tone: 'warn' },
-  'published-check': { zh: '已发布核查', tone: 'go' },
-}
 
 const LANG_LABEL: Record<string, string> = {
   en: '英语', es: '西班牙语', fr: '法语', pt: '葡萄牙语', ar: '阿拉伯语',
@@ -91,18 +86,6 @@ function placeXY(label: string): [number, number] {
 }
 
 /** A deterministic 7-point spread curve. Demo figure — labelled as such in the UI. */
-function velocitySeries(id: string, velocity: number): number[] {
-  let h = hash32(id)
-  const out: number[] = []
-  for (let i = 0; i < 7; i += 1) {
-    h = Math.imul(h ^ (i + 7), 16777619) >>> 0
-    const jitter = (h % 17) - 7
-    const ramp = velocity * (0.4 + (0.6 * i) / 6)
-    out.push(Math.max(1, Math.round(ramp + jitter)))
-  }
-  out[out.length - 1] = Math.max(1, Math.round(velocity))
-  return out
-}
 
 /** Real per-day counts over the last `days` days, oldest first. */
 function dayBuckets(dates: (string | undefined)[], today: string, days = 7): number[] {
@@ -156,10 +139,6 @@ export default function DashboardPage(): JSX.Element {
     [state.research],
   )
 
-  const claims = useMemo(
-    () => [...state.suspiciousClaims].sort((a, b) => b.velocity - a.velocity).slice(0, 4),
-    [state.suspiciousClaims],
-  )
 
   const publishSpark = useMemo(
     () => dayBuckets(state.articles.map((a) => a.publishedAt), state.today),
@@ -594,59 +573,6 @@ export default function DashboardPage(): JSX.Element {
           )}
         </PanelCard>
 
-        {/* -------------------------- suspicious claims --------------------- */}
-        <PanelCard
-          className="cdash__c6"
-          title="正在传播的可疑说法"
-          subtitle="按传播速度排序。传播速度为演示数值，不代表真实平台数据。"
-          icon="chart"
-          action={<Link className="cdash__more" to="/command/research">全部说法<Icon name="chevron-right" size={13} /></Link>}
-        >
-          {claims.length === 0 ? (
-            <EmptyState title="没有正在监测的说法" hint="新的可疑说法会在核查开始前先进入观察名单。" icon="alert" />
-          ) : (
-            <ul className="cdash__claims">
-              {claims.map((c) => {
-                const meta = CLAIM_STATUS[c.status]
-                const check = c.linkedFactCheckId
-                  ? state.factChecks.find((f) => f.id === c.linkedFactCheckId)
-                  : undefined
-                return (
-                  <li className="cdash__claim" key={c.id}>
-                    <p className="cdash__claimtext">「{c.claim}」</p>
-                    <div className="cdash__claimrow">
-                      <span className="cdash__spark">
-                        <Sparkline
-                          points={velocitySeries(c.id, c.velocity)}
-                          width={92}
-                          height={26}
-                          tone="var(--accent)"
-                          label={`传播速度指数（演示）· 最新 ${c.velocity}`}
-                        />
-                      </span>
-                      <span className="cdash__velocity u-num">
-                        <span className="cdash__velocitynum">{c.velocity}</span>
-                        <span className="cdash__velocitylabel">传播速度指数</span>
-                      </span>
-                      <Badge tone={meta.tone === 'go' ? 'go' : meta.tone === 'warn' ? 'hold' : 'neutral'}>{meta.zh}</Badge>
-                    </div>
-                    <p className="cdash__claimspread">{c.spread}</p>
-                    <p className="cdash__claimvenues">
-                      <Icon name="globe" size={11} />
-                      流传于：{c.venues.join('、')}
-                    </p>
-                    {check ? (
-                      <Link className="cdash__more" to={`/fact-checks/${check.id}`}>
-                        查看已发布的核查<Icon name="chevron-right" size={13} />
-                      </Link>
-                    ) : null}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </PanelCard>
-
         {/* --------------------- scheduled & published ---------------------- */}
         <PanelCard
           className="cdash__c7"
@@ -693,7 +619,6 @@ export default function DashboardPage(): JSX.Element {
                       <p className="cdash__listmeta u-num">
                         <Icon name="check-double" size={11} />
                         {a.publishedAt ? fmtDateTime(a.publishedAt) : '时间缺失'}
-                        {a.corrections.length > 0 ? ` · ${a.corrections.length} 条更正记录` : ''}
                       </p>
                       <Link className="cdash__more" to={`/article/${a.slug}`}>
                         在公众站查看<Icon name="arrow-up-right" size={12} />
