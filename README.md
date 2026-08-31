@@ -133,6 +133,10 @@ Supabase 是按需加载的，本地模式下读者不会下载它。
 
 ## 安全与隐私
 
+- **[docs/RENAME.md](docs/RENAME.md)（中文）** — **网址里为什么有你的账号名，怎么换掉。**
+  GitHub Pages 的网址格式是 `账号名.github.io/仓库名/`，那个名字不来自代码，
+  改代码去不掉它。这一篇是全程点鼠标的做法：建一个免费组织、把仓库转过去，
+  网址就变成 `组织名.github.io/prism/`；想连 `github.io` 都去掉，后半篇讲自有域名。
 - **[docs/DEPLOY.md](docs/DEPLOY.md)（英文）** — 从零到上线的完整操作流程：
   去个人化的账号与组织、发布、自有域名、Cloudflare Access、token 权限。
   按钮名称与英文界面一致，照着点即可。

@@ -14,6 +14,13 @@ be done later.
 
 ---
 
+> **No terminal? Read [RENAME.md](RENAME.md) instead (written in Chinese).**
+> Parts 1–4 below assume you can run `git` on your own computer. If you cannot,
+> RENAME.md gets you the same de-personalised URL entirely by clicking in the
+> browser: create a free organisation, transfer the repository, re-enable Pages.
+> The one thing it cannot do is erase your address from the existing commit
+> history — only the clean-repository route in Part 2.2 does that.
+
 > **If you are sharing with friends rather than publishing publicly, read
 > [SHARING.md](SHARING.md) first.** Connecting the free Supabase backend
 > described there gives you real, server-enforced access control — a
@@ -119,6 +126,21 @@ git config --global user.name "PRISM Desk"
 Your current repository history contains commits authored with your personal
 email. Rewriting that history is fiddly and error-prone. Starting a clean
 repository under the organisation is faster and removes the problem entirely.
+
+### 2.0 If you cannot use a terminal, transfer instead
+
+The steps below start a clean repository, which is the only way to remove your
+email address from the existing commit history. They need a terminal.
+
+If you cannot run commands, **transfer** the existing repository into the
+organisation instead: repository → **Settings** → **General** → **Danger Zone**
+→ **Transfer** → **Transfer ownership**. Then skip to Part 4.1 and re-enable
+Pages, and turn on **Settings → Emails → Keep my email addresses private** on
+your personal account so nothing further leaks.
+
+The URL becomes `https://YOUR-ORG.github.io/PRISM/` either way. The difference
+is only the old commits: a transfer carries them along, address and all.
+[RENAME.md](RENAME.md) walks through the transfer click by click, in Chinese.
 
 ### 2.1 Create the new repository
 

@@ -11,6 +11,7 @@ import {
 import { NewsEditor } from '../../components/console/NewsEditor'
 import { ClaudePanel } from '../../components/console/ClaudePanel'
 import { BackendSetup } from '../../components/console/BackendSetup'
+import { SiteAddress } from '../../components/console/SiteAddress'
 import './ManagePage.css'
 
 type Tab = 'content' | 'vibe' | 'look' | 'account'
@@ -328,6 +329,8 @@ function AccountTab(): JSX.Element {
 
   return (
     <div className="mng__panel">
+      <SiteAddress />
+
       <h3 className="mng__subtitle">你现在的身份</h3>
       {mode === 'shared' && auth.email ? (
         <div className="mng__signed">

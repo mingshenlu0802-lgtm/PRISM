@@ -26,7 +26,7 @@ await build({
 
 const m = await import(pathToFileURL(bundle).href)
 const { buildInitialState, reducer, accessOf, collect, planSteps, runVibe, VIBE_EXAMPLES,
-        contentSnapshot, PRIORITY_REGIONS } = m
+        contentSnapshot, PRIORITY_REGIONS, readAddress } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -490,6 +490,44 @@ await test('每一步编辑都记进「最近编辑」', () => {
   ok(s1.changes.length > s0.changes.length, '这次编辑没有被记下来')
   ok(s1.changes[0].text.trim().length > 0, '编辑记录应当有一句人话')
   eq(s1.changes[0].who, ME, '应记下是谁改的')
+})
+
+/* ---------------- 网址里有没有人名 ---------------- */
+
+await test('GitHub Pages 的网址会被认出账号名', () => {
+  const a = readAddress('https://someones-account.github.io/PRISM/#/')
+  eq(a.kind, 'pages', '应认出这是 GitHub Pages')
+  eq(a.account, 'someones-account', '应挑出账号名')
+  eq(a.path, '/PRISM/', '应留下仓库那一段')
+  eq(a.full, 'https://someones-account.github.io/PRISM/', '给朋友的地址不该带 #/')
+  ok(a.personal, '一个看不出跟站点有关的账号名，应当提醒站长')
+})
+
+await test('已经换成站点名的组织，不再唠叨', () => {
+  for (const org of ['prism-lens', 'prismdesk', 'refracted', 'prism-daily']) {
+    const a = readAddress(`https://${org}.github.io/prism/`)
+    eq(a.kind, 'pages', `${org}：应认出这是 GitHub Pages`)
+    ok(!a.personal, `${org}：这个名字跟站点有关，不该再提醒`)
+  }
+})
+
+await test('自有域名是最干净的状态', () => {
+  const a = readAddress('https://prismlens.org/#/news')
+  eq(a.kind, 'custom', '自有域名')
+  eq(a.account, null, '自有域名里没有账号名')
+  ok(!a.personal, '不该提醒')
+})
+
+await test('本机预览和沙箱预览不当成正式网址', () => {
+  eq(readAddress('http://localhost:5173/').kind, 'local', '本机预览')
+  eq(readAddress('https://x.github.io/PRISM/', true).kind, 'sandbox', '跑在别人的框里')
+  ok(!readAddress('https://x.github.io/PRISM/', true).personal, '沙箱里不该提醒改网址')
+})
+
+await test('冒充 github.io 的域名不会被当成 Pages', () => {
+  // 若把它认成 Pages，就会把「evil」当账号名显示给站长，等于帮着骗人。
+  eq(readAddress('https://github.io.example.com/').kind, 'custom', '不是 github.io')
+  eq(readAddress('https://a.b.github.io/x/').kind, 'custom', '多一级子域不是 Pages 用户站')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
