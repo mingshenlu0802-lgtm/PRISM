@@ -437,7 +437,7 @@ function AccountTab(): JSX.Element {
         <summary>怎么拿到 Google 客户端 ID（第一次要做一遍，约十分钟）</summary>
         <p className="mng__stepnote">
           做之前先确定你网站的正式网址（比如 GitHub Pages 给你的那个），
-          下面第 4 步要用到它，而且必须一字不差。
+          下面第 5 步要用到它，而且必须一字不差。
         </p>
         <ol className="mng__steps">
           <li>
@@ -445,11 +445,28 @@ function AccountTab(): JSX.Element {
             顶部点项目下拉框 → <strong>新建项目</strong>，名字随便取，创建。
           </li>
           <li>
-            左边菜单选「API 和服务 → <strong>OAuth 同意屏幕</strong>」。用户类型选<strong>外部</strong>，
-            填应用名称和两个联系邮箱，其余一路保存。
+            左边菜单找「<strong>Google 身份验证平台</strong>」（英文 Google Auth Platform，
+            有些账号里还叫「API 和服务 → OAuth 同意屏幕」）。
+            <span className="mng__stepwhy">
+              下面三步是这个平台里的三个页面：品牌塑造 → 受众群体 → 客户端。
+              顺序不能反——没填完前两页就去建客户端，Google 会拦住你，
+              提示「OAuth 配置不完整，请前往品牌塑造页」。
+            </span>
           </li>
           <li>
-            回到「OAuth 同意屏幕」，把发布状态从「测试」改成 <strong>发布应用</strong>。
+            进「<strong>品牌塑造</strong>」（Branding）页，填三样必填的：
+            <strong>应用名称</strong>、<strong>用户支持电子邮件</strong>（下拉里选你自己）、
+            <strong>开发者联系信息</strong>（你的邮箱）。保存。
+            <span className="mng__stepwhy">
+              应用徽标、应用主页、隐私权政策、服务条款这几栏<strong>留空</strong>就好。
+              一旦填了网址，Google 就会要求你再去填「已获授权的网域」并验证域名所有权，
+              平白多出两道手续——登录本身用不到它们。
+              另外应用名称里不能出现「Google」字样，会被拒。
+            </span>
+          </li>
+          <li>
+            进「<strong>受众群体</strong>」（Audience）页：用户类型选<strong>外部</strong>，
+            然后把发布状态改成 <strong>发布应用</strong>（Publish app）。
             <span className="mng__stepwhy">
               不做这一步，就只有你手动加进「测试用户」名单的账号能登录，别人一律登不进来。
               这里只用到姓名、邮箱、头像这类基本信息，属于非敏感权限，发布是立刻生效的，
@@ -457,11 +474,13 @@ function AccountTab(): JSX.Element {
             </span>
           </li>
           <li>
-            左边选「<strong>凭据</strong>」→「创建凭据 → OAuth 客户端 ID」，应用类型选 <strong>Web 应用</strong>。
+            进「<strong>客户端</strong>」（Clients）页 → <strong>创建客户端</strong>，
+            应用类型选 <strong>Web 应用</strong>。
             在「已获授权的 JavaScript 来源」里填你网站的网址，
             <strong>只填到域名为止</strong>：像 <code>https://你的用户名.github.io</code>，
             不要带后面的路径，也不要结尾的斜杠。「已获授权的重定向 URI」可以留空。
             <span className="mng__stepwhy">
+              填错了登录会报 <code>origin_mismatch</code>。
               想在自己电脑上试，可以再加一条 <code>http://localhost:5173</code>。
             </span>
           </li>
