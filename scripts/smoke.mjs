@@ -75,6 +75,8 @@ check('性暴力与未成年人内容强制二次确认', () => {
   for (const k of ['sexual-violence', 'minors', 'active-litigation', 'identity-exposure']) {
     assert(kinds.includes(k), `缺少 ${k} 的二次确认`)
   }
+  // Handling a risk is why the editor can confirm — not a reason to skip it.
+  assert(g.confirmations.some((r) => r.resolved), '已处置的敏感风险被排除在二次确认之外')
   return `${g.confirmations.length} 项：${kinds.join('/')}`
 })
 

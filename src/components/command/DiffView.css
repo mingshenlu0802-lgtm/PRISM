@@ -471,7 +471,12 @@
   opacity: .7;
 }
 
+/* `position: relative` is load-bearing: the visually-hidden 〔新增〕/〔删除〕
+   markers are absolutely positioned, and an overflow container only clips
+   absolutely-positioned descendants when it is itself their containing block.
+   Without it a wide table row drags the whole page sideways. */
 .dv__scroll {
+  position: relative;
   overflow-x: auto;
   overflow-y: hidden;
   max-width: 100%;

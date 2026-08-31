@@ -58,7 +58,15 @@ export function riskScore(a: Article): number {
   return openRisks(a).reduce((n, r) => n + weight[r.severity], 0)
 }
 
-/** Sensitive categories always demand a second, typed confirmation. */
+/**
+ * Sensitive categories always demand a second, typed confirmation.
+ *
+ * Deliberately NOT filtered by `resolved`. The requirement attaches to what
+ * the piece is about — sexual violence, minors, live proceedings, anything
+ * that could expose an identity — not to whether an internal note has been
+ * ticked off. Having handled the risk is the reason the editor can confirm;
+ * it is not a reason to skip confirming.
+ */
 export function needsSecondConfirm(a: Article): RiskFlag[] {
   return a.riskFlags.filter((r) => r.requiresSecondConfirm || SECOND_CONFIRM_KINDS.includes(r.kind))
 }
@@ -167,7 +175,7 @@ export function publishGate(a: Article, state: PrismState): PublishGate {
   if (openRisks(a).some((r) => r.severity === 'high')) warnings.push('存在未处理的高风险项。')
   if (!a.contentNotice && a.topics.includes('violence')) warnings.push('涉及性暴力/家暴议题但未设置内容提示。')
 
-  const confirmations = needsSecondConfirm(a).filter((r) => !r.resolved)
+  const confirmations = needsSecondConfirm(a)
   return { ok: blockers.length === 0, blockers, warnings, confirmations, lockEngaged: state.lock.engaged }
 }
 

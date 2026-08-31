@@ -125,6 +125,20 @@ export function VibeConsole({ article, className }: VibeConsoleProps): JSX.Eleme
     toast('提案已生成，尚未生效：确认后才会写入文章。', 'warn')
   }
 
+  /* A run left mid-flight (the editor switched panels while it animated) is
+     resumed and completed on mount rather than left stranded in 'running'. */
+  const finishRef = useRef(finish)
+  useEffect(() => { finishRef.current = finish })
+  useEffect(() => {
+    const stranded = state.vibeRuns.find((r) => r.articleId === article.id && r.state === 'running')
+    if (!stranded) return
+    setRunningId(stranded.id)
+    setDone(stranded.steps.length)
+    finishRef.current(stranded.id, stranded.instruction)
+    // Runs only on mount: a run started in this session is driven by its timers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const submit = (instruction: string) => {
     const value = instruction.trim()
     if (!value || runningId) return

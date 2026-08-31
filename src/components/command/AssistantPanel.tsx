@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { Article, Citation, DivergencePosition, ID, PrismState, Source } from '../../lib/types'
 import { RISK_LABEL, SOURCE_TYPE_LABEL } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
@@ -167,7 +168,7 @@ interface GroupProps {
   lede: string
   open: boolean
   onToggle: () => void
-  children: React.ReactNode
+  children: ReactNode
 }
 
 function Group({ id, title, icon, count, tone, lede, open, onToggle, children }: GroupProps): JSX.Element {

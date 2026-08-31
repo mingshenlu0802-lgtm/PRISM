@@ -488,4 +488,27 @@ export const CHARTS: ChartSpec[] = [
     limitation:
       '净入学率按学年初的在册名册计算，只能说明有多少人注册，不能说明有多少人实际到校、读满整个学年或完成学业；辍学定义在两年前调整过，与 2023 年以前的数据不能直接比较，长期缺课但未办理退学者仍计入在册。',
   },
+  {
+    id: 'chart-veyra-curriculum-coverage',
+    kind: 'bar',
+    title: '各类平等教育内容已开设的学校比例（韦拉，2026）',
+    subtitle: '按教育部统计司口径，学校自报',
+    unit: '%',
+    sourceId: 'src-veyra-education-stats-2026',
+    sourceNote: '韦拉教育部统计司《学校平等内容覆盖统计 2026》，基于全量学校年度报表，学校自报，未经督导核实。',
+    limitation: '本图只显示学校是否声称开设了某类内容，不显示课时、师资资质或教学质量；自报数据倾向高估。也不能据此推断法案第 12 条会新增多少内容——现行开设情况与法案要求的范围并不重合。',
+    series: [
+      {
+        name: '已开设的学校比例',
+        points: [
+          { label: '人际关系与同意', value: 61 },
+          { label: '性别刻板印象', value: 74 },
+          { label: '家庭暴力识别', value: 38 },
+          { label: '多元家庭形态', value: 29 },
+          { label: '网络骚扰应对', value: 47 },
+          { label: '生殖健康基础', value: 55 },
+        ],
+      },
+    ],
+  },
 ]
