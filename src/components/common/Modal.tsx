@@ -25,8 +25,23 @@ const FOCUSABLE = [
 function focusableIn(root: HTMLElement | null): HTMLElement[] {
   if (!root) return []
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-    (el) => !el.hasAttribute('aria-hidden') && el.offsetParent !== null,
+    (el) => el.getAttribute('aria-hidden') !== 'true' && el.getClientRects().length > 0,
   )
+}
+
+/**
+ * The dialog is portalled to <body>, which may sit OUTSIDE the element carrying
+ * `data-surface` / `data-theme`. Mirror those attributes onto the portal root so
+ * the semantic tokens resolve exactly as they do inside the layout.
+ */
+function surfaceAttrs(): { surface: string | undefined; theme: string | undefined } {
+  if (typeof document === 'undefined') return { surface: undefined, theme: undefined }
+  const host = document.querySelector('[data-surface]')
+  const root = document.documentElement
+  return {
+    surface: host?.getAttribute('data-surface') ?? root.getAttribute('data-surface') ?? undefined,
+    theme: host?.getAttribute('data-theme') ?? root.getAttribute('data-theme') ?? undefined,
+  }
 }
 
 /* Body scroll lock, ref-counted so nested dialogs cannot unlock each other. */
@@ -80,7 +95,11 @@ export function Modal({
   const titleId = useId()
   const subtitleId = useId()
 
-  const close = useCallback(() => { onClose() }, [onClose])
+  /* `onClose` is usually an inline arrow, so it is held in a ref: the open
+     effect must not re-run (and steal focus back) on every parent render. */
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
+  const close = useCallback(() => { onCloseRef.current() }, [])
 
   useEffect(() => {
     if (!open) return undefined
@@ -156,9 +175,13 @@ export function Modal({
 
   if (!open || typeof document === 'undefined') return null
 
+  const { surface, theme } = surfaceAttrs()
+
   return createPortal(
     <div
       className={cx('pmodal', `pmodal--${width}`, tone === 'danger' && 'pmodal--danger')}
+      data-surface={surface}
+      data-theme={theme}
       onMouseDown={(event) => { pressedBackdrop.current = event.target === event.currentTarget }}
       onMouseUp={(event) => {
         if (pressedBackdrop.current && event.target === event.currentTarget) close()

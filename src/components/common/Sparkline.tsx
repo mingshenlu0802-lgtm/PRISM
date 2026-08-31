@@ -63,7 +63,10 @@ export function Sparkline({
   const y = (v: number) => height - pad - ((v - min) / span) * (height - pad * 2)
   const x = (i: number) => pad + i * stepX
 
-  const coords: { x: number; y: number }[] = clean.map((v, i) => ({ x: x(i), y: y(v) }))
+  const single = clean.length === 1
+  const coords: { x: number; y: number }[] = single
+    ? [{ x: pad, y: height / 2 }, { x: width - pad, y: height / 2 }]
+    : clean.map((v, i) => ({ x: x(i), y: y(v) }))
   const line = coords.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`).join(' ')
   const last = coords[coords.length - 1]
   const baseline = (height - pad).toFixed(2)
@@ -92,9 +95,9 @@ export function Sparkline({
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
-      {clean.length > 1 ? <path d={area} fill={`url(#spark-${gid})`} stroke="none" /> : null}
+      {single ? null : <path d={area} fill={`url(#spark-${gid})`} stroke="none" />}
       <path
-        d={clean.length > 1 ? line : `M${pad} ${y(lastValue).toFixed(2)} L${width - pad} ${y(lastValue).toFixed(2)}`}
+        d={line}
         fill="none"
         stroke="currentColor"
         strokeWidth="1.6"

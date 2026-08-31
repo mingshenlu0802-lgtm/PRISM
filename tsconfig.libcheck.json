@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["src/lib", "src/components/visual", "src/vite-env.d.ts"]
+  "include": [
+    "src/lib", "src/styles",
+    "src/components/visual", "src/components/common", "src/components/charts",
+    "src/vite-env.d.ts"
+  ]
 }

@@ -1,0 +1,127 @@
+/* KpiTile — one console statistic. Root class: .kpit */
+
+.kpit {
+  --kpit-tone: var(--fg-subtle);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  background:
+    linear-gradient(180deg, rgba(140, 152, 214, .05), transparent 60%),
+    var(--bg-raised);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--fg);
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.kpit::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--kpit-tone);
+  opacity: .8;
+}
+
+.kpit--go { --kpit-tone: var(--risk-low); }
+.kpit--warn { --kpit-tone: var(--risk-medium); }
+.kpit--stop { --kpit-tone: var(--accent); }
+.kpit--neutral::before { opacity: .35; }
+
+.kpit--link {
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease),
+    background var(--dur) var(--ease);
+}
+.kpit--link:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-inset);
+}
+.kpit--link:hover .kpit__go { transform: translateX(2px); color: var(--fg-muted); }
+.kpit--link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.kpit__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.kpit__plate {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-xs);
+  color: var(--kpit-tone);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.kpit__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--fg-muted);
+  letter-spacing: .01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpit__state {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--r-full);
+  border: var(--bw) solid color-mix(in srgb, var(--kpit-tone) 50%, transparent);
+  background: color-mix(in srgb, var(--kpit-tone) 12%, transparent);
+  color: var(--kpit-tone);
+  font-size: var(--fs-2xs);
+  font-weight: 640;
+  line-height: 1.7;
+}
+
+.kpit__go {
+  flex: none;
+  display: inline-flex;
+  color: var(--fg-faint);
+  transition: transform var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.kpit__row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.kpit__value {
+  font-size: var(--fs-2xl);
+  font-weight: 660;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--fg);
+}
+
+.kpit__spark {
+  flex: none;
+  display: block;
+  opacity: .9;
+  padding-bottom: 3px;
+}
+
+.kpit__hint {
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-subtle);
+}
+
+@media (min-width: 1080px) {
+  .kpit { padding: var(--s-4) var(--s-4) var(--s-5); }
+  .kpit__value { font-size: var(--fs-3xl); }
+}

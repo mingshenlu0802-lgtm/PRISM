@@ -13,12 +13,12 @@ import './PrismMark.css'
  */
 
 const FAN: { d: string; hue: string; opacity: number }[] = [
-  { d: 'M28.1 26.1 L46 19.5', hue: 'var(--prism-1)', opacity: 0.92 },
-  { d: 'M28.1 26.5 L46 22.5', hue: 'var(--prism-6)', opacity: 0.88 },
-  { d: 'M28.1 26.8 L46 25.5', hue: 'var(--prism-2)', opacity: 0.84 },
-  { d: 'M28.1 27.2 L46 28.5', hue: 'var(--prism-3)', opacity: 0.8 },
-  { d: 'M28.1 27.5 L46 31.5', hue: 'var(--prism-4)', opacity: 0.76 },
-  { d: 'M28.1 27.9 L46 34.5', hue: 'var(--prism-5)', opacity: 0.72 },
+  { d: 'M28.1 28.1 L46 21.5', hue: 'var(--prism-1)', opacity: 0.92 },
+  { d: 'M28.1 28.5 L46 24.5', hue: 'var(--prism-6)', opacity: 0.88 },
+  { d: 'M28.1 28.8 L46 27.5', hue: 'var(--prism-2)', opacity: 0.84 },
+  { d: 'M28.1 29.2 L46 30.5', hue: 'var(--prism-3)', opacity: 0.80 },
+  { d: 'M28.1 29.5 L46 33.5', hue: 'var(--prism-4)', opacity: 0.76 },
+  { d: 'M28.1 29.9 L46 36.5', hue: 'var(--prism-5)', opacity: 0.72 },
 ]
 
 function strokeFor(size: number): number {
@@ -65,7 +65,7 @@ export function PrismMark({ size = 28, className, muted = false }: PrismMarkProp
 
       {/* the incoming beam */}
       <path
-        d="M1.5 24 H11.7"
+        d="M1.5 26 H11.7"
         stroke="currentColor"
         strokeOpacity="0.78"
         strokeWidth={sw}
@@ -74,7 +74,7 @@ export function PrismMark({ size = 28, className, muted = false }: PrismMarkProp
 
       {/* the prism */}
       <path
-        d="M18 9 L29 35 H7 Z"
+        d="M18 11 L29 37 H7 Z"
         fill="currentColor"
         fillOpacity={muted ? 0.04 : 0.06}
         stroke="currentColor"
@@ -85,7 +85,7 @@ export function PrismMark({ size = 28, className, muted = false }: PrismMarkProp
 
       {/* the single bend inside the glass */}
       <path
-        d="M11.7 24 L25.6 27"
+        d="M11.7 26 L25.6 29"
         stroke="currentColor"
         strokeOpacity="0.5"
         strokeWidth={fanSw}

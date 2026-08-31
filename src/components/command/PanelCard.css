@@ -1,0 +1,126 @@
+/* PanelCard — the console's standard panel chrome. Root class: .pnlc */
+
+.pnlc {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background:
+    linear-gradient(180deg, rgba(140, 152, 214, .05), transparent 42%),
+    var(--bg-raised);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.pnlc__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-bottom: var(--bw) solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(140, 152, 214, .045), transparent);
+}
+
+.pnlc__plate {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--fg-muted);
+  background: var(--chip-bg);
+  border: var(--bw) solid var(--line-soft);
+}
+
+.pnlc__heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pnlc__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  font-size: var(--fs-md);
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.pnlc__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px var(--s-2);
+  border-radius: var(--r-full);
+  border: var(--bw) solid currentColor;
+  font-size: var(--fs-2xs);
+  font-weight: 620;
+  letter-spacing: .04em;
+  line-height: 1.6;
+}
+
+.pnlc__subtitle {
+  margin-top: 3px;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-snug);
+  color: var(--fg-subtle);
+}
+
+.pnlc__action {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-xs);
+}
+
+.pnlc__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: var(--s-4);
+}
+
+/* --- tones ---------------------------------------------------------------- */
+
+.pnlc--warn {
+  border-color: color-mix(in srgb, var(--risk-high) 42%, var(--line));
+}
+.pnlc--warn .pnlc__head {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--risk-high) 13%, transparent), transparent);
+  border-bottom-color: color-mix(in srgb, var(--risk-high) 26%, var(--line-soft));
+}
+.pnlc--warn .pnlc__plate,
+.pnlc--warn .pnlc__note {
+  color: var(--risk-high);
+}
+.pnlc--warn .pnlc__plate {
+  background: color-mix(in srgb, var(--risk-high) 14%, transparent);
+  border-color: color-mix(in srgb, var(--risk-high) 34%, transparent);
+}
+
+.pnlc--stop {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+}
+.pnlc--stop .pnlc__head {
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 30%, var(--line-soft));
+}
+.pnlc--stop .pnlc__plate,
+.pnlc--stop .pnlc__note {
+  color: var(--accent);
+}
+.pnlc--stop .pnlc__plate {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+@media (min-width: 720px) {
+  .pnlc__head { padding: var(--s-4) var(--s-5); }
+  .pnlc__body { padding: var(--s-5); }
+  .pnlc__title { font-size: var(--fs-lg); }
+}
