@@ -452,6 +452,34 @@
 
 .rvc__rowdecide { min-width: 0; }
 
+/* Inside a list row the decision bar is a thin action strip, not a panel. */
+.rvc--row .dcb {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) 0 0;
+  border: 0;
+  border-top: var(--bw) dashed var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.rvc--row .dcb__grid { flex: 1 1 320px; min-width: 0; }
+
+.rvc--row .dcb__head,
+.rvc--row .dcb__live-label,
+.rvc--row .dcb__live-note { display: none; }
+
+.rvc--row .dcb__live {
+  flex: none;
+  padding-top: 0;
+  border-top: 0;
+  padding-left: var(--s-3);
+  border-left: var(--bw) dashed var(--line);
+}
+
 /* ================================ responsive ============================== */
 
 @media (min-width: 560px) {
@@ -471,9 +499,6 @@
   .rvc__body { grid-column: 2; grid-row: 1; }
   .rvc__foot { grid-column: 1 / -1; grid-row: 2; }
   .rvc__meters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .rvc--row { flex-direction: row; align-items: flex-start; gap: var(--s-4); }
-  .rvc__rowmain { flex: 1 1 0; }
-  .rvc__rowdecide { flex: 0 0 280px; max-width: 300px; }
 }
 
 @media (min-width: 1080px) {

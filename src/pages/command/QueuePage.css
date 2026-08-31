@@ -1,13 +1,16 @@
 /* QueuePage — 审批队列. Every selector scoped under .qpage. */
 
+/* The command layout already insets the scroll area; --qp-inset mirrors that so
+   the sticky filter band can bleed to its edges without a see-through gap. */
 .qpage {
+  --qp-inset: var(--s-4);
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
   width: 100%;
   max-width: var(--wide-max);
   margin-inline: auto;
-  padding: var(--s-5) var(--s-4) var(--s-9);
+  padding-bottom: var(--s-8);
   min-width: 0;
 }
 
@@ -142,12 +145,12 @@
   flex-direction: column;
   gap: var(--s-3);
   min-width: 0;
-  padding: var(--s-3);
-  border: var(--bw) solid var(--line-soft);
-  border-radius: var(--r-md);
-  background: var(--bg-raised);
+  margin-inline: calc(var(--qp-inset) * -1);
+  padding: calc(var(--qp-inset) + var(--s-3)) var(--qp-inset) var(--s-3);
+  border-block: var(--bw) solid var(--line-soft);
+  background: var(--bg);
   position: sticky;
-  top: 0;
+  top: calc(var(--qp-inset) * -1);
   z-index: 4;
 }
 
@@ -270,7 +273,7 @@
 }
 
 @media (min-width: 720px) {
-  .qpage { padding: var(--s-6) var(--s-5) var(--s-10); gap: var(--s-6); }
+  .qpage { --qp-inset: var(--s-5); padding-bottom: var(--s-10); gap: var(--s-6); }
   .qpage__title { font-size: var(--fs-3xl); }
 }
 

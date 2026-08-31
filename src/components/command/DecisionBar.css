@@ -122,6 +122,21 @@
 
 .dcb__btn-tag--off { background: transparent; border: var(--bw) dashed var(--line); }
 
+.dcb__reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  padding: 5px var(--s-3);
+  border: var(--bw) dashed var(--line);
+  border-radius: var(--r-full);
+  color: var(--fg-faint);
+  font-size: var(--fs-2xs);
+  font-weight: 620;
+  white-space: nowrap;
+}
+.dcb__reveal:hover { border-style: solid; color: var(--fg-muted); }
+
 /* Row layout: compact chips, hint carried by the title attribute. */
 .dcb--row .dcb__grid { display: flex; flex-wrap: wrap; }
 .dcb--row .dcb__btn { grid-template-columns: auto auto auto; }
@@ -261,7 +276,7 @@
   font-weight: 640;
 }
 .dcb__mbtn:not(:disabled):hover { color: var(--fg); border-color: var(--line-strong); }
-.dcb__mbtn:disabled { opacity: .45; cursor: not-allowed; }
+.dcb__mbtn:disabled { opacity: .4; filter: grayscale(.55); cursor: not-allowed; }
 
 .dcb__mbtn--primary {
   border-color: transparent;

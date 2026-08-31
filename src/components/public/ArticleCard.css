@@ -16,6 +16,11 @@
   background: var(--bg-inset);
 }
 
+/* A card is an index entry: the illustration's full caption belongs to the
+   article page. The 「概念插图」 disclosure is not dropped — it stays stamped on
+   large covers and becomes a badge in the card body on thumbnails. */
+.acard .acard__cover .ci__cap { display: none; }
+
 .acard__body {
   display: flex;
   flex-direction: column;

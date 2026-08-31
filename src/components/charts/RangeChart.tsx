@@ -28,11 +28,18 @@ import './RangeChart.css'
  * always states in the caption that the band is a confidence interval. Where a
  * point arrives with no interval at all, that absence is labelled 「未提供区间」
  * rather than being drawn as a point of unknown precision.
+ *
+ * Two layouts: below 420px each row carries its own full-width label above the
+ * band, so a long institution name is never squeezed into a side column; above
+ * that the labels sit in a left column, with the category as a group heading
+ * whenever several series are being compared on the same rows.
  */
 
 const AXIS_FONT = 11
 const LABEL_FONT = 11
 const ROW_H = 32
+const HEAD_H = 19
+const STACK_LABEL_H = 16
 const BAND_H = 9
 
 export interface RangeChartProps {
@@ -93,24 +100,41 @@ export function RangeChart({ spec, height }: RangeChartProps): JSX.Element {
   )
   const tickTexts = axis.ticks.map((t) => fmtNumber(t, axis.decimals))
 
-  const rowTexts = rows.map((r) => (multi ? `${r.label} · ${r.series}` : r.label))
-  const rawLabelW = Math.max(64, ...rowTexts.map((t) => estTextWidth(truncate(t, 16), LABEL_FONT)))
-  const labelW = Math.round(clamp(rawLabelW + 12, 64, Math.max(78, width * 0.42)))
+  /* Narrow viewports get a full-width label line per row instead of a side column. */
+  const stacked = width < 420
+  const sideTexts = rows.map((r) => (multi ? r.series : r.label))
+  const rawLabelW = Math.max(56, ...sideTexts.map((t) => estTextWidth(truncate(t, 14), LABEL_FONT)))
+  const labelW = stacked ? 4 : Math.round(clamp(rawLabelW + 12, 64, Math.max(78, width * 0.4)))
+  const sideChars = Math.max(4, Math.floor((labelW - 12) / (LABEL_FONT * 0.95)))
 
-  const padTop = 12
+  const padTop = 10
   const padRight = Math.ceil(estTextWidth(tickTexts[tickTexts.length - 1] ?? '', AXIS_FONT) / 2) + 10
   const padBottom = 34
 
-  const needW = labelW + 140 + padRight
+  const needW = labelW + 150 + padRight
   const w = Math.max(width, needW)
   const scroll = needW > width
   const plotW = Math.max(60, w - labelW - padRight)
 
-  const contentH = padTop + Math.max(1, rows.length) * ROW_H + padBottom
+  /* Lane layout: optional group heading, then one lane per row. */
+  const rowTop: number[] = []
+  const headY: (number | null)[] = []
+  let cursor = padTop
+  rows.forEach((r, i) => {
+    if (!stacked && multi && r.groupStart) {
+      headY[i] = cursor + 13
+      cursor += HEAD_H
+    } else {
+      headY[i] = null
+    }
+    rowTop[i] = cursor
+    cursor += stacked ? ROW_H + STACK_LABEL_H : ROW_H
+  })
+  const contentH = cursor + padBottom
   const h = Math.max(height ?? 0, contentH)
 
   const x = (v: number) => labelW + ((v - axis.min) / axis.span) * plotW
-  const rowY = (i: number) => padTop + i * ROW_H + ROW_H / 2
+  const bandY = (i: number) => rowTop[i] + (stacked ? STACK_LABEL_H : 0) + ROW_H / 2
 
   const show = (key: string, data: ChartTipData) => {
     setActive(key)
@@ -129,7 +153,8 @@ export function RangeChart({ spec, height }: RangeChartProps): JSX.Element {
     )
   }
 
-  const axisY = padTop + rows.length * ROW_H
+  const axisY = cursor
+  const wideChars = Math.max(6, Math.floor((w - 12) / (LABEL_FONT * 0.95)))
   const desc = `${spec.title}：${rows.length} 项点估计值及其置信区间，单位为${spec.unit}。区间越宽表示不确定性越大。完整数据见随附表格。`
 
   return (
@@ -160,31 +185,49 @@ export function RangeChart({ spec, height }: RangeChartProps): JSX.Element {
               className="prange__sep"
               x1={4}
               x2={labelW + plotW}
-              y1={padTop + i * ROW_H}
-              y2={padTop + i * ROW_H}
+              y1={rowTop[i] - (headY[i] !== null ? HEAD_H : 4)}
+              y2={rowTop[i] - (headY[i] !== null ? HEAD_H : 4)}
             />
           ) : null,
         )}
 
         {rows.map((r, i) => {
-          const text = truncate(rowTexts[i], 16)
+          const hy = headY[i]
+          if (hy === null) return null
+          const text = truncate(r.label, wideChars)
           return (
-            <text
-              key={`lab-${r.key}`}
-              className="prange__label"
-              x={labelW - 10}
-              y={rowY(i)}
-              textAnchor="end"
-              dominantBaseline="middle"
-            >
+            <text key={`h-${r.key}`} className="prange__head" x={4} y={hy}>
               {text}
-              {text !== rowTexts[i] ? <title>{rowTexts[i]}</title> : null}
+              {text !== r.label ? <title>{r.label}</title> : null}
             </text>
           )
         })}
 
         {rows.map((r, i) => {
-          const yc = rowY(i)
+          const full = stacked ? (multi ? `${r.label} · ${r.series}` : r.label) : sideTexts[i]
+          const text = truncate(full, stacked ? wideChars : sideChars)
+          return stacked ? (
+            <text key={`lab-${r.key}`} className="prange__stacklabel" x={4} y={rowTop[i] + 11}>
+              {text}
+              {text !== full ? <title>{full}</title> : null}
+            </text>
+          ) : (
+            <text
+              key={`lab-${r.key}`}
+              className="prange__label"
+              x={labelW - 10}
+              y={bandY(i)}
+              textAnchor="end"
+              dominantBaseline="middle"
+            >
+              {text}
+              {text !== full ? <title>{full}</title> : null}
+            </text>
+          )
+        })}
+
+        {rows.map((r, i) => {
+          const yc = bandY(i)
           const x1 = x(r.lo)
           const x2 = x(r.hi)
           const bandW = Math.max(2, x2 - x1)
@@ -198,7 +241,7 @@ export function RangeChart({ spec, height }: RangeChartProps): JSX.Element {
             label: r.label,
             value: fmtWithUnit(r.value, spec.unit),
             color: r.color,
-            note: `${interval}${r.hasInterval ? '（阴影带为区间，非误差范围的最大值）' : '：该来源未公布不确定性范围。'}`,
+            note: r.hasInterval ? interval : `${interval}：该来源未公布不确定性范围。`,
           }
           return (
             <g
@@ -246,12 +289,16 @@ export function RangeChart({ spec, height }: RangeChartProps): JSX.Element {
         <line className="prange__axis" x1={labelW} x2={labelW + plotW} y1={axisY} y2={axisY} />
       </ChartCanvas>
 
+      {scroll ? <p className="prange__hint">横向滚动可查看完整区间。</p> : null}
+
       <p className="prange__note">
         <span className="prange__key" aria-hidden="true">
           <span className="prange__keyband" />
           <span className="prange__keydot" />
         </span>
-        阴影带为<strong>置信区间</strong>，中央实心圆点为点估计值：区间越宽，估计越不确定。重叠的区间不足以证明两组之间存在差异。
+        <span className="prange__notetext">
+          阴影带为<strong>置信区间</strong>，中央实心圆点为点估计值：区间越宽，估计越不确定。重叠的区间不足以证明两组之间存在差异。
+        </span>
       </p>
 
       <SrTable

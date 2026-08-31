@@ -5,7 +5,7 @@ import type { IconName } from '../common'
 import { LockBanner } from './LockBanner'
 import { usePrism } from '../../lib/store'
 import * as sel from '../../lib/selectors'
-import { cx, fmtClock, fmtDate, relTime } from '../../lib/util'
+import { cx, fmtClock, fmtDate, nowIso, relTime } from '../../lib/util'
 import './CommandLayout.css'
 
 /**
@@ -110,7 +110,7 @@ export default function CommandLayout(): JSX.Element {
         <div className="cmdl__railhead">
           <Link className="cmdl__brand" to="/command" aria-label="PRISM Command 总览">
             <PrismMark size={26} />
-            <span className="cmdl__brandtext">
+            <span className="cmdl__brandtext cmdl__navlabel">
               <span className="cmdl__brandname">PRISM</span>
               <span className="cmdl__brandsub">Command</span>
             </span>
@@ -241,7 +241,7 @@ export default function CommandLayout(): JSX.Element {
             </span>
             {locked && state.lock.since ? (
               <span className="cmdl__stripitem cmdl__striplock">
-                发布锁已开启 {relTime(state.lock.since, state.today)}
+                发布锁已开启 {relTime(state.lock.since, nowIso())}
               </span>
             ) : null}
           </div>

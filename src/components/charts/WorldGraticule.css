@@ -39,12 +39,12 @@
 .pgrat__stratum--d3 .pgrat__blob { opacity: .55; }
 
 .pgrat__line {
-  stroke: var(--line-soft);
+  stroke: var(--line);
   stroke-width: 1;
   shape-rendering: crispEdges;
 }
 
-.pgrat__line--axis { stroke: var(--line); }
+.pgrat__line--axis { stroke: var(--line-strong); }
 
 .pgrat__point { cursor: default; }
 

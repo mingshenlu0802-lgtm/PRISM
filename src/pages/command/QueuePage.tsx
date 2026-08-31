@@ -172,14 +172,20 @@ export default function QueuePage(): JSX.Element {
     return out
   }, [state.articles])
 
-  /** Articles the publish gate currently refuses, across the whole desk. */
-  const blockedIds = useMemo(() => {
-    const set = new Set<string>()
+  /**
+   * Two related sets: everything the publish gate currently refuses, and the
+   * subset that is not yet public — the latter is what 「发布被阻断」 counts.
+   */
+  const { gateIssues, blockedForPublish } = useMemo(() => {
+    const issues = new Set<string>()
+    const blocked = new Set<string>()
     for (const a of state.articles) {
-      if (CLOSED.includes(a.status) || a.status === 'published') continue
-      if (sel.publishGate(a, state).blockers.length > 0) set.add(a.id)
+      if (CLOSED.includes(a.status)) continue
+      if (sel.publishGate(a, state).blockers.length === 0) continue
+      issues.add(a.id)
+      if (a.status !== 'published') blocked.add(a.id)
     }
-    return set
+    return { gateIssues: issues, blockedForPublish: blocked }
   }, [state])
 
   const activeTab = TABS.find((t) => t.key === tab) ?? TABS[0]
@@ -188,21 +194,21 @@ export default function QueuePage(): JSX.Element {
     const q = query.trim().toLowerCase()
     const filtered = state.articles.filter((a) => {
       if (!activeTab.match(a)) return false
-      if (blockedOnly && !blockedIds.has(a.id)) return false
+      if (blockedOnly && !gateIssues.has(a.id)) return false
       if (!q) return true
       const hay = [a.title, a.titleEn, a.standfirst, a.region, ...a.countries].join(' ').toLowerCase()
       return hay.includes(q)
     })
     return sortBy(filtered, (a) => sortValue(a, sortKey), dir)
-  }, [state.articles, activeTab, blockedOnly, blockedIds, query, sortKey, dir])
+  }, [state.articles, activeTab, blockedOnly, gateIssues, query, sortKey, dir])
 
   const pending = counts.all
-  const blockedInView = list.filter((a) => blockedIds.has(a.id)).length
+  const blockedInView = list.filter((a) => gateIssues.has(a.id)).length
   const filtersOn = blockedOnly || query.trim().length > 0
 
   const stats = [
     { key: 'pending', label: '待审条目', value: pending, hint: '需要你逐篇判断', tone: 'neutral' as const },
-    { key: 'blocked', label: '发布被阻断', value: blockedIds.size, hint: '硬性下限未满足', tone: 'stop' as const },
+    { key: 'blocked', label: '发布被阻断', value: blockedForPublish.size, hint: '硬性下限未满足', tone: 'stop' as const },
     { key: 'risk', label: '高风险条目', value: counts.risk, hint: '含强制二次确认项', tone: 'warn' as const },
     { key: 'cite', label: '引用未通过', value: counts.citations, hint: '相关陈述不得公开', tone: 'stop' as const },
   ]
@@ -321,7 +327,7 @@ export default function QueuePage(): JSX.Element {
             onClick={() => setBlockedOnly((v) => !v)}
           >
             <Icon name={blockedOnly ? 'check' : 'filter'} size={13} />
-            只看被阻断的条目
+            只看有阻断项的条目
           </button>
         </div>
 
@@ -330,12 +336,12 @@ export default function QueuePage(): JSX.Element {
           {blockedInView > 0 ? (
             <span className="qpage__result-block">
               <Icon name="alert" size={12} />
-              其中 {blockedInView} 条无法发布
+              其中 {blockedInView} 条存在发布阻断项
             </span>
           ) : list.length > 0 ? (
             <span className="qpage__result-ok">
               <Icon name="check" size={12} />
-              当前结果中没有被阻断的条目
+              当前结果中没有阻断项
             </span>
           ) : null}
           {filtersOn ? (
@@ -364,7 +370,7 @@ export default function QueuePage(): JSX.Element {
             icon={tab === 'citations' ? 'quote' : tab === 'risk' ? 'flag' : 'layers'}
             title={filtersOn ? '当前筛选下没有条目' : activeTab.empty.title}
             hint={filtersOn
-              ? '搜索词或「只看被阻断」的组合筛掉了这一格里的全部条目。'
+              ? '搜索词或「只看有阻断项」的组合筛掉了这一格里的全部条目。'
               : activeTab.empty.hint}
             action={filtersOn ? (
               <button type="button" className="qpage__emptybtn" onClick={() => { setQuery(''); setBlockedOnly(false) }}>

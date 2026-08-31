@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { DEMO_NOTICE, DEMO_NOTICE_EN, TOPICS } from '../../lib/constants'
@@ -63,10 +63,13 @@ export default function PublicLayout(): JSX.Element {
   const topicsRef = useRef<HTMLLIElement | null>(null)
   const topicsButtonRef = useRef<HTMLButtonElement | null>(null)
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null)
+  const sheetRef = useRef<HTMLDivElement | null>(null)
   const menuButtonRef = useRef<HTMLButtonElement | null>(null)
 
   /* --- surface + theme contract on <html> -------------------------------- */
-  useEffect(() => {
+  /* Layout effect: the surface tokens must land before the first paint, or the
+     shell flashes with no palette at all on a cold load. */
+  useLayoutEffect(() => {
     const root = document.documentElement
     root.dataset.surface = 'public'
     root.dataset.theme = theme
@@ -133,14 +136,37 @@ export default function PublicLayout(): JSX.Element {
     return () => document.removeEventListener('mousedown', onPointer)
   }, [topicsOpen])
 
-  /* --- the mobile sheet owns the scroll while it is open ------------------ */
+  /* --- the mobile sheet owns the scroll and the focus while it is open ---- */
   useEffect(() => {
     if (!sheetOpen) return undefined
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     sheetCloseRef.current?.focus()
+
+    // aria-modal hides the rest of the page from assistive tech; Tab has to be
+    // held inside the sheet too, or keyboard focus wanders behind the overlay.
+    const onTab = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !sheetRef.current) return
+      const focusable = Array.from(
+        sheetRef.current.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+      ).filter((el) => el.tabIndex !== -1)
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !sheetRef.current.contains(active))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onTab)
+
     return () => {
       document.body.style.overflow = previous
+      document.removeEventListener('keydown', onTab)
     }
   }, [sheetOpen])
 
@@ -325,7 +351,7 @@ export default function PublicLayout(): JSX.Element {
       </footer>
 
       {sheetOpen ? (
-        <div className="plyt__sheet" role="dialog" aria-modal="true" aria-label="导航菜单">
+        <div className="plyt__sheet" role="dialog" aria-modal="true" aria-label="导航菜单" ref={sheetRef}>
           <div className="plyt__sheet-top">
             <span className="plyt__sheet-brand">
               <PrismMark size={26} />

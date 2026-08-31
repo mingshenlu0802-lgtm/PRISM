@@ -69,6 +69,20 @@ export function failedChecks(a: Article) {
   return a.citationChecks.filter((c) => c.status === 'fail')
 }
 
+/**
+ * Failures that still block publishing: everything the editor has not
+ * explicitly acknowledged and handled. An acknowledged failure stays on the
+ * record and stays visible — it just stops being a gate, because the sentence
+ * that rested on it has already been weakened or re-attributed.
+ */
+export function blockingChecks(a: Article) {
+  return a.citationChecks.filter((c) => c.status === 'fail' && !c.acknowledged)
+}
+
+export function acknowledgedFailures(a: Article) {
+  return a.citationChecks.filter((c) => c.status === 'fail' && c.acknowledged)
+}
+
 export function warnChecks(a: Article) {
   return a.citationChecks.filter((c) => c.status === 'warn')
 }
@@ -77,11 +91,14 @@ export function citationHealth(a: Article): number {
   if (a.citationChecks.length === 0) return 0
   const pass = a.citationChecks.filter((c) => c.status === 'pass').length
   const warn = a.citationChecks.filter((c) => c.status === 'warn').length
-  return Math.round(((pass + warn * 0.5) / a.citationChecks.length) * 100)
+  // An acknowledged failure counts like a warning: the record is imperfect,
+  // but the claim resting on it has been brought back within the evidence.
+  const acked = acknowledgedFailures(a).length
+  return Math.round(((pass + (warn + acked) * 0.5) / a.citationChecks.length) * 100)
 }
 
 export function articlesWithFailedCitations(state: PrismState): Article[] {
-  return state.articles.filter((a) => failedChecks(a).length > 0)
+  return state.articles.filter((a) => blockingChecks(a).length > 0)
 }
 
 /* ---------------------------- source metrics ----------------------------- */
@@ -131,7 +148,8 @@ export function publishGate(a: Article, state: PrismState): PublishGate {
   const profile = sourceProfile(a, state)
 
   if (state.lock.engaged) blockers.push('Global Publishing Lock 已开启：全站公开发布被暂停。')
-  if (failedChecks(a).length > 0) blockers.push(`${failedChecks(a).length} 项引用检查未通过，必须先修复或移除相关陈述。`)
+  const blocking = blockingChecks(a)
+  if (blocking.length > 0) blockers.push(`${blocking.length} 项引用检查未通过且尚未处理，必须先修复陈述、补充一手材料，或记录处理说明。`)
   const criticals = openRisks(a).filter((r) => r.severity === 'critical')
   if (criticals.length > 0) blockers.push(`${criticals.length} 项极高风险未处理：${criticals.map((r) => r.note).join('；')}`)
   const unapprovedCover = a.assetIds
@@ -143,6 +161,8 @@ export function publishGate(a: Article, state: PrismState): PublishGate {
   if (profile.primary < 2) warnings.push(`一手来源仅 ${profile.primary} 份，低于本站 2 份的内部下限。`)
   if (profile.independent < 3) warnings.push(`独立来源 ${profile.independent} 家，交叉核实强度偏弱。`)
   if (warnChecks(a).length > 0) warnings.push(`${warnChecks(a).length} 项引用带有保留意见。`)
+  const acked = acknowledgedFailures(a)
+  if (acked.length > 0) warnings.push(`${acked.length} 项引用检查未通过但已记录处理说明；相关陈述已相应削弱或改为归因表述。`)
   if (a.confidence < 70) warnings.push(`整体可信度 ${a.confidence}，建议补充证据或下调表述强度。`)
   if (openRisks(a).some((r) => r.severity === 'high')) warnings.push('存在未处理的高风险项。')
   if (!a.contentNotice && a.topics.includes('violence')) warnings.push('涉及性暴力/家暴议题但未设置内容提示。')
@@ -245,7 +265,7 @@ export function deskSummary(state: PrismState): DeskSummary {
   return {
     pending: pendingReview(state).length,
     highRisk: highRisk(state).length,
-    citationFailures: state.articles.reduce((n, a) => n + failedChecks(a).length, 0),
+    citationFailures: state.articles.reduce((n, a) => n + blockingChecks(a).length, 0),
     scheduled: scheduled(state).length,
     published: published(state).length,
     updatesNeeded: needsUpdate(state).length,

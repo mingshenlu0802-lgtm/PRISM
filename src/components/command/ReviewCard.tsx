@@ -88,6 +88,9 @@ export function ReviewCard({
   const resolvedRisks = article.riskFlags.length - risks.length
 
   const fails = sel.failedChecks(article)
+  /** Failures that still gate publishing, versus ones the editor has handled. */
+  const blocking = sel.blockingChecks(article)
+  const acked = sel.acknowledgedFailures(article)
   const warns = sel.warnChecks(article)
   const checked = article.citationChecks.length
   const passes = checked - fails.length - warns.length
@@ -96,13 +99,17 @@ export function ReviewCard({
   const positions = useMemo(() => divergencePositions(article), [article])
   const sharp = useMemo(() => sharpestPair(positions), [positions])
 
-  const failed = fails.map((c) => ({
+  /** Blocking failures first — those are the ones stopping publication. */
+  const failed = [...blocking, ...acked].map((c) => ({
     key: c.citationId,
     n: numbers.get(c.citationId),
     claim: article.citations.find((x) => x.id === c.citationId)?.claim ?? '（该引用已不在正文中）',
     reason: c.reason,
+    handled: Boolean(c.acknowledged),
+    note: c.acknowledgedNote,
   }))
 
+  const live = article.status === 'published' || article.status === 'retracted'
   const blocked = gate.blockers.length > 0
   const to = `/command/article/${article.id}`
   const updatedLabel = relTime(article.updatedAt, nowIso())
@@ -118,7 +125,7 @@ export function ReviewCard({
             {blocked ? (
               <span className="rvc__blockpill">
                 <Icon name="alert" size={11} />
-                发布被阻断 {gate.blockers.length}
+                {live ? '校验未通过' : '发布被阻断'} {gate.blockers.length}
               </span>
             ) : (
               <span className="rvc__okpill">
@@ -148,7 +155,10 @@ export function ReviewCard({
               <span className="rvc__v u-num">
                 <span className="rvc__chk rvc__chk--pass">通过 {passes}</span>
                 <span className="rvc__chk rvc__chk--warn">保留 {warns.length}</span>
-                <span className="rvc__chk rvc__chk--fail">未过 {fails.length}</span>
+                <span className="rvc__chk rvc__chk--fail">未过 {blocking.length}</span>
+                {acked.length > 0 ? (
+                  <span className="rvc__chk rvc__chk--acked">已处理 {acked.length}</span>
+                ) : null}
               </span>
             </li>
             <li><span className="rvc__k">未处理风险</span><span className="rvc__v u-num">{risks.length}</span></li>
@@ -239,16 +249,21 @@ export function ReviewCard({
         </header>
 
         {blocked ? (
-          <section className="rvc__block" aria-label="发布阻断项">
+          <section className="rvc__block" aria-label={live ? '发布校验未通过项' : '发布阻断项'}>
             <p className="rvc__block-title">
               <Icon name="alert" size={14} />
-              发布被阻断 · {gate.blockers.length} 项
+              {live ? '发布校验未通过' : '发布被阻断'} · {gate.blockers.length} 项
             </p>
             <ul className="rvc__block-list">
               {gate.blockers.map((b) => (
                 <li key={b}><span className="rvc__block-mark" aria-hidden="true">✕</span>{b}</li>
               ))}
             </ul>
+            {live ? (
+              <p className="rvc__block-warn">
+                此条目已经公开。上述问题的补救手段是更正或撤回，而不是重新发布 —— 已发布内容不做静默修改。
+              </p>
+            ) : null}
             {gate.warnings.length > 0 ? (
               <p className="rvc__block-warn">另有 {gate.warnings.length} 项警告需在发布前逐条确认。</p>
             ) : null}
@@ -275,7 +290,7 @@ export function ReviewCard({
             label="引用检查健康度"
             hint={checked === 0
               ? '尚未运行引用检查：本条目还没有可核对的 references。'
-              : `${checked} 项引用中，通过 ${passes}、带保留 ${warns.length}、未通过 ${fails.length}。保留意见按半分计。`}
+              : `${checked} 项引用中，通过 ${passes}、带保留 ${warns.length}、未通过 ${fails.length}（其中 ${acked.length} 项已记录处理说明）。保留意见与已处理项按半分计。`}
             size="sm"
           />
         </div>
@@ -371,16 +386,25 @@ export function ReviewCard({
               <p className="rvc__checks">
                 <span className="rvc__chk rvc__chk--pass"><Icon name="check" size={11} />通过 {passes}</span>
                 <span className="rvc__chk rvc__chk--warn"><Icon name="alert" size={11} />带保留 {warns.length}</span>
-                <span className="rvc__chk rvc__chk--fail"><Icon name="x" size={11} />未通过 {fails.length}</span>
+                <span className="rvc__chk rvc__chk--fail"><Icon name="x" size={11} />未通过并阻断 {blocking.length}</span>
+                {acked.length > 0 ? (
+                  <span className="rvc__chk rvc__chk--acked"><Icon name="shield" size={11} />未通过但已处理 {acked.length}</span>
+                ) : null}
               </p>
               {failed.length > 0 ? (
                 <ul className="rvc__fails">
                   {failed.slice(0, 3).map((f) => (
-                    <li key={f.key} className="rvc__fail">
+                    <li key={f.key} className={cx('rvc__fail', f.handled && 'rvc__fail--handled')}>
                       <span className="rvc__failn u-mono">[{f.n ?? '—'}]</span>
                       <span className="rvc__failbody">
-                        <span className="rvc__failclaim">{oneLine(f.claim, 56)}</span>
+                        <span className="rvc__failclaim">
+                          {f.handled ? <span className="rvc__failtag">已处理</span> : <span className="rvc__failtag rvc__failtag--stop">阻断</span>}
+                          {oneLine(f.claim, 52)}
+                        </span>
                         <span className="rvc__failwhy">{oneLine(f.reason, 76)}</span>
+                        {f.handled && f.note ? (
+                          <span className="rvc__failnote">处理说明：{oneLine(f.note, 76)}</span>
+                        ) : null}
                       </span>
                     </li>
                   ))}

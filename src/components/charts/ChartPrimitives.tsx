@@ -106,33 +106,39 @@ export function SrTable(props: {
   rows: (string | number)[][]
 }): JSX.Element {
   const { caption, columns, rows } = props
+  /* The wrapper carries `u-sr`: applied to a <table> directly the class cannot
+     clip, because a table box grows to its content regardless of `width: 1px`
+     and does not honour `overflow: hidden` on itself — which would push the
+     page sideways on a narrow screen. */
   return (
-    <table className="u-sr">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          {columns.map((c, i) => (
-            <th key={`${c}-${i}`} scope="col">
-              {c}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, ri) => (
-          <tr key={ri}>
-            {row.map((cell, ci) =>
-              ci === 0 ? (
-                <th key={ci} scope="row">
-                  {cell}
-                </th>
-              ) : (
-                <td key={ci}>{cell}</td>
-              ),
-            )}
+    <div className="u-sr">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map((c, i) => (
+              <th key={`${c}-${i}`} scope="col">
+                {c}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((cell, ci) =>
+                ci === 0 ? (
+                  <th key={ci} scope="row">
+                    {cell}
+                  </th>
+                ) : (
+                  <td key={ci}>{cell}</td>
+                ),
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

@@ -92,6 +92,8 @@
   color: var(--fg-subtle);
 }
 
+.pline__notetext { min-width: 0; }
+
 .pline__note--break { color: var(--risk-medium); }
 
 .pline__notemark {
@@ -100,6 +102,12 @@
   height: 0;
   border-top: 1.5px dashed currentColor;
   transform: translateY(-3px);
+}
+
+.pline__hint {
+  margin-top: var(--s-2);
+  font-size: var(--fs-2xs);
+  color: var(--fg-faint);
 }
 
 .pline__empty {

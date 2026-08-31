@@ -51,6 +51,12 @@
   outline-offset: 2px;
 }
 
+.pbar__hint {
+  margin-top: var(--s-2);
+  font-size: var(--fs-2xs);
+  color: var(--fg-faint);
+}
+
 .pbar__empty {
   padding: var(--s-6) var(--s-4);
   border: 1px dashed var(--line);

@@ -43,6 +43,10 @@ export function ArticleCard({
   const cover = sel.coverOf(state, article)
   const profile = sel.sourceProfile(article, state)
   const withCover = (showCover ?? (size === 'lead' || size === 'md')) && Boolean(cover)
+  /* The in-image 「概念插图」 stamp needs room to be legible; on thumbnail-sized
+     covers the same disclosure is carried by a badge in the card body instead
+     of being shrunk into an unreadable sliver. */
+  const bigCover = size === 'lead' || size === 'md'
 
   const stamp = article.publishedAt ?? article.updatedAt
   const live = article.status === 'published'
@@ -56,7 +60,7 @@ export function ArticleCard({
           tabIndex={-1}
           aria-hidden="true"
         >
-          <ConceptImage asset={cover} ratio={RATIO[size]} />
+          <ConceptImage asset={cover} ratio={RATIO[size]} stamp={bigCover && cover.conceptual} />
         </Link>
       ) : null}
 
@@ -130,6 +134,11 @@ export function ArticleCard({
         ) : null}
 
         <div className="acard__foot">
+          {withCover && !bigCover && cover?.conceptual ? (
+            <Badge tone="neutral" size="sm" icon={<Icon name="image" size={11} />} title={cover.caption}>
+              概念插图 · AI 生成
+            </Badge>
+          ) : null}
           {article.status === 'update-needed' ? (
             <Badge tone="warn" size="sm" icon={<Icon name="alert" size={11} />}>已进入需更新队列</Badge>
           ) : null}

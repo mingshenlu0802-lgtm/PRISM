@@ -202,6 +202,8 @@ export function BarChart({ spec, height = 260 }: BarChartProps): JSX.Element {
         />
       </ChartCanvas>
 
+      {scroll ? <p className="pbar__hint">横向滚动可查看全部类别。</p> : null}
+
       <SrTable
         caption={`${spec.title}（单位：${spec.unit}）`}
         columns={['类别', ...series.map((s) => s.name)]}

@@ -273,6 +273,15 @@ export interface CitationCheck {
   /** What the automated check actually verified or failed to verify. */
   reason: string
   checkedAt: ISODateTime
+  /**
+   * A failed check that the editor has explicitly seen and handled — normally
+   * by weakening or re-attributing the sentence that rested on it. It stays
+   * visible as a failure, but it no longer blocks publishing, because the
+   * claim it could not support is no longer being made.
+   */
+  acknowledged?: boolean
+  acknowledgedNote?: string
+  acknowledgedBy?: string
 }
 
 export type ArticleStatus =

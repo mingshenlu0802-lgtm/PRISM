@@ -190,7 +190,7 @@ export function ReferenceList({
     const cited = new Set(list.map((e) => e.source.id))
     const notCited = article.sourceIds
       .map((id) => byId.get(id))
-      .filter((s): s is Source => Boolean(s) && !cited.has(s.id))
+      .filter((s): s is Source => s !== undefined && !cited.has(s.id))
 
     const flat = sortBy(
       article.citations

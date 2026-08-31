@@ -5,7 +5,7 @@ import type {
   Article, ArticleSection, Block, DivergencePosition, SectionKind,
 } from '../../lib/types'
 import { SECTION_LABEL, SECTION_ORDER } from '../../lib/constants'
-import { cx } from '../../lib/util'
+import { cx, stripCitations } from '../../lib/util'
 import { usePrism } from '../../lib/store'
 
 import { Badge, DemoTag, Icon, RichText } from '../common'
@@ -334,19 +334,22 @@ function WideBlock({
           />
         )
       }
+      /* ConceptImage already prints `asset.caption` inside its own <figure>;
+         the block caption is only added when the editor wrote a different one. */
+      const ownCaption = block.caption.trim() !== asset.caption.trim()
       return (
-        <figure className="abody__figure">
+        <div className="abody__figure">
           <ConceptImage asset={asset} ratio="16-9" />
-          <figcaption className="abody__figcap">
-            <span className="abody__figcap-text">{block.caption}</span>
+          <div className="abody__figcap">
+            {ownCaption ? <p className="abody__figcap-text">{block.caption}</p> : null}
             {asset.guardrail ? (
-              <span className="abody__figcap-rule">
+              <p className="abody__figcap-rule">
                 <Icon name="shield" size={12} />
                 <span>图像准则：{asset.guardrail}</span>
-              </span>
+              </p>
             ) : null}
-          </figcaption>
-        </figure>
+          </div>
+        </div>
       )
     }
 
@@ -371,7 +374,17 @@ function WideBlock({
       )
     }
 
-    case 'timeline':
+    case 'timeline': {
+      /* TimelineStrip prints `text` verbatim and draws its markers from
+         `citationIds`, so the inline `[[c:…]]` tokens are lifted out of the
+         prose into that list here — union first, then strip, so no reference
+         is lost on the way. */
+      const entries = block.entries.map((entry) => {
+        const inline = Array.from(entry.text.matchAll(/\[\[c:([A-Za-z0-9_-]+)\]\]/g)).map((m) => m[1])
+        const ids = [...(entry.citationIds ?? [])]
+        for (const id of inline) if (!ids.includes(id)) ids.push(id)
+        return { ...entry, text: stripCitations(entry.text), citationIds: ids }
+      })
       return (
         <div className="abody__timeline">
           <p className="abody__timeline-head">
@@ -380,9 +393,10 @@ function WideBlock({
               节点按证据地位分层：一手记录 · 单一来源报道 · 存在争议。形状与文字同时标注，不靠颜色区分。
             </span>
           </p>
-          <TimelineStrip entries={block.entries} numbers={numbers} onCite={onCite} />
+          <TimelineStrip entries={entries} numbers={numbers} onCite={onCite} />
         </div>
       )
+    }
 
     case 'table':
       return (

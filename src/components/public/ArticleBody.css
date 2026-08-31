@@ -103,9 +103,9 @@
 .abody__flow { max-width: var(--measure); min-width: 0; }
 .abody--dense .abody__flow { font-size: var(--fs-md); line-height: 1.78; }
 
-.abody__p { margin: 0; }
+.abody .abody__p { margin: 0; }
 
-.abody__h3 {
+.abody .abody__h3 {
   font-family: var(--font-sans);
   font-size: var(--fs-lg);
   font-weight: 660;
@@ -113,7 +113,7 @@
   color: var(--fg);
 }
 
-.abody__h4 {
+.abody .abody__h4 {
   font-family: var(--font-sans);
   font-size: var(--fs-md);
   font-weight: 660;
@@ -137,27 +137,33 @@
   box-shadow: 0 0 0 6px var(--bg-inset);
 }
 
+/* Kept in the DOM and focusable at all times — hidden with opacity, never with
+   `display:none`, so a keyboard user can always tab to the edit affordance. */
 .abody__editbtn {
   position: absolute;
   top: 0;
   right: -34px;
-  display: none;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 26px;
   height: 26px;
+  opacity: 0;
   border: var(--bw) solid var(--line);
   border-radius: var(--r-sm);
   background: var(--bg-raised);
   color: var(--fg-subtle);
+  transition: opacity var(--dur-fast) var(--ease);
 }
 
 .abody__editbtn:hover { color: var(--accent); border-color: var(--accent); }
+
 .abody__slot:hover .abody__editbtn,
-.abody__editbtn:focus-visible { display: flex; }
+.abody__slot:focus-within .abody__editbtn,
+.abody__editbtn:focus-visible { opacity: 1; }
 
 @media (max-width: 900px) {
-  .abody__editbtn { position: static; display: inline-flex; margin-top: var(--s-2); }
+  .abody__editbtn { position: static; opacity: 1; margin-top: var(--s-2); }
 }
 
 .abody__editing {
@@ -321,12 +327,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  margin-top: var(--s-3);
+  margin-top: var(--s-2);
   font-family: var(--font-sans);
   font-size: var(--fs-xs);
   line-height: var(--lh-snug);
   color: var(--fg-subtle);
 }
+
+.abody__figcap:empty { display: none; }
 
 .abody__figcap-text { max-width: 66ch; }
 

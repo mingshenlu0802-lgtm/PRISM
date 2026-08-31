@@ -24,6 +24,7 @@ export type Action =
   | { type: 'set-status'; articleId: ID; status: ArticleStatus }
   | { type: 'resolve-risk'; articleId: ID; riskId: ID; note: string }
   | { type: 'recheck-citations'; articleId: ID }
+  | { type: 'ack-citation'; articleId: ID; citationId: ID; note: string }
   | { type: 'attach-source'; articleId: ID; sourceId: ID }
   | { type: 'edit-block'; articleId: ID; sectionId: ID; blockId: ID; text: string }
   | { type: 'edit-meta'; articleId: ID; patch: Partial<Pick<Article, 'title' | 'standfirst' | 'contentNotice'>> }
@@ -198,12 +199,31 @@ export function reducer(state: PrismState, action: Action): PrismState {
         ...state,
         articles: mapArticle(state, action.articleId, (a) => ({
           ...a,
+          // Re-checking never launders a failure into a pass, and never
+          // clears an acknowledgement the editor already recorded.
           citationChecks: a.citationChecks.map((c) =>
-            c.status === 'fail'
-              ? { ...c, status: 'warn', reason: `${c.reason}（已重新核查：仍未取得可验证的一手记录，等待人工判断）`, checkedAt: at }
+            c.status === 'fail' && !c.acknowledged
+              ? { ...c, reason: `${c.reason}（已重新核查：仍未取得可验证的一手记录，等待人工判断）`, checkedAt: at }
               : { ...c, checkedAt: at }),
         })),
         audit: audit(state, 'ai-review', `${article.title} · 引用检查`, '重新核查全部 references。', action.articleId, 'ai-desk'),
+      }
+    }
+
+    case 'ack-citation': {
+      const article = state.articles.find((a) => a.id === action.articleId)
+      if (!article) return state
+      return {
+        ...state,
+        articles: mapArticle(state, action.articleId, (a) => ({
+          ...a,
+          citationChecks: a.citationChecks.map((c) =>
+            c.citationId === action.citationId
+              ? { ...c, acknowledged: true, acknowledgedNote: action.note, acknowledgedBy: EDITOR }
+              : c),
+        })),
+        audit: audit(state, 'edited', `${article.title} · ${action.citationId}`,
+          `引用检查未通过项已记录处理说明：${action.note}`, action.articleId),
       }
     }
 

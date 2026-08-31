@@ -134,10 +134,13 @@ export function SourceDrawer({
       data-surface={surface}
       data-theme={theme}
     >
+      {/* Pointer affordance only — Escape and the close button carry the
+          keyboard and screen-reader routes out of the dialog. */}
       <button
         type="button"
         className="sdrawer__scrim"
-        aria-label="关闭来源面板"
+        tabIndex={-1}
+        aria-hidden="true"
         onClick={close}
       />
 

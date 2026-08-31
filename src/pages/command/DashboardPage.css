@@ -53,6 +53,7 @@
   color: var(--fg-muted);
   max-width: 78ch;
 }
+.cdash__standingicon { flex: none; display: inline-flex; padding-top: 2px; color: var(--accent); }
 .cdash__standing strong { color: var(--fg); font-weight: 660; }
 
 .cdash__heroside {
@@ -552,12 +553,15 @@
 
 @media (min-width: 1080px) {
   .cdash__hero { flex-direction: row; align-items: flex-start; gap: var(--s-7); }
+  .cdash__coverage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cdash__herotext { flex: 1 1 auto; }
   .cdash__heroside { flex: none; width: 320px; }
 
-  .cdash__kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-
-  .cdash__grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--s-5); }
+  .cdash__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--s-5);
+  }
   .cdash__c5 { grid-column: span 5; }
   .cdash__c6 { grid-column: span 6; }
   .cdash__c7 { grid-column: span 7; }
@@ -568,4 +572,5 @@
 
 @media (min-width: 1440px) {
   .cdash__heroside { width: 380px; }
+  .cdash__kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }

@@ -86,11 +86,13 @@ export function DecisionBar({
   const { state, dispatch } = usePrism()
   const [publishMode, setPublishMode] = useState<PublishMode | null>(null)
   const [reasonFor, setReasonFor] = useState<ReasonDecision | null>(null)
+  const [showUnavailable, setShowUnavailable] = useState(false)
   const [reason, setReason] = useState('')
   const [notified, setNotified] = useState(true)
 
   const status = article.status
-  const isLive = status === 'published' || status === 'retracted' || status === 'update-needed'
+  /** Anything the public site can already see. */
+  const isPublic = status === 'published' || status === 'retracted' || status === 'update-needed'
   const gate = sel.publishGate(article, state)
   const blockedCount = gate.blockers.length
 
@@ -99,30 +101,32 @@ export function DecisionBar({
     switch (key) {
       case 'approve-publish':
         if (status === 'published') return '此条目已经是发布状态；如需修改请使用「更新已发布内容」。'
+        if (status === 'update-needed') return '此条目已公开且被标记为需更新。请用「更新已发布内容」留下公开记录，而不是再发布一次。'
         if (status === 'retracted') return '已撤回的条目不能直接重新发布，需先退回重新研究。'
         return ''
       case 'approve-schedule':
-        if (status === 'published') return '此条目已经公开，排程没有意义。'
-        if (status === 'retracted') return '已撤回的条目不能排程。'
+        if (isPublic) return '此条目已经公开，排程没有意义。'
         if (status === 'scheduled') return '此条目已在排程队列中；重新排程请先保存为草稿。'
         return ''
       case 'save-draft':
-        if (isLive) return '已发布或已撤回的条目不能退回草稿状态 —— 那等于静默下线。请使用更新或撤回。'
+        if (isPublic) return '已公开的条目不能退回草稿状态 —— 那等于静默下线。请使用更新或撤回。'
         if (status === 'drafting') return '此条目已经是草稿状态。'
         return ''
       case 'request-sources':
-        if (isLive) return '已发布内容不走退回流程；发现证据问题请使用更新或撤回。'
+        if (isPublic) return '已公开的条目不走退回流程；发现证据问题请使用更新或撤回。'
         if (status === 'needs-sources') return '此条目已在「需补充来源」状态。'
         return ''
       case 'return-research':
-        if (isLive && status !== 'retracted') return '已发布内容不走退回流程；请使用更新或撤回。'
+        if (isPublic && status !== 'retracted') return '已公开的条目不走退回流程；请使用更新或撤回。'
         if (status === 'changes-requested') return '此条目已在「要求修改」状态。'
         return ''
       case 'reject':
-        if (status === 'published') return '已发布内容不能改判为拒绝；请使用撤回。'
+        if (status === 'published' || status === 'update-needed') return '已公开的条目不能改判为拒绝；请使用撤回。'
         if (status === 'rejected') return '此条目已被拒绝。'
         return ''
       case 'archive':
+        if (status === 'published' || status === 'update-needed') return '已公开的条目不能直接归档 —— 那等于静默下线。请先撤回，再归档。'
+        if (status === 'retracted') return '已撤回的条目必须保留公开可访问的撤回说明，不能归档。'
         if (status === 'archived') return '此条目已归档。'
         return ''
       default:
@@ -161,6 +165,12 @@ export function DecisionBar({
     setReason('')
   }
 
+  const compact = layout === 'row'
+  const entries = DECISIONS.map((d) => ({ d, why: unavailable(d.key) }))
+  const unavailableCount = entries.filter((e) => e.why !== '').length
+  /** The compact list form folds inapplicable decisions behind a disclosure. */
+  const shown = compact && !showUnavailable ? entries.filter((e) => e.why === '') : entries
+
   const reasonMeta = reasonFor ? DECISION_MAP[reasonFor] : null
   const reasonOk = reason.trim().length >= MIN_REASON
 
@@ -180,8 +190,7 @@ export function DecisionBar({
       </div>
 
       <div className="dcb__grid" role="group" aria-label={`《${article.title}》的编辑决定`}>
-        {DECISIONS.map((d) => {
-          const why = unavailable(d.key)
+        {shown.map(({ d, why }) => {
           const disabled = why !== ''
           return (
             <button
@@ -209,9 +218,23 @@ export function DecisionBar({
             </button>
           )
         })}
+
+        {compact && unavailableCount > 0 ? (
+          <button
+            type="button"
+            className="dcb__reveal"
+            aria-expanded={showUnavailable}
+            onClick={() => setShowUnavailable((v) => !v)}
+          >
+            <Icon name={showUnavailable ? 'chevron-up' : 'chevron-down'} size={12} />
+            {showUnavailable
+              ? `收起 ${unavailableCount} 项不适用的决定`
+              : `${unavailableCount} 项决定在此状态下不适用`}
+          </button>
+        ) : null}
       </div>
 
-      {isLive ? (
+      {isPublic ? (
         <div className="dcb__live">
           <p className="dcb__live-label">已发布内容的处理方式</p>
           <div className="dcb__live-btns">

@@ -45,6 +45,7 @@
   flex-direction: column;
   line-height: 1.15;
   white-space: nowrap;
+  min-width: 0;
 }
 .cmdl__brandname {
   font-size: var(--fs-sm);
@@ -186,6 +187,7 @@
 
 .cmdl__toprow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
   min-height: var(--header-h);
@@ -228,6 +230,8 @@
 
 .cmdl__tools {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--s-2);
   margin-left: auto;
@@ -459,6 +463,8 @@
 
 @media (min-width: 720px) {
   .cmdl__rail { display: flex; }
+  .cmdl__toprow { flex-wrap: nowrap; }
+  .cmdl__tools { flex-wrap: nowrap; }
   .cmdl__tabs { display: none; }
   .cmdl__brandm { display: none; }
   .cmdl__where { display: flex; }

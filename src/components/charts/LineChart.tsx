@@ -286,12 +286,16 @@ export function LineChart({ spec, height = 260 }: LineChartProps): JSX.Element {
         />
       </ChartCanvas>
 
+      {scroll ? <p className="pline__hint">横向滚动可查看完整时间轴。</p> : null}
+
       {(breakCount > 0 || !zeroBased) && (
         <ul className="pline__notes">
           {breakCount > 0 ? (
             <li className="pline__note pline__note--break">
               <span className="pline__notemark" aria-hidden="true" />
-              虚线处统计口径发生变更，线条已断开：断点前后的数值不可直接比较。
+              <span className="pline__notetext">
+                虚线处统计口径发生变更，线条已断开：断点前后的数值不可直接比较。
+              </span>
             </li>
           ) : null}
           {!zeroBased ? (

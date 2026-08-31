@@ -215,9 +215,11 @@ export default function DashboardPage(): JSX.Element {
               ?? '自动编辑台已完成今日的搜集、合并与起草，全部结果都停在这里等待你的判断。'}
           </p>
           <p className="cdash__standing">
-            <Icon name="shield" size={13} />
-            自动编辑台完成搜集、去重、交叉核实、起草与自动检查；
-            <strong>批准与公开发布只有你能做</strong>，且始终受 Global Publishing Lock 约束。
+            <span className="cdash__standingicon" aria-hidden="true"><Icon name="shield" size={13} /></span>
+            <span>
+              自动编辑台完成搜集、去重、交叉核实、起草与自动检查；
+              <strong>批准与公开发布只有你能做</strong>，且始终受 Global Publishing Lock 约束。
+            </span>
           </p>
         </div>
 
@@ -377,7 +379,8 @@ export default function DashboardPage(): JSX.Element {
                           </>
                         ) : signal.status === 'declined' ? (
                           <>
-                            <span className="cdash__outcomelabel">未采用：</span>
+                            <span className="cdash__outcomelabel">状态：</span>
+                            <Badge tone="stop" icon={<Icon name="minus" size={11} />}>未采用</Badge>
                             <span className="cdash__outcometext">{signal.declineReason ?? '未记录理由。'}</span>
                           </>
                         ) : signal.status === 'drafted' ? (
@@ -751,8 +754,7 @@ export default function DashboardPage(): JSX.Element {
                 height={260}
               />
               <figcaption className="cdash__caption">
-                示意投影 · 本原型中的所有司法辖区均为虚构，坐标仅用于分布示意，不对应任何真实地理位置。
-                点的大小表示该辖区在今日信号与条目中出现的次数。
+                坐标为示意排布，只用于观察覆盖是否集中在少数辖区，不能据此推断地理邻近关系或区域关联。
               </figcaption>
             </figure>
 

@@ -78,8 +78,8 @@
   transition: background var(--dur) var(--ease);
 }
 .pipet__node--static { cursor: default; }
-button.pipet__node:hover { background: var(--chip-bg); }
-button.pipet__node:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pipet__node:not(.pipet__node--static):hover { background: var(--chip-bg); }
+.pipet__node:not(.pipet__node--static):focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
 .pipet__marker {
   flex: none;

@@ -91,12 +91,15 @@ function nextFullHour(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+/** The browser's own timezone, always written out — a bare time is never enough. */
 function tzLabel(): string {
-  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || '本地时区'
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const mins = -new Date().getTimezoneOffset()
   const sign = mins >= 0 ? '+' : '−'
   const abs = Math.abs(mins)
-  return `${zone}（UTC${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}）`
+  const offset = `UTC${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+  if (!zone || zone === 'UTC' || zone === offset) return offset
+  return `${zone}（${offset}）`
 }
 
 export function PublishDialog({
@@ -367,7 +370,9 @@ export function PublishDialog({
                   <span className="pubd__step-n u-num" aria-hidden="true">{i + 1}</span>
                   <span className="pubd__step-label">{stepLabels[key]}</span>
                   <span className="u-sr">
-                    {current ? '（当前步骤）' : stepDone[key] ? '（已满足）' : '（尚未满足）'}
+                    {current ? '（当前步骤）'
+                      : key === 'final' ? '（最后一步）'
+                        : stepDone[key] ? '（条件已满足）' : '（条件尚未满足）'}
                   </span>
                 </button>
               </li>
@@ -541,7 +546,7 @@ export function PublishDialog({
             <dl className="pubd__resolve">
               <div className="pubd__resolve-row">
                 <dt>本地时间</dt>
-                <dd className="u-mono">{when || '—'}（{tzLabel()}）</dd>
+                <dd className="u-mono">{when ? when.replace('T', ' ') : '—'} · {tzLabel()}</dd>
               </div>
               <div className="pubd__resolve-row">
                 <dt>记录时间</dt>

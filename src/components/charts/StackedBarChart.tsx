@@ -202,6 +202,8 @@ export function StackedBarChart({ spec, height = 260 }: StackedBarChartProps): J
         <line className="pstack__axis" x1={padLeft} x2={padLeft + plotW} y1={baseY} y2={baseY} />
       </ChartCanvas>
 
+      {scroll ? <p className="pstack__hint">横向滚动可查看全部类别。</p> : null}
+
       <SrTable
         caption={`${spec.title}（单位：${spec.unit}）`}
         columns={['类别', ...series.map((s) => s.name), '合计']}

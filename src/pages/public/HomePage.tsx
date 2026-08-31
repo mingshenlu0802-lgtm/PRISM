@@ -30,17 +30,17 @@ import './HomePage.css'
  * invented jurisdictions legibly across an abstract projection.
  * ------------------------------------------------------------------ */
 const PLACEMENT: Record<string, [number, number]> = {
-  '北屿联合王国': [40, 17],
-  '东埃斯特里亚': [62, 25],
-  '西埃斯特里亚': [55, 30],
-  '韦拉共和国': [26, 37],
-  '图兰共和国': [73, 33],
-  '阿米拉特王国': [53, 48],
-  '卡利桑邦': [66, 45],
-  '马兰岛自治区': [83, 63],
-  '塞尔瓦联邦': [22, 69],
-  '泛洲（跨国机构）': [46, 55],
-  '多辖区（跨国比较）': [34, 58],
+  '北屿联合王国': [36, 21],
+  '韦拉共和国': [22, 39],
+  '西埃斯特里亚': [43, 33],
+  '东埃斯特里亚': [61, 22],
+  '图兰共和国': [78, 31],
+  '卡利桑邦': [69, 37],
+  '阿米拉特王国': [55, 46],
+  '塞尔瓦联邦': [35, 72],
+  '马兰岛自治区': [84, 66],
+  '泛洲（跨国机构）': [52, 65],
+  '多辖区（跨国比较）': [13, 61],
 }
 
 function placeFallback(label: string): [number, number] {
@@ -98,10 +98,12 @@ export default function HomePage(): JSX.Element {
   const navigate = useNavigate()
 
   const live = useMemo(() => sel.publicArticles(state), [state])
-  const checks = useMemo(
+  const allChecks = useMemo(
     () => sortBy(sel.publicFactChecks(state), (f) => f.checkedAt, 'desc'),
     [state],
   )
+  /** The rail carries the newest ten; the index page carries the rest. */
+  const checks = useMemo(() => allChecks.slice(0, 10), [allChecks])
   const countries = useMemo(() => sel.countryDistribution(state), [state])
   const languages = useMemo(() => sel.languageDistribution(state), [state])
   const topics = useMemo(() => sel.topicDistribution(state), [state])
@@ -239,7 +241,7 @@ export default function HomePage(): JSX.Element {
             </div>
             <div className="phome__stat">
               <dt>事实核查</dt>
-              <dd className="u-num">{checks.length}</dd>
+              <dd className="u-num">{allChecks.length}</dd>
               <p className="phome__stat-note">八级结论阶梯</p>
             </div>
           </dl>
@@ -265,7 +267,12 @@ export default function HomePage(): JSX.Element {
           <article className="phome__leadcard">
             <Link to={`/article/${lead.slug}`} className="phome__leadcover" tabIndex={-1} aria-hidden="true">
               {coverFor(lead) ? (
-                <ConceptImage asset={coverFor(lead) as ImageAsset} ratio={wide ? '21-9' : '3-2'} />
+                /* The 「概念插图」 stamp carries the disclosure; the asset's own
+                   caption is left to the article page rather than repeated here. */
+                <ConceptImage
+                  asset={{ ...(coverFor(lead) as ImageAsset), caption: '' }}
+                  ratio={wide ? '21-9' : '3-2'}
+                />
               ) : (
                 <div className="phome__nocover">暂无封面图</div>
               )}
@@ -405,7 +412,7 @@ export default function HomePage(): JSX.Element {
                   <Icon name="chevron-right" size={16} />
                 </button>
                 <Link to="/fact-checks" className="phome__inline-link">
-                  全部核查记录
+                  全部 {allChecks.length} 条核查
                   <Icon name="arrow-right" size={13} />
                 </Link>
               </div>

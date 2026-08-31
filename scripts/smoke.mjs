@@ -215,12 +215,37 @@ check('中文词级差异是最小差异', () => {
 })
 
 check('references 增删可被单独追踪', () => {
-  const a = S0.articles.find((x) => x.sourceIds.length > 2)
+  const a = S0.articles.find((x) => x.sourceIds.length > 2 && x.citations.length > 0)
   assert(a, '没有足够来源的文章')
-  const stripped = { ...a, sourceIds: a.sourceIds.slice(0, -1) }
+  // diffRefs unions sourceIds with the sources actually cited, so a source is
+  // only "removed" once nothing cites it any more — drop both.
+  const gone = a.sourceIds[a.sourceIds.length - 1]
+  const stripped = {
+    ...a,
+    sourceIds: a.sourceIds.filter((id) => id !== gone),
+    citations: a.citations.filter((c) => c.sourceId !== gone),
+  }
   const d = diffRefs(a, stripped)
-  assert(d.removed.length === 1, `期望 1 个来源被删除，实际 ${d.removed.length}`)
+  assert(d.removed.length === 1 && d.removed[0] === gone,
+    `期望仅删除 ${gone}，实际 [${d.removed.join(', ')}]`)
   return `删除 ${d.removed[0]}`
+})
+
+check('已记录处理说明的引用失败不再阻断发布', () => {
+  const a = S0.articles.find((x) => sel.failedChecks(x).length > 0)
+  assert(a, '演示数据中没有引用检查失败的条目')
+  const before = sel.publishGate(a, S0)
+  assert(before.blockers.some((b) => b.includes('引用检查')), '失败项未阻断发布')
+  let s = S0
+  for (const c of sel.failedChecks(a)) {
+    s = reducer(s, { type: 'ack-citation', articleId: a.id, citationId: c.citationId, note: '已改为归因表述' })
+  }
+  const a2 = s.articles.find((x) => x.id === a.id)
+  const after = sel.publishGate(a2, s)
+  assert(!after.blockers.some((b) => b.includes('引用检查')), '记录处理说明后仍被阻断')
+  assert(after.warnings.some((w) => w.includes('已记录处理说明')), '处理说明未降级为警告')
+  assert(sel.failedChecks(a2).length === sel.failedChecks(a).length, '失败记录被抹掉了')
+  return `${a.id}：${sel.failedChecks(a).length} 项失败保留在记录中，但不再阻断`
 })
 
 /* ------------------------- editorial decisions --------------------------- */
