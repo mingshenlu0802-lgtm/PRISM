@@ -107,7 +107,6 @@ export async function mirror(
     case 'hydrate':
     case 'signin':
     case 'signout':
-    case 'client-id':
     case 'github':
     case 'collect-config':
     case 'run-start':

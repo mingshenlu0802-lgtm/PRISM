@@ -266,20 +266,21 @@ export interface Account {
   notify?: boolean
 }
 
+/**
+ * 谁在用这个网站。
+ *
+ * 本地模式下这里是空的——内容只存在这台浏览器里，没有第二个人，
+ * 也就没有「登录」这回事。共享模式下由数据库填：登录的邮箱、名单、
+ * 谁是站长，全部来自 members 表，代码里一个地址都没有。
+ */
 export interface AuthState {
-  /** The signed-in Google account, if any. */
+  /** 当前登录的邮箱（共享模式）。 */
   email?: string
   name?: string
   picture?: string
-  /** Google OAuth client id; empty until the owner pastes one in. */
-  clientId: string
+  /** 成员名单。共享模式下来自数据库；本地模式下是空的。 */
   admins: Account[]
-  /**
-   * The owner's address, once they have signed in and matched OWNER_HASH.
-   *
-   * It lives here — in the owner's own browser — and never in the shipped
-   * code, so the published site carries nobody's email address.
-   */
+  /** 站长的地址，来自数据库。代码里不写死任何人。 */
   ownerEmail?: string
 }
 

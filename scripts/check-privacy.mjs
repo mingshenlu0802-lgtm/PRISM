@@ -3,8 +3,8 @@
  * 发布出去的文件里不能有个人信息。
  *
  * 一个每天更新的公开网站是最好扒的邮箱来源——爬虫不需要任何技巧，下载 JS 就行。
- * 站长的身份在代码里只以 sha256 的形式存在（见 src/lib/owner.ts），地址本身只
- * 留在站长自己的浏览器里。这个检查在构建之后跑一遍产物，确保没人不小心把它加回来。
+ * 这个网站的代码里不写死任何人的邮箱——谁是站长来自数据库的成员名单。
+ * 这个检查在构建之后跑一遍产物，确保没人不小心把一个地址加回去。
  *
  *   npm run build && node scripts/check-privacy.mjs
  */
@@ -48,5 +48,5 @@ if (found.length === 0) {
 }
 for (const [file, hit] of found) console.log(`  错误  ${file} 里出现了 ${hit}`)
 console.log('—'.repeat(64))
-console.log(`${found.length} 处泄露。站长身份应当只以 sha256 的形式出现，见 src/lib/owner.ts。`)
+console.log(`${found.length} 处泄露。代码里不该出现任何人的邮箱——身份来自数据库的成员名单。`)
 process.exit(1)

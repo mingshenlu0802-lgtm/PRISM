@@ -63,7 +63,12 @@
 }
 .acct__out:hover { color: var(--accent); text-decoration: underline; }
 
-.acct__lede { font-size: var(--fs-sm); font-weight: 620; }
-.acct__gbtn { min-height: 44px; display: grid; justify-items: start; }
-.acct__note { font-size: var(--fs-2xs); line-height: 1.7; color: var(--fg-subtle); }
-.acct__note--small { color: var(--fg-faint); }
+/* 本地模式下的裸入口：没有账号，就直接给控制端。 */
+.acct__bare {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: var(--s-2) var(--s-4);
+  border: var(--bw) solid var(--line-strong); border-radius: var(--r-full);
+  background: var(--bg-raised);
+  font-size: var(--fs-xs); color: var(--fg); text-decoration: none;
+}
+.acct__bare:hover { border-color: var(--accent); color: var(--accent); }

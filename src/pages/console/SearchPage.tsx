@@ -109,7 +109,7 @@ export default function SearchPage(): JSX.Element {
               ? '找到就直接上线，公众站马上能看到。你可以随时删掉。'
               : '找到后存为草稿，不会出现在公众站，等你去「编辑」里放行。'}
           </p>
-          {!canEdit && <p className="srch__warn">需要先用站长或管理员的 Google 账号登录才能搜集。</p>}
+          {!canEdit && <p className="srch__warn">你的账号只能看内容。要搜集，请让站长把你设成编辑。</p>}
         </div>
       </section>
 

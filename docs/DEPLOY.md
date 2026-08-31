@@ -1,7 +1,7 @@
 # PRISM — Deployment, Hardening and De-personalisation
 
 A complete runbook. Follow it top to bottom the first time. Every button name
-below is the exact English label you will see in GitHub, Google Cloud and
+below is the exact English label you will see in GitHub, Supabase and
 Cloudflare.
 
 **Goal:** the site is published, nothing public carries your name or personal
@@ -75,9 +75,9 @@ Domain:       ______________________  (can be decided later)
 
 ### 1.2 Create a dedicated Gmail account
 
-**This is the single most important step for de-personalisation**, because
-Google will display this address publicly on the sign-in consent screen, and it
-becomes your owner account.
+**This is the single most important step for de-personalisation.** It becomes
+your owner account, the contact address on the organisation, and the address
+you register services under — so it should be one that says nothing about you.
 
 1. Go to <https://accounts.google.com/signup>.
 2. First name: `PRISM`. Last name: `Desk` (or leave blank).
@@ -171,34 +171,20 @@ repository** once you are sure the new one works.)
 
 ---
 
-## Part 3 — Set the owner account in the code
+## Part 3 — Set the owner account
 
-The site never stores your email address in any published file. It stores a
-**SHA-256 hash** of it, and compares that at sign-in. You need to replace the
-hash with one for your new PRISM Gmail.
+**Nothing to change in the code.** No email address, and no hash of one, is
+written anywhere in this repository — a `npm run privacy` check fails the
+deploy if one ever appears.
 
-1. In the project folder, run this with your new address:
+Who the owner is depends on the mode:
 
-```bash
-node -e "console.log(require('crypto').createHash('sha256').update('prismlens.desk@gmail.com').digest('hex'))"
-```
-
-2. Copy the 64-character result.
-3. Open `src/lib/owner.ts` and replace the value of `OWNER_HASH` with it.
-4. Commit and push:
-
-```bash
-git add src/lib/owner.ts
-git commit -m "Set the owner account"
-git push
-```
-
-> **What the hash does and does not do.** It keeps every email address out of
-> the files the public downloads, which is what stops automated scraping. It is
-> not a password: someone who already knows which account runs the site could
-> hash a guess and confirm it. The real access control is Part 5.
-
----
+- **Local mode**: there is no owner, because there is nobody else. Whoever
+  opens that browser has full use of the console.
+- **Shared mode**: the owner is one row in the database's `members` table.
+  You insert it once when you run the schema — that is step 2 of
+  [SHARING.md](SHARING.md). Changing owner later is one SQL statement, or a
+  click in the console's member list.
 
 ## Part 4 — Publish
 
@@ -344,64 +330,32 @@ These matter more day to day than anything above.
 
 ---
 
-## Part 7 — Google sign-in
+## Part 7 — Sign-in
 
-Do this **after** the domain is final, because the authorised origin must match
-exactly.
+**There is no Google sign-in, and no OAuth setup to do.** Earlier versions of
+this guide walked through Google Cloud; that is gone.
 
-Google splits this across three pages under **Google Auth Platform**, and they
-must be done **in order**. Going straight to Clients gives you *"Your app's
-OAuth configuration is incomplete… visit the Branding page"*.
+How sign-in works now depends on which mode the site is in:
 
-1. <https://console.cloud.google.com> → project dropdown at the top →
-   **New Project**. Name it `PRISM`. → **Create**.
-2. Left menu → **Google Auth Platform** → **Branding**. Fill in only:
-   - **App name:** `PRISM` — *this is shown to everyone who signs in, so it
-     must not contain your name.* (It also may not contain the word "Google".)
-   - **User support email:** your PRISM Gmail — **also shown to everyone**.
-   - **Developer contact information:** your PRISM Gmail.
+**Local mode (no backend configured).** There is no sign-in at all. The
+content lives only in your own browser, so there is no second person to
+authenticate. The console opens directly.
 
-   **Leave App logo, Application home page, Privacy policy link and Terms of
-   service link empty.** Filling any URL makes Google demand Authorized domains
-   and domain-ownership verification — two extra steps that sign-in never
-   needs.
+**Shared mode ([SHARING.md](SHARING.md)).** People sign in by email: they
+type an address, receive a link, and click it. No password, no Google
+account, nothing to install. You control the member list, and the database
+enforces it — someone not on the list cannot read a single row, whatever they
+do in their browser.
 
-   → **Save**.
-3. **Audience** → **User type: External** → then **Publish app** →
-   **Confirm**.
+Two consequences worth knowing:
 
-   > Skipping this leaves the app in *Testing*, where **only accounts you add
-   > manually to a test-user list can sign in**. Since this site is meant to
-   > let anyone sign in, that would break it. Publishing is instant here — the
-   > site requests only name, email and avatar, which are non-sensitive scopes
-   > requiring no Google review.
-4. **Clients** → **Create client**:
-   - **Application type:** **Web application**
-   - **Name:** `PRISM web`
-   - **Authorised JavaScript origins** → **Add URI** → your site's origin,
-     **scheme and domain only**:
-     `https://prismlens.org`
-     (No path, no trailing slash. If you have not set up a domain yet, use
-     `https://YOUR-ORG.github.io`.) Add `http://localhost:5173` too if you want
-     to test locally.
-   - **Authorised redirect URIs:** leave empty.
-   - → **Create**.
-5. A dialog shows **Client ID** (ending `.apps.googleusercontent.com`) and
-   **Client secret**.
-   - **Copy the Client ID.**
-   - **Ignore the Client secret. Never paste it into the site or the
-     repository.** Nothing here uses it.
-6. Open your site → account menu (top right) → **进入控制端** →
-   **编辑** → **账号与同步** → expand the Google section → paste the Client ID.
-
-The sign-in button now appears on the public site, and the console changes from
-"open to everyone" to owner and admins only.
-
-> If sign-in fails with **`origin_mismatch`**, the origin in step 4 does not
-> exactly match the address in your browser's URL bar. Check for a trailing
-> slash, a path, `http` vs `https`, or `www.`
-
----
+- **Changing your domain does not break sign-in.** Email links are not tied to
+  an origin, so there is no `origin_mismatch` to chase and nothing to update
+  when you move to a custom domain.
+- **Nothing about you is shown to people signing in.** There is no consent
+  screen displaying an app name or a support address. The only address that
+  appears anywhere is the sender of the login email, which by default is
+  Supabase's own and has nothing to do with you.
 
 ## Part 8 — Final checklist
 
@@ -412,14 +366,12 @@ Public surfaces:
 - [ ] Repository name is `prism`, not something personal
 - [ ] Domain registered with **WHOIS privacy enabled**
 - [ ] Domain contact email is the PRISM Gmail
-- [ ] Google **App name** is `PRISM`
-- [ ] Google **User support email** is the PRISM Gmail
-- [ ] Cloudflare account registered with the PRISM Gmail
+- [ ] Cloudflare and Supabase accounts registered with the PRISM Gmail
 
 Code and history:
 
 - [ ] `git log --format='%ae'` shows only a `noreply` address
-- [ ] `OWNER_HASH` in `src/lib/owner.ts` is the hash of the PRISM Gmail
+- [ ] The owner row in the database's `members` table is the PRISM Gmail
 - [ ] `npm run privacy` passes
 - [ ] Old repository archived or deleted
 - [ ] Site's own copy (About page, footer) contains no personal name

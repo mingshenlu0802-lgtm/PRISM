@@ -29,7 +29,6 @@ export function buildInitialState(): PrismState {
     },
     appearance: { ...DEFAULT_APPEARANCE },
     auth: {
-      clientId: '',
       // 名单一开始是空的：站长第一次登录、哈希对上之后才补进来。
       // 发布出去的文件里因此没有任何人的邮箱地址。
       admins: [],

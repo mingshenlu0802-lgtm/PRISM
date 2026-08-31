@@ -48,9 +48,8 @@ export type Action =
   | { type: 'appearance'; patch: Partial<Appearance>; who: string }
   | { type: 'copy'; patch: Partial<SiteCopy>; who: string }
   /* accounts */
-  | { type: 'signin'; email: string; name?: string; picture?: string; isOwner: boolean }
+  | { type: 'signin'; email: string; name?: string; picture?: string }
   | { type: 'signout' }
-  | { type: 'client-id'; clientId: string }
   | { type: 'admin-add'; email: string; who: string }
   | { type: 'admin-remove'; email: string; who: string }
   | { type: 'member-role'; email: string; role: Role; who: string }
@@ -300,29 +299,20 @@ export function reducer(state: PrismState, action: Action): PrismState {
 
     /* ----------------------------- accounts ----------------------------- */
 
-    /**
-     * 登录。
-     *
-     * 站长身份由调用方先用哈希验过（见 lib/owner.ts）——代码里没有邮箱地址，
-     * 所以这里没法自己比对。第一次验过之后把地址记在这台浏览器里，
-     * 同时把站长那一行补进管理员名单，好让「谁能编辑这个网站」显示得出来。
-     */
-    case 'signin': {
-      const email = action.email.trim().toLowerCase()
-      const auth = { ...state.auth, email, name: action.name, picture: action.picture }
-      if (!action.isOwner) return { ...state, auth }
-      auth.ownerEmail = email
-      const admins = state.auth.admins.some((a) => a.role === 'owner')
-        ? state.auth.admins.map((a) => (a.role === 'owner' ? { ...a, email, name: action.name } : a))
-        : [{ email, role: 'owner' as const, addedAt: nowIso(), name: action.name ?? '站长' }, ...state.auth.admins]
-      return { ...state, auth: { ...auth, admins } }
-    }
+    /** 记下当前登录的是谁。是不是站长由数据库的名单决定，不在这里判断。 */
+    case 'signin':
+      return {
+        ...state,
+        auth: {
+          ...state.auth,
+          email: action.email.trim().toLowerCase(),
+          name: action.name,
+          picture: action.picture,
+        },
+      }
 
     case 'signout':
       return { ...state, auth: { ...state.auth, email: undefined, name: undefined, picture: undefined } }
-
-    case 'client-id':
-      return { ...state, auth: { ...state.auth, clientId: action.clientId.trim() } }
 
     case 'admin-add': {
       const email = action.email.trim().toLowerCase()
@@ -434,8 +424,6 @@ export interface Access {
   mode: Mode
   /** 控制端是否放行。 */
   consoleOpen: boolean
-  /** 放行只是因为还没接上登录，而不是因为这个人是管理员。 */
-  consoleUnlocked: boolean
   /**
    * 控制端里的按钮能不能按。
    *
@@ -447,36 +435,31 @@ export interface Access {
 }
 
 /**
- * 规则只写一遍。
+ * 谁能做什么。规则只写一遍。
  *
- * 管理员放行。除此之外还有一种情况：网站还没接上 Google 登录时，根本没有
- * 「谁」这个概念——这时候按身份拦人既拦不住谁，又会把站长锁在唯一能填
- * 客户端 ID 的那一页外面。所以未接登录时控制端开着，界面上明说它开着。
+ * **本地模式**：内容只存在这台浏览器里，没有第二个人，所以没有「登录」
+ * 这回事——打开的人就是这份副本的主人，什么都能做。这不是漏洞：
+ * 他改的只是自己屏幕上的东西，真正发布出去还要 GitHub token。
+ *
+ * **共享模式**：身份全部来自数据库的 members 表。这里算出来的
+ * canEdit 只是**给界面用的**，决定按钮灰不灰；真正的把关在数据库的
+ * policy 里，所以改浏览器里的代码没有用，写入会被服务端挡回去。
  */
 export function accessOf(state: PrismState, mode: Mode = 'local'): Access {
-  const email = (state.auth.email ?? '').toLowerCase()
-  const me = state.auth.admins.find((a) => a.email === email)
-
-  if (mode === 'shared') {
-    // 共享模式下身份来自数据库，界面只是照着显示。这里判断出来的 canEdit
-    // 是**给界面用的**——它决定按钮灰不灰。真正的把关在数据库那边，
-    // 所以就算有人改了浏览器里的这一行，写入照样会被挡回去。
-    const isOwner = me?.role === 'owner'
-    const isAdmin = isOwner || me?.role === 'editor'
-    const isMember = Boolean(me)
+  if (mode === 'local') {
     return {
-      isOwner, isAdmin, canEdit: isAdmin,
-      consoleOpen: isAdmin, consoleUnlocked: false, isMember, mode,
+      isOwner: true, isAdmin: true, canEdit: true,
+      consoleOpen: true, isMember: true, mode,
     }
   }
 
-  const isOwner = Boolean(email) && email === state.auth.ownerEmail
-  const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email)
-  const consoleUnlocked = !state.auth.clientId
-  const consoleOpen = isAdmin || consoleUnlocked
+  const email = (state.auth.email ?? '').toLowerCase()
+  const me = state.auth.admins.find((a) => a.email === email)
+  const isOwner = me?.role === 'owner'
+  const isAdmin = isOwner || me?.role === 'editor'
   return {
-    isOwner, isAdmin, consoleOpen, consoleUnlocked,
-    canEdit: consoleOpen, isMember: true, mode,
+    isOwner, isAdmin, canEdit: isAdmin,
+    consoleOpen: isAdmin, isMember: Boolean(me), mode,
   }
 }
 
@@ -494,17 +477,8 @@ interface Ctx {
   isAdmin: boolean
   /** 控制端里的按钮能不能按。 */
   canEdit: boolean
-  /**
-   * 控制端是否放行。
-   *
-   * 管理员当然放行。除此之外还有一种情况：网站还没接上 Google 登录时，
-   * 根本没有「谁」这个概念——这时候按身份拦人既拦不住谁，又会把站长锁在
-   * 唯一能填客户端 ID 的那一页外面。所以未接登录时控制端开着，并在顶部
-   * 明说它现在是开着的。
-   */
+  /** 控制端是否放行。本地模式恒开；共享模式看数据库里的身份。 */
   consoleOpen: boolean
-  /** consoleOpen 只是因为还没接登录，而不是因为你是管理员。 */
-  consoleUnlocked: boolean
   /** 'local' 内容在这台浏览器里；'shared' 内容在共用数据库里。 */
   mode: Mode
   /** 共享模式下：这个人在不在成员名单里。 */
@@ -636,17 +610,17 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const email = state.auth.email ?? ''
-  const { isOwner, isAdmin, consoleOpen, consoleUnlocked, canEdit, isMember } = accessOf(state, mode)
+  const { isOwner, isAdmin, consoleOpen, canEdit, isMember } = accessOf(state, mode)
   const refresh = useCallback(() => { void pull() }, [pull])
 
   const value = useMemo<Ctx>(
     () => ({
       state, dispatch, reset, who: email || '未登录',
-      isOwner, isAdmin, canEdit, consoleOpen, consoleUnlocked,
+      isOwner, isAdmin, canEdit, consoleOpen,
       mode, isMember, ready, syncError, refresh,
     }),
     [state, dispatch, reset, email, isOwner, isAdmin, canEdit, consoleOpen,
-      consoleUnlocked, mode, isMember, ready, syncError, refresh],
+      mode, isMember, ready, syncError, refresh],
   )
   return <PrismContext.Provider value={value}>{children}</PrismContext.Provider>
 }

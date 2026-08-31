@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { usePrism } from '../../lib/store'
 import { downloadSnapshot, syncToGitHub } from '../../lib/github'
-import { googleSignOut, renderGoogleButton } from '../../lib/google'
-import { isOwnerEmail } from '../../lib/owner'
+import { signOut } from '../../lib/session'
 import { ACCENTS, FONT_STEPS, THEMES } from '../../lib/constants'
 import { byNewest, cx, fmtDateTime, relTime } from '../../lib/util'
 import type { Role } from '../../lib/types'
@@ -316,24 +315,8 @@ function AccountTab(): JSX.Element {
   }
   const [syncing, setSyncing] = useState(false)
   const [showToken, setShowToken] = useState(false)
-  const btnRef = useRef<HTMLDivElement | null>(null)
   const auth = state.auth
   const gh = state.github
-
-  useEffect(() => {
-    if (auth.email || !auth.clientId || !btnRef.current) return
-    renderGoogleButton({
-      clientId: auth.clientId,
-      target: btnRef.current,
-      onSignIn: (p) => {
-        void isOwnerEmail(p.email).then((owner) => {
-          dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture, isOwner: owner })
-          toast(`已登录：${p.email}`, 'go')
-        })
-      },
-      onError: (m) => toast(m, 'warn'),
-    })
-  }, [auth.clientId, auth.email, dispatch])
 
   async function doSync() {
     setSyncing(true)
@@ -345,108 +328,40 @@ function AccountTab(): JSX.Element {
 
   return (
     <div className="mng__panel">
-      <h3 className="mng__subtitle">登录</h3>
-      {auth.email ? (
+      <h3 className="mng__subtitle">你现在的身份</h3>
+      {mode === 'shared' && auth.email ? (
         <div className="mng__signed">
           <div>
             <p className="mng__signedname">{auth.name ?? auth.email}</p>
-            <p className="mng__signedmail">{auth.email}</p>
+            <p className="mng__signedmail">
+              {auth.email} · {isOwner ? '站长' : '编辑'}
+            </p>
           </div>
-          <button type="button" className="mng__ghost" onClick={() => { googleSignOut(); dispatch({ type: 'signout' }); toast('已退出登录。', 'info') }}>
+          <button
+            type="button"
+            className="mng__ghost"
+            onClick={() => {
+              void signOut().then(() => {
+                dispatch({ type: 'signout' })
+                window.location.reload()
+              })
+            }}
+          >
             退出登录
           </button>
         </div>
       ) : (
-        <div className="mng__signin">
-          {auth.clientId ? (
-            <div ref={btnRef} />
-          ) : (
-            <p className="mng__note">先在下面填 Google 客户端 ID，登录按钮才会出现。</p>
-          )}
-        </div>
+        <p className="mng__note">
+          <strong>本地模式，不需要登录。</strong>
+          内容只存在这台浏览器里，没有第二个人，所以也没有账号这回事。
+          等你接上共享数据库（下面「让朋友也能看」），才会出现邮箱登录和成员名单。
+        </p>
       )}
-
-      <details className="mng__setup">
-        <summary>怎么拿到 Google 客户端 ID（第一次要做一遍，约十分钟）</summary>
-        <p className="mng__stepnote">
-          做之前先确定你网站的正式网址（比如 GitHub Pages 给你的那个），
-          下面第 5 步要用到它，而且必须一字不差。
-        </p>
-        <ol className="mng__steps">
-          <li>
-            打开 <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer">Google Cloud Console</a>，
-            顶部点项目下拉框 → <strong>新建项目</strong>，名字随便取，创建。
-          </li>
-          <li>
-            左边菜单找「<strong>Google 身份验证平台</strong>」（英文 Google Auth Platform，
-            有些账号里还叫「API 和服务 → OAuth 同意屏幕」）。
-            <span className="mng__stepwhy">
-              下面三步是这个平台里的三个页面：品牌塑造 → 受众群体 → 客户端。
-              顺序不能反——没填完前两页就去建客户端，Google 会拦住你，
-              提示「OAuth 配置不完整，请前往品牌塑造页」。
-            </span>
-          </li>
-          <li>
-            进「<strong>品牌塑造</strong>」（Branding）页，填三样必填的：
-            <strong>应用名称</strong>、<strong>用户支持电子邮件</strong>（下拉里选你自己）、
-            <strong>开发者联系信息</strong>（你的邮箱）。保存。
-            <span className="mng__stepwhy">
-              应用徽标、应用主页、隐私权政策、服务条款这几栏<strong>留空</strong>就好。
-              一旦填了网址，Google 就会要求你再去填「已获授权的网域」并验证域名所有权，
-              平白多出两道手续——登录本身用不到它们。
-              另外应用名称里不能出现「Google」字样，会被拒。
-            </span>
-          </li>
-          <li>
-            进「<strong>受众群体</strong>」（Audience）页：用户类型选<strong>外部</strong>，
-            然后把发布状态改成 <strong>发布应用</strong>（Publish app）。
-            <span className="mng__stepwhy">
-              不做这一步，就只有你手动加进「测试用户」名单的账号能登录，别人一律登不进来。
-              这里只用到姓名、邮箱、头像这类基本信息，属于非敏感权限，发布是立刻生效的，
-              不需要 Google 审核。
-            </span>
-          </li>
-          <li>
-            进「<strong>客户端</strong>」（Clients）页 → <strong>创建客户端</strong>，
-            应用类型选 <strong>Web 应用</strong>。
-            在「已获授权的 JavaScript 来源」里填你网站的网址，
-            <strong>只填到域名为止</strong>：像 <code>https://你的用户名.github.io</code>，
-            不要带后面的路径，也不要结尾的斜杠。「已获授权的重定向 URI」可以留空。
-            <span className="mng__stepwhy">
-              填错了登录会报 <code>origin_mismatch</code>。
-              想在自己电脑上试，可以再加一条 <code>http://localhost:5173</code>。
-            </span>
-          </li>
-          <li>
-            建好后弹出两串东西：<strong>客户端 ID</strong>（以
-            <code>.apps.googleusercontent.com</code> 结尾）复制到下面。
-            旁边的<strong>客户端密钥</strong>用不上，也不要填到网站里任何地方。
-          </li>
-        </ol>
-        <p className="mng__stepnote">
-          填好之后，公众站右上角就会出现 Google 登录按钮，控制端也会从「对所有人开着」
-          变成只有你和管理员进得来。
-        </p>
-        <TextInput
-          placeholder="粘贴 Google 客户端 ID"
-          value={auth.clientId}
-          onChange={(e) => dispatch({ type: 'client-id', clientId: e.currentTarget.value })}
-        />
-      </details>
-
-      <div className="mng__caution">
-        <Icon name="alert" size={15} />
-        <p>
-          <strong>一句实话：</strong>这是一个纯静态网站，登录只能挡住界面，挡不住真正懂技术的人。
-          要做到别人完全打不开控制端，需要一台服务器在后台校验身份。
-          在那之前，请把这里当成「防止误操作」，而不是「防止入侵」。
-        </p>
-      </div>
 
       <h3 className="mng__subtitle">谁能进这个网站</h3>
       <p className="mng__note">
         {mode === 'shared'
-          ? '朋友输入邮箱、点一下收到的链接就能进来——不用密码，也不用 Google 账号。默认只能看；你可以把某个人设成编辑，他就能改内容。'
+          ? '朋友输入邮箱、点一下收到的链接就能进来——不用设密码。默认只能看；你可以把某个人设成编辑，他就能改内容。'
           : '现在是本地模式，这份名单只在你这台电脑上有效。想让朋友真的能进来，先连上后端（下面「让朋友也能看」）。'}
       </p>
 

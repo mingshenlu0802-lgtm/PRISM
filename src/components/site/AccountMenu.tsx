@@ -2,23 +2,24 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
 import { cx } from '../../lib/util'
-import { googleSignOut, renderGoogleButton } from '../../lib/google'
-import { isOwnerEmail } from '../../lib/owner'
+import { signOut } from '../../lib/session'
 import { Icon, toast } from '../common'
 import './AccountMenu.css'
 
 /**
- * 公众站的账号入口。
+ * 账号入口。
  *
- * 任何人都可以用 Google 账号登录——登录本身不解锁任何东西，它只是让网站知道
- * 你是谁。控制端的入口只对站长和管理员出现；别的账号看到的就是一个普通的
- * 已登录状态，不会有一个按了会被拒绝的按钮在那里晃。
+ * 本地模式下不显示账号——内容只存在这台浏览器里，没有第二个人，也就没有
+ * 账号这回事，摆一个「登录」按钮只会让人以为自己漏了什么。那时直接给
+ * 控制端入口就好。
+ *
+ * 共享模式下显示当前登录的人和他的身份。能进控制端的（站长和编辑）才看得到
+ * 入口；只能看的人不会看到一个按了会被拒绝的按钮。
  */
-export function AccountMenu(): JSX.Element {
-  const { state, dispatch, isAdmin, isOwner, consoleOpen } = usePrism()
+export function AccountMenu(): JSX.Element | null {
+  const { state, dispatch, isOwner, isAdmin, mode } = usePrism()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement | null>(null)
-  const btnRef = useRef<HTMLDivElement | null>(null)
   const auth = state.auth
 
   useEffect(() => {
@@ -35,25 +36,18 @@ export function AccountMenu(): JSX.Element {
     }
   }, [open])
 
-  // Google 的按钮由它自己的脚本画进这个容器，所以要等面板真的展开之后再挂。
-  useEffect(() => {
-    if (!open || auth.email || !auth.clientId || !btnRef.current) return
-    void renderGoogleButton({
-      clientId: auth.clientId,
-      target: btnRef.current,
-      onSignIn: (p) => {
-        void isOwnerEmail(p.email).then((owner) => {
-          dispatch({ type: 'signin', email: p.email, name: p.name, picture: p.picture, isOwner: owner })
-          setOpen(false)
-          toast(`已登录：${p.email}`, 'go')
-        })
-      },
-      onError: (m) => toast(m, 'warn'),
-    })
-  }, [open, auth.email, auth.clientId, dispatch])
+  if (mode === 'local') {
+    return (
+      <Link className="acct__bare" to="/console">
+        <Icon name="lock" size={13} />
+        <span className="acct__label">控制端</span>
+      </Link>
+    )
+  }
 
-  const signedIn = Boolean(auth.email)
-  const label = signedIn ? (auth.name ?? auth.email ?? '') : '登录'
+  if (!auth.email) return null
+
+  const role = isOwner ? '站长' : isAdmin ? '编辑' : '只能看'
 
   return (
     <div className="acct" ref={ref}>
@@ -62,74 +56,48 @@ export function AccountMenu(): JSX.Element {
         className="acct__btn"
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={signedIn ? `账号：${auth.email}` : '用 Google 账号登录'}
+        aria-label={`账号：${auth.email}`}
         onClick={() => setOpen((v) => !v)}
       >
-        {signedIn && auth.picture
+        {auth.picture
           ? <img className="acct__avatar" src={auth.picture} alt="" width={20} height={20} />
           : <Icon name="users" size={15} />}
-        <span className="acct__label">{label}</span>
+        <span className="acct__label">{auth.name ?? auth.email}</span>
       </button>
 
       {open && (
         <div className="acct__panel" role="dialog" aria-label="账号">
-          {signedIn ? (
-            <>
-              <div className="acct__me">
-                {auth.picture
-                  ? <img className="acct__meavatar" src={auth.picture} alt="" width={36} height={36} />
-                  : <span className="acct__meavatar acct__meavatar--blank" aria-hidden="true" />}
-                <div className="acct__meinfo">
-                  <p className="acct__mename">{auth.name ?? auth.email}</p>
-                  <p className="acct__memail">{auth.email}</p>
-                </div>
-              </div>
+          <div className="acct__me">
+            {auth.picture
+              ? <img className="acct__meavatar" src={auth.picture} alt="" width={36} height={36} />
+              : <span className="acct__meavatar acct__meavatar--blank" aria-hidden="true" />}
+            <div className="acct__meinfo">
+              <p className="acct__mename">{auth.name ?? auth.email}</p>
+              <p className="acct__memail">{auth.email}</p>
+            </div>
+          </div>
 
-              {isAdmin && (
-                <p className={cx('acct__role', isOwner && 'acct__role--owner')}>
-                  {isOwner ? '站长' : '管理员'}
-                </p>
-              )}
-              {consoleOpen && (
-                <Link className="acct__console" to="/console" onClick={() => setOpen(false)}>
-                  <Icon name="lock" size={14} />进入控制端
-                </Link>
-              )}
+          <p className={cx('acct__role', isOwner && 'acct__role--owner')}>{role}</p>
 
-              <button
-                type="button"
-                className="acct__out"
-                onClick={() => {
-                  googleSignOut()
-                  dispatch({ type: 'signout' })
-                  setOpen(false)
-                  toast('已退出登录。', 'info')
-                }}
-              >
-                退出登录
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="acct__lede">用 Google 账号登录。</p>
-              {auth.clientId ? (
-                <div ref={btnRef} className="acct__gbtn" />
-              ) : (
-                <p className="acct__note">
-                  网站还没接上 Google 登录。站长在控制端「编辑 → 账号与同步」里填好
-                  客户端 ID 之后，这里就会出现登录按钮。
-                </p>
-              )}
-              {consoleOpen && (
-                <Link className="acct__console" to="/console" onClick={() => setOpen(false)}>
-                  <Icon name="lock" size={14} />进入控制端
-                </Link>
-              )}
-              <p className="acct__note acct__note--small">
-                登录不解锁任何东西，网站内容不登录也随便看。
-              </p>
-            </>
+          {isAdmin && (
+            <Link className="acct__console" to="/console" onClick={() => setOpen(false)}>
+              <Icon name="lock" size={14} />进入控制端
+            </Link>
           )}
+
+          <button
+            type="button"
+            className="acct__out"
+            onClick={() => {
+              void signOut().then(() => {
+                dispatch({ type: 'signout' })
+                toast('已退出登录。', 'info')
+                window.location.reload()
+              })
+            }}
+          >
+            退出登录
+          </button>
         </div>
       )}
     </div>
