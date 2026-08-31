@@ -259,7 +259,7 @@
 
 .mng__admins { list-style: none; display: grid; gap: var(--s-2); }
 .mng__admin {
-  display: flex; gap: var(--s-3); align-items: center;
+  display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center;
   padding: var(--s-3) var(--s-4);
   border: var(--bw) solid var(--line); border-radius: var(--r-md);
   background: var(--bg-raised);
@@ -281,8 +281,8 @@
 }
 .mng__adminx:hover { background: var(--danger-soft); color: var(--danger); }
 
-.mng__addadmin { display: grid; gap: var(--s-3); }
-@media (min-width: 620px) { .mng__addadmin { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } }
+.mng__addadmin { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; }
+.mng__addadmin > :first-child { flex: 1 1 220px; min-width: 0; }
 
 .mng__gh {
   display: grid; gap: var(--s-3);
@@ -346,3 +346,10 @@
 .mng__dangerbtn:hover:not(:disabled) { background: var(--danger); color: #fff; }
 .mng__dangerbtn:disabled { opacity: .45; cursor: not-allowed; }
 .mng__dangerbtn--on { background: var(--danger); color: #fff; }
+
+/* 三种身份，颜色区分：站长最重，编辑其次，只能看最轻。 */
+.mng__adminrole--owner { background: var(--accent); color: var(--accent-fg); }
+.mng__adminrole--editor { background: var(--chip-bg); color: var(--fg); font-weight: 660; }
+.mng__adminrole--member { background: transparent; color: var(--fg-subtle); border: var(--bw) dashed var(--line-strong); }
+.mng__adminempty { font-size: var(--fs-xs); color: var(--fg-faint); padding: var(--s-3); }
+.mng__admin select { font-size: var(--fs-2xs); padding: 3px 26px 3px 8px; }

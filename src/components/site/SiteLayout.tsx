@@ -7,6 +7,7 @@ import { cx, fmtDate } from '../../lib/util'
 import { Icon, PrismMark, ToastHost } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
 import { AccountMenu } from './AccountMenu'
+import { SignInGate } from './SignInGate'
 import './SiteLayout.css'
 
 /**
@@ -16,7 +17,7 @@ import './SiteLayout.css'
  * 各有十几个——把它们平铺在顶部会把导航挤成一堵墙。
  */
 export default function SiteLayout(): JSX.Element {
-  const { state, consoleOpen } = usePrism()
+  const { state, consoleOpen, mode, isMember, ready } = usePrism()
   const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'mobile'>('none')
   const loc = useLocation()
 
@@ -30,6 +31,10 @@ export default function SiteLayout(): JSX.Element {
   }, [menu])
 
   const liveNews = state.news.filter((n) => n.status === 'live').length
+
+  // 共享模式下这个站不对外公开：不是成员就停在门口，一条内容都不渲染。
+  // 数据库那边也拦着，所以这里是为了把话说清楚，不是唯一的一道锁。
+  if (mode === 'shared' && (!ready || !isMember)) return <SignInGate />
 
   return (
     <div className="slyt">

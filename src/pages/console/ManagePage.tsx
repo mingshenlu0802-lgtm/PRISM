@@ -5,14 +5,18 @@ import { googleSignOut, renderGoogleButton } from '../../lib/google'
 import { isOwnerEmail } from '../../lib/owner'
 import { ACCENTS, FONT_STEPS, THEMES } from '../../lib/constants'
 import { byNewest, cx, fmtDateTime, relTime } from '../../lib/util'
+import type { Role } from '../../lib/types'
 import {
-  Checkbox, EmptyState, Icon, Modal, Segmented, TextArea, TextInput, toast,
+  Checkbox, EmptyState, Icon, Modal, Segmented, Select, TextArea, TextInput, toast,
 } from '../../components/common'
 import { NewsEditor } from '../../components/console/NewsEditor'
 import { ClaudePanel } from '../../components/console/ClaudePanel'
+import { BackendSetup } from '../../components/console/BackendSetup'
 import './ManagePage.css'
 
 type Tab = 'content' | 'vibe' | 'look' | 'account'
+
+const ROLE_LABEL: Record<Role, string> = { owner: '站长', editor: '编辑', member: '只能看' }
 
 /**
  * 「编辑」——控制端第二页。
@@ -297,8 +301,19 @@ function LookTab(): JSX.Element {
  * ------------------------------------------------------------------ */
 
 function AccountTab(): JSX.Element {
-  const { state, dispatch, who, isOwner, canEdit } = usePrism()
+  const { state, dispatch, who, isOwner, canEdit, mode } = usePrism()
   const [newAdmin, setNewAdmin] = useState('')
+
+  const addPerson = (role: Role) => {
+    const email = newAdmin.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast('填一个完整的邮箱地址。', 'warn'); return
+    }
+    dispatch({ type: 'admin-add', email, who })
+    if (role !== 'editor') dispatch({ type: 'member-role', email, role, who })
+    setNewAdmin('')
+    toast(`已加 ${email}（${ROLE_LABEL[role]}）。把网站地址发给他就行。`, 'go')
+  }
   const [syncing, setSyncing] = useState(false)
   const [showToken, setShowToken] = useState(false)
   const btnRef = useRef<HTMLDivElement | null>(null)
@@ -428,39 +443,72 @@ function AccountTab(): JSX.Element {
         </p>
       </div>
 
-      <h3 className="mng__subtitle">谁能编辑这个网站</h3>
+      <h3 className="mng__subtitle">谁能进这个网站</h3>
+      <p className="mng__note">
+        {mode === 'shared'
+          ? '朋友输入邮箱、点一下收到的链接就能进来——不用密码，也不用 Google 账号。默认只能看；你可以把某个人设成编辑，他就能改内容。'
+          : '现在是本地模式，这份名单只在你这台电脑上有效。想让朋友真的能进来，先连上后端（下面「让朋友也能看」）。'}
+      </p>
+
       <ul className="mng__admins">
+        {auth.admins.length === 0 && (
+          <li className="mng__adminempty">还没有人。用下面的输入框把朋友的邮箱加进来。</li>
+        )}
         {auth.admins.map((a) => (
           <li key={a.email} className="mng__admin">
-            <span className={cx('mng__adminrole', a.role === 'owner' && 'mng__adminrole--owner')}>
-              {a.role === 'owner' ? '站长' : '管理员'}
+            <span className={cx('mng__adminrole', `mng__adminrole--${a.role}`)}>
+              {ROLE_LABEL[a.role]}
             </span>
             <span className="mng__adminmail">{a.email}</span>
+
             {a.role !== 'owner' && isOwner && (
-              <button type="button" className="mng__adminx" aria-label={`移除 ${a.email}`}
-                onClick={() => { dispatch({ type: 'admin-remove', email: a.email, who }); toast('已移除。', 'info') }}>
-                <Icon name="x" size={14} />
-              </button>
+              <>
+                <Select
+                  aria-label={`${a.email} 的身份`}
+                  value={a.role}
+                  onChange={(e) => {
+                    const role = e.currentTarget.value as Role
+                    dispatch({ type: 'member-role', email: a.email, role, who })
+                    toast(`已把 ${a.email} 设成${ROLE_LABEL[role]}。`, 'go')
+                  }}
+                >
+                  <option value="member">只能看</option>
+                  <option value="editor">编辑</option>
+                </Select>
+                <button type="button" className="mng__adminx" aria-label={`移除 ${a.email}`}
+                  onClick={() => { dispatch({ type: 'admin-remove', email: a.email, who }); toast('已移除，他下次打开就进不来了。', 'info') }}>
+                  <Icon name="x" size={14} />
+                </button>
+              </>
             )}
           </li>
         ))}
       </ul>
+
       {isOwner ? (
-        <div className="mng__addadmin">
-          <TextInput placeholder="要加的 Gmail 地址" value={newAdmin}
-            onChange={(e) => setNewAdmin(e.currentTarget.value)} />
-          <button type="button" className="mng__solid"
-            onClick={() => {
-              if (!newAdmin.includes('@')) { toast('填一个完整的邮箱地址。', 'warn'); return }
-              dispatch({ type: 'admin-add', email: newAdmin, who })
-              setNewAdmin(''); toast('已加为管理员。', 'go')
-            }}>
-            <Icon name="plus" size={14} />加为管理员
-          </button>
-        </div>
+        <>
+          <div className="mng__addadmin">
+            <TextInput placeholder="朋友的邮箱地址" value={newAdmin}
+              onChange={(e) => setNewAdmin(e.currentTarget.value)} />
+            <button type="button" className="mng__ghost"
+              onClick={() => addPerson('member')}>
+              <Icon name="plus" size={14} />加为「只能看」
+            </button>
+            <button type="button" className="mng__solid"
+              onClick={() => addPerson('editor')}>
+              <Icon name="plus" size={14} />加为编辑
+            </button>
+          </div>
+          <p className="mng__note">
+            加进来之后，把网站地址发给他就行。他第一次打开会看到一个输入邮箱的页面，
+            输入这个地址、点收到的链接，就进来了。
+          </p>
+        </>
       ) : (
-        <p className="mng__note">只有站长可以增删管理员。</p>
+        <p className="mng__note">只有站长可以增删成员。</p>
       )}
+
+      <BackendSetup />
 
       <h3 className="mng__subtitle">同步到 GitHub</h3>
       <p className="mng__note">

@@ -1,0 +1,12 @@
+.bke__on {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--go);
+  background: var(--go-soft);
+  border-radius: var(--r-xs) var(--r-md) var(--r-md) var(--r-xs);
+  font-size: var(--fs-xs); line-height: 1.75; color: var(--fg);
+}
+.bke__on svg { flex: none; margin-top: 3px; color: var(--go); }
+
+.bke__fields { display: grid; gap: var(--s-2); margin-bottom: var(--s-3); }
+.bke__acts { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-3); }

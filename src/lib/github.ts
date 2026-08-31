@@ -42,8 +42,8 @@ function b64(text: string): string {
   return btoa(bin)
 }
 
-async function getSha(cfg: PrismState['github']): Promise<string | undefined> {
-  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(cfg.path)}?ref=${encodeURIComponent(cfg.branch)}`
+async function getSha(cfg: PrismState['github'], path = cfg.path): Promise<string | undefined> {
+  const url = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(cfg.branch)}`
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${cfg.token}`, Accept: 'application/vnd.github+json' },
   })
@@ -51,6 +51,44 @@ async function getSha(cfg: PrismState['github']): Promise<string | undefined> {
   if (!res.ok) throw new Error(`读取文件失败（${res.status}）`)
   const data = await res.json() as { sha?: string }
   return data.sha
+}
+
+/**
+ * 往仓库里写一个文件。
+ *
+ * 跟 syncToGitHub 的区别只在于「写哪个文件」——内容同步写的是内容文件，
+ * 而连接配置要写进 public/ 才会跟网站一起发布出去。
+ */
+export async function syncFile(
+  cfg: PrismState['github'],
+  path: string,
+  body: string,
+  message: string,
+): Promise<SyncResult> {
+  if (!cfg.token) return { ok: false, message: '还没有填 GitHub token，先在下面填一个。' }
+  if (!cfg.owner || !cfg.repo) return { ok: false, message: '仓库信息不完整。' }
+  try {
+    const sha = await getSha(cfg, path)
+    const res = await fetch(`https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIComponent(path)}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${cfg.token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message, content: b64(body), branch: cfg.branch, ...(sha ? { sha } : {}) }),
+    })
+    if (!res.ok) {
+      if (res.status === 401) return { ok: false, message: 'token 无效或已过期，请换一个。' }
+      if (res.status === 403) return { ok: false, message: 'token 权限不足：需要 Contents 的写权限。' }
+      if (res.status === 404) return { ok: false, message: '找不到这个仓库或分支，请检查名称拼写。' }
+      return { ok: false, message: `写入失败（${res.status}）` }
+    }
+    const data = await res.json() as { commit?: { html_url?: string } }
+    return { ok: true, message: '已写入仓库。网站会自动重新发布，一两分钟后生效。', url: data.commit?.html_url }
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? `写入失败：${e.message}` : '写入失败' }
+  }
 }
 
 export async function syncToGitHub(state: PrismState, message: string): Promise<SyncResult> {

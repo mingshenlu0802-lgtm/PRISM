@@ -1,10 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
 import type {
   Account, Appearance, ChangeEntry, ChangeKind, CollectConfig, CollectRun,
-  GitHubConfig, ID, MediaLink, NewsItem, PrismState, SiteCopy, StudyItem,
+  GitHubConfig, ID, MediaLink, NewsItem, PrismState, Role, SiteCopy, StudyItem,
 } from './types'
 
 import { buildInitialState } from './demo'
+import type { Mode } from './backend'
+import { getClient } from './backend'
+import { fetchAll, watch } from './remote'
+import { currentWho, onAuthChange } from './session'
+import { mirror } from './sync'
 import { nowIso, uid } from './util'
 
 const STORAGE_KEY = 'prism.site.v3'
@@ -48,6 +53,7 @@ export type Action =
   | { type: 'client-id'; clientId: string }
   | { type: 'admin-add'; email: string; who: string }
   | { type: 'admin-remove'; email: string; who: string }
+  | { type: 'member-role'; email: string; role: Role; who: string }
   /* system */
   | { type: 'github'; patch: Partial<GitHubConfig> }
   | { type: 'public-offline'; off: boolean; who: string }
@@ -321,11 +327,28 @@ export function reducer(state: PrismState, action: Action): PrismState {
     case 'admin-add': {
       const email = action.email.trim().toLowerCase()
       if (!email || state.auth.admins.some((a) => a.email === email)) return state
-      const account: Account = { email, role: 'admin', addedAt: nowIso() }
+      const account: Account = { email, role: 'editor', addedAt: nowIso(), notify: true }
       return {
         ...state,
         auth: { ...state.auth, admins: [...state.auth.admins, account] },
         changes: log(state, action.who, 'admin', `把 ${email} 加为管理员`),
+      }
+    }
+
+    /** 改一个成员的身份。站长自己那一行动不了——否则可以把自己降级锁死。 */
+    case 'member-role': {
+      const email = action.email.trim().toLowerCase()
+      if (email === state.auth.ownerEmail) return state
+      const before = state.auth.admins.find((a) => a.email === email)
+      if (!before || before.role === action.role) return state
+      const label = { owner: '站长', editor: '编辑', member: '只能看' }[action.role]
+      return {
+        ...state,
+        auth: {
+          ...state.auth,
+          admins: state.auth.admins.map((a) => (a.email === email ? { ...a, role: action.role } : a)),
+        },
+        changes: log(state, action.who, 'admin', `把 ${email} 设成${label}`),
       }
     }
 
@@ -406,6 +429,9 @@ function persist(state: PrismState): void {
 export interface Access {
   isOwner: boolean
   isAdmin: boolean
+  /** 共享模式下：这个人在不在成员名单里。本地模式恒为 true。 */
+  isMember: boolean
+  mode: Mode
   /** 控制端是否放行。 */
   consoleOpen: boolean
   /** 放行只是因为还没接上登录，而不是因为这个人是管理员。 */
@@ -427,13 +453,31 @@ export interface Access {
  * 「谁」这个概念——这时候按身份拦人既拦不住谁，又会把站长锁在唯一能填
  * 客户端 ID 的那一页外面。所以未接登录时控制端开着，界面上明说它开着。
  */
-export function accessOf(state: PrismState): Access {
+export function accessOf(state: PrismState, mode: Mode = 'local'): Access {
   const email = (state.auth.email ?? '').toLowerCase()
+  const me = state.auth.admins.find((a) => a.email === email)
+
+  if (mode === 'shared') {
+    // 共享模式下身份来自数据库，界面只是照着显示。这里判断出来的 canEdit
+    // 是**给界面用的**——它决定按钮灰不灰。真正的把关在数据库那边，
+    // 所以就算有人改了浏览器里的这一行，写入照样会被挡回去。
+    const isOwner = me?.role === 'owner'
+    const isAdmin = isOwner || me?.role === 'editor'
+    const isMember = Boolean(me)
+    return {
+      isOwner, isAdmin, canEdit: isAdmin,
+      consoleOpen: isAdmin, consoleUnlocked: false, isMember, mode,
+    }
+  }
+
   const isOwner = Boolean(email) && email === state.auth.ownerEmail
   const isAdmin = isOwner || state.auth.admins.some((a) => a.email === email)
   const consoleUnlocked = !state.auth.clientId
   const consoleOpen = isAdmin || consoleUnlocked
-  return { isOwner, isAdmin, consoleOpen, consoleUnlocked, canEdit: consoleOpen }
+  return {
+    isOwner, isAdmin, consoleOpen, consoleUnlocked,
+    canEdit: consoleOpen, isMember: true, mode,
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -461,18 +505,120 @@ interface Ctx {
   consoleOpen: boolean
   /** consoleOpen 只是因为还没接登录，而不是因为你是管理员。 */
   consoleUnlocked: boolean
+  /** 'local' 内容在这台浏览器里；'shared' 内容在共用数据库里。 */
+  mode: Mode
+  /** 共享模式下：这个人在不在成员名单里。 */
+  isMember: boolean
+  /** 首次加载还没完成时为 false——界面据此显示「正在打开」而不是空白。 */
+  ready: boolean
+  /** 上一次写库失败的原因，成功时为空。 */
+  syncError: string
+  /** 手动重新从数据库取一次。 */
+  refresh: () => void
 }
 
 const PrismContext = createContext<Ctx | null>(null)
 
 export function PrismProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, load)
+  const [state, rawDispatch] = useReducer(reducer, undefined, load)
+  const [mode, setMode] = React.useState<Mode>('local')
+  const [ready, setReady] = React.useState(false)
+  const [syncError, setSyncError] = React.useState('')
   const first = useRef(true)
+
+  // mirror 需要知道「改之前是什么」，而 dispatch 之后再读 state 已经晚了。
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   useEffect(() => {
     if (first.current) { first.current = false; return }
     persist(state)
   }, [state])
+
+  /* ---------------- 共享模式：连库、取数、跟着变 ---------------- */
+
+  const pull = useCallback(async () => {
+    const db = await getClient()
+    if (!db) return
+    const who = await currentWho()
+    if (!who) {
+      // 没登录就不去读——RLS 会挡回来，读了也是空的。
+      rawDispatch({ type: 'signout' })
+      setReady(true)
+      return
+    }
+    try {
+      const snap = await fetchAll(db)
+      const base = stateRef.current
+      rawDispatch({
+        type: 'hydrate',
+        state: {
+          ...base,
+          news: snap.news,
+          studies: snap.studies,
+          changes: snap.changes,
+          publicOffline: snap.offline,
+          copy: { ...base.copy, ...snap.copy },
+          appearance: { ...base.appearance, ...snap.appearance },
+          auth: {
+            ...base.auth,
+            email: who.email,
+            name: who.name,
+            admins: snap.members,
+            ownerEmail: snap.members.find((m) => m.role === 'owner')?.email,
+          },
+        },
+      })
+      setSyncError('')
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : '读取失败')
+    } finally {
+      setReady(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    let stopWatch: (() => void) | undefined
+    let stopAuth: (() => void) | undefined
+    let alive = true
+
+    void (async () => {
+      const db = await getClient()
+      if (!alive) return
+      if (!db) { setMode('local'); setReady(true); return }
+      setMode('shared')
+      await pull()
+      if (!alive) return
+      // 别人改了东西，这边不用刷新就跟着变。
+      stopWatch = watch(db, () => { void pull() })
+      stopAuth = await onAuthChange(() => { void pull() })
+    })()
+
+    return () => { alive = false; stopWatch?.(); stopAuth?.() }
+  }, [pull])
+
+  /**
+   * 共享模式下，每一次改动先落到本地（界面立刻有反应），再推到数据库。
+   *
+   * 推失败不撤销本地——那会把用户刚打的字吞掉，是最让人恼火的处理方式。
+   * 正确的做法是把失败说出来，让他自己决定重试还是算了。
+   */
+  const dispatch = useCallback<React.Dispatch<Action>>((action) => {
+    const prev = stateRef.current
+    rawDispatch(action)
+    if (mode !== 'shared') return
+    const next = reducer(prev, action)
+    void (async () => {
+      const db = await getClient()
+      if (!db) return
+      try {
+        await mirror(db, action, prev, next)
+        setSyncError('')
+      } catch (e) {
+        setSyncError(e instanceof Error ? e.message : '保存失败')
+      }
+    })()
+  }, [mode])
 
   // Appearance is applied to <html> so both surfaces follow it.
   useEffect(() => {
@@ -490,14 +636,17 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const email = state.auth.email ?? ''
-  const { isOwner, isAdmin, consoleOpen, consoleUnlocked, canEdit } = accessOf(state)
+  const { isOwner, isAdmin, consoleOpen, consoleUnlocked, canEdit, isMember } = accessOf(state, mode)
+  const refresh = useCallback(() => { void pull() }, [pull])
 
   const value = useMemo<Ctx>(
     () => ({
       state, dispatch, reset, who: email || '未登录',
       isOwner, isAdmin, canEdit, consoleOpen, consoleUnlocked,
+      mode, isMember, ready, syncError, refresh,
     }),
-    [state, reset, email, isOwner, isAdmin, canEdit, consoleOpen, consoleUnlocked],
+    [state, dispatch, reset, email, isOwner, isAdmin, canEdit, consoleOpen,
+      consoleUnlocked, mode, isMember, ready, syncError, refresh],
   )
   return <PrismContext.Provider value={value}>{children}</PrismContext.Provider>
 }

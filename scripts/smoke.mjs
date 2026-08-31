@@ -286,12 +286,48 @@ await test('哈希对不上的人登录了也不是站长', () => {
   eq(s.auth.ownerEmail, undefined, '不该被写成站长')
 })
 
-await test('加进来的是管理员，不是第二个站长', () => {
+await test('加进来的是编辑，不是第二个站长', () => {
   const s1 = reducer(signedInAsOwner(), { type: 'admin-add', email: 'friend@gmail.com', who: ME })
   const a = s1.auth.admins.find((x) => x.email === 'friend@gmail.com')
-  ok(a, '新管理员应在名单里')
-  eq(a.role, 'admin', '角色')
+  ok(a, '新成员应在名单里')
+  eq(a.role, 'editor', '角色')
   eq(s1.auth.admins.filter((x) => x.role === 'owner').length, 1, '站长人数')
+})
+
+/* ------------------------------ 三种身份 ------------------------------ */
+
+await test('三种身份：站长能全干，编辑只能改内容，成员只能看', () => {
+  let s = signedInAsOwner()
+  s = reducer(s, { type: 'admin-add', email: 'editor@x.com', who: ME })
+  s = reducer(s, { type: 'admin-add', email: 'reader@x.com', who: ME })
+  s = reducer(s, { type: 'member-role', email: 'reader@x.com', role: 'member', who: ME })
+
+  const asOwner = accessOf({ ...s, auth: { ...s.auth, email: ME } }, 'shared')
+  eq(asOwner.isOwner, true, '站长'); eq(asOwner.canEdit, true, '站长能改')
+
+  const asEditor = accessOf({ ...s, auth: { ...s.auth, email: 'editor@x.com' } }, 'shared')
+  eq(asEditor.isOwner, false, '编辑不是站长')
+  eq(asEditor.canEdit, true, '编辑能改内容')
+  eq(asEditor.isMember, true, '编辑当然是成员')
+
+  const asReader = accessOf({ ...s, auth: { ...s.auth, email: 'reader@x.com' } }, 'shared')
+  eq(asReader.canEdit, false, '只能看的人改不了')
+  eq(asReader.isMember, true, '但他能看')
+
+  const stranger = accessOf({ ...s, auth: { ...s.auth, email: 'nobody@x.com' } }, 'shared')
+  eq(stranger.isMember, false, '不在名单上的人连看都不行')
+  eq(stranger.canEdit, false, '当然也改不了')
+})
+
+await test('站长不能把自己降级——否则会把自己锁死', () => {
+  const s0 = signedInAsOwner()
+  const s1 = reducer(s0, { type: 'member-role', email: ME, role: 'member', who: ME })
+  eq(s1.auth.admins.find((a) => a.email === ME).role, 'owner', '站长身份不该被改掉')
+})
+
+await test('本地模式下 isMember 恒为真——没有后端就没有名单这回事', () => {
+  eq(accessOf(fresh(), 'local').isMember, true, '本地模式不该把自己挡在外面')
+  eq(accessOf(fresh(), 'local').mode, 'local', '模式')
 })
 
 await test('同一个邮箱不会被加两遍', () => {

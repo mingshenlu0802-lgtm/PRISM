@@ -248,12 +248,22 @@ export interface Appearance {
  * Accounts
  * ------------------------------------------------------------------ */
 
+/**
+ * 三种身份，从大到小：
+ * - `owner` 站长：唯一能增删成员、改别人身份的人。删不掉。
+ * - `editor` 编辑：能改内容、发内容、启动搜集。不能动成员名单。
+ * - `member` 成员：只能看。登录是为了让站长知道是谁，以及能给他发邮件。
+ */
+export type Role = 'owner' | 'editor' | 'member'
+
 export interface Account {
   email: string
   name?: string
   picture?: string
-  role: 'owner' | 'admin'
+  role: Role
   addedAt: ISODateTime
+  /** 接不接收网站的邮件通知。共享模式下有效。 */
+  notify?: boolean
 }
 
 export interface AuthState {
