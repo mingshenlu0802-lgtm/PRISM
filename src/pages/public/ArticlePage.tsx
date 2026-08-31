@@ -60,7 +60,7 @@ const TRANSLATION_STATUS: Record<Translation['status'], { zh: string; tone: 'go'
 
 const DIVISION: { role: string; who: '自动编辑台' | '人类主编'; detail: string }[] = [
   { role: '多国家、多语言搜集', who: '自动编辑台', detail: '按议题与辖区抓取，合并重复报道并给出选题价值评分。' },
-  { role: '多来源交叉核实', who: '自动编辑台', detail: '起草交叉核实结论，标注哪些说法只有单一来源。' },
+  { role: '多来源资源检索', who: '自动编辑台', detail: '检索每条引用指向的材料，标注哪些说法只有单一来源。' },
   { role: '深度草稿与图表', who: '自动编辑台', detail: '按九个固定章节撰写初稿，生成概念插图与数据图。' },
   { role: '事实、引用、偏见与法律风险清单', who: '自动编辑台', detail: '只生成清单，不作判断。' },
   { role: '证据强度与分歧权重', who: '人类主编', detail: '逐条复核，改写把转述写成认定的表述。' },
@@ -429,7 +429,7 @@ function ArticleView({ article }: { article: Article }): JSX.Element {
                   <Icon name={blocking.length > 0 ? 'alert' : 'check-double'} size={14} />
                 </span>
                 <span className="apage__healthtext">
-                  引用检查：<strong className="u-num">{health}%</strong> 通过率 ——
+                  资源可得率：<strong className="u-num">{health}%</strong> ——
                   {passes} 项通过 · {warns.length} 项有保留 · {acknowledged.length} 项未通过但已记录处理 ·
                   {blocking.length} 项未通过且待处理。
                 </span>

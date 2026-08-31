@@ -73,7 +73,7 @@ const REASON_TITLE: Record<ReasonDecision, string> = {
 
 const REASON_HINT: Record<ReasonDecision, string> = {
   'request-sources': '写明缺的是哪一类材料、要回溯到哪一份原始文件。编辑台会照这段话去补。',
-  'return-research': '整篇重做的成本很高，请写清楚是哪一层出了问题：搜集、交叉核实，还是写法。',
+  'return-research': '整篇重做的成本很高，请写清楚是哪一层出了问题：搜集、来源检索，还是写法。',
   reject: '拒绝会永久留在操作记录里。写下理由，让日后的人知道当时依据的是什么。',
   archive: '归档不是删除。写明为什么现在不推进，以及什么条件下应当重新打开。',
 }

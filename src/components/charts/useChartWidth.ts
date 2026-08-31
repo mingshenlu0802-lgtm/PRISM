@@ -17,7 +17,15 @@ export interface ChartWidth {
   measured: boolean
 }
 
-export function useChartWidth(fallback = 640): ChartWidth {
+/**
+ * The fallback is deliberately small. A chart is drawn at measured pixel width,
+ * so a large pre-measurement guess would set the min-content width of its own
+ * container — and in a grid track that sizes to content, the container then
+ * keeps that width and the page scrolls sideways on a phone. Starting narrow
+ * means the first paint can only ever be too small, which the first
+ * measurement corrects a frame later.
+ */
+export function useChartWidth(fallback = 280): ChartWidth {
   const [width, setWidth] = useState(fallback)
   const [measured, setMeasured] = useState(false)
   const nodeRef = useRef<HTMLDivElement | null>(null)

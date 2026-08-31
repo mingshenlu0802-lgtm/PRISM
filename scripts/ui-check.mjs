@@ -77,7 +77,15 @@ const VIEWPORTS = [
 
 if (SHOTS) await mkdir(SHOT_DIR, { recursive: true })
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium/chrome-linux/chrome' })
+// Resolve the pre-installed Chromium; the versioned directory name varies.
+const { globSync } = await import('node:fs')
+const candidates = [
+  ...globSync('/opt/pw-browsers/chromium-*/chrome-linux/chrome'),
+  ...globSync('/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell'),
+]
+const browser = await chromium.launch(
+  candidates.length ? { executablePath: candidates[0] } : {},
+)
 const problems = []
 const rows = []
 

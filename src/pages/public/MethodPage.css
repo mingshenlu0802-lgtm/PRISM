@@ -59,7 +59,7 @@
 
 .methodpg__doc { min-width: 0; max-width: 76ch; display: grid; gap: var(--s-9); }
 
-.methodpg__section { scroll-margin-top: calc(var(--header-h) + var(--s-6)); }
+.methodpg__section { min-width: 0; scroll-margin-top: calc(var(--header-h) + var(--s-6)); }
 .methodpg__section-n {
   font-family: var(--font-mono); font-size: var(--fs-xs);
   color: var(--accent); letter-spacing: .08em;
@@ -231,7 +231,7 @@
   font-size: var(--fs-xs); line-height: 1.65; color: var(--fg-muted);
 }
 .methodpg__fig-k { font-weight: 640; color: var(--fg); }
-.methodpg__chart { margin-top: var(--s-4); }
+.methodpg__chart { margin-top: var(--s-4); min-width: 0; overflow-x: auto; }
 
 /* --------------------------------- lock ---------------------------------- */
 

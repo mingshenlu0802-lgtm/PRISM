@@ -31,9 +31,9 @@ const FOCUSABLE = [
 ].join(',')
 
 const CHECK_META: Record<CitationCheck['status'], { zh: string; tone: 'go' | 'warn' | 'stop' }> = {
-  pass: { zh: '引用核查通过', tone: 'go' },
-  warn: { zh: '引用核查有保留', tone: 'warn' },
-  fail: { zh: '引用核查未通过', tone: 'stop' },
+  found: { zh: '资源已找到', tone: 'go' },
+  partial: { zh: '仅部分可得', tone: 'warn' },
+  missing: { zh: '资源未找到', tone: 'stop' },
 }
 
 export interface SourceDrawerProps {
@@ -196,7 +196,7 @@ export function SourceDrawer({
                     <Badge
                       tone={CHECK_META[check.status].tone}
                       size="sm"
-                      icon={<Icon name={check.status === 'pass' ? 'check' : check.status === 'warn' ? 'alert' : 'x'} size={12} />}
+                      icon={<Icon name={check.status === 'found' ? 'check' : check.status === 'partial' ? 'alert' : 'x'} size={12} />}
                     >
                       {CHECK_META[check.status].zh}
                     </Badge>
@@ -205,7 +205,7 @@ export function SourceDrawer({
                     </time>
                   </p>
                   <p className="sdrawer__checkreason">{check.reason}</p>
-                  {check.status === 'fail' ? (
+                  {check.status === 'missing' ? (
                     <p className="sdrawer__checknote">
                       未通过的引用不得用于支撑事实陈述。正文中出现这条标记的地方，只用它说明「存在某种说法」。
                     </p>
@@ -275,12 +275,12 @@ export function SourceDrawer({
                                   <span className="sdrawer__sibloc">{c.locator}</span>
                                 ) : null}
                               </span>
-                              {sCheck && sCheck.status !== 'pass' ? (
+                              {sCheck && sCheck.status !== 'found' ? (
                                 <span
                                   className={cx('sdrawer__sibflag', `sdrawer__sibflag--${sCheck.status}`)}
                                   title={sCheck.reason}
                                 >
-                                  {sCheck.status === 'warn' ? '有保留' : '未通过'}
+                                  {sCheck.status === 'partial' ? '有保留' : '未通过'}
                                 </span>
                               ) : null}
                             </button>

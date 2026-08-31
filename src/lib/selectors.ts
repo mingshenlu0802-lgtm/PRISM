@@ -74,7 +74,7 @@ export function needsSecondConfirm(a: Article): RiskFlag[] {
 /* --------------------------- citation health ----------------------------- */
 
 export function failedChecks(a: Article) {
-  return a.citationChecks.filter((c) => c.status === 'fail')
+  return a.citationChecks.filter((c) => c.status === 'missing')
 }
 
 /**
@@ -84,21 +84,21 @@ export function failedChecks(a: Article) {
  * that rested on it has already been weakened or re-attributed.
  */
 export function blockingChecks(a: Article) {
-  return a.citationChecks.filter((c) => c.status === 'fail' && !c.acknowledged)
+  return a.citationChecks.filter((c) => c.status === 'missing' && !c.acknowledged)
 }
 
 export function acknowledgedFailures(a: Article) {
-  return a.citationChecks.filter((c) => c.status === 'fail' && c.acknowledged)
+  return a.citationChecks.filter((c) => c.status === 'missing' && c.acknowledged)
 }
 
 export function warnChecks(a: Article) {
-  return a.citationChecks.filter((c) => c.status === 'warn')
+  return a.citationChecks.filter((c) => c.status === 'partial')
 }
 
 export function citationHealth(a: Article): number {
   if (a.citationChecks.length === 0) return 0
-  const pass = a.citationChecks.filter((c) => c.status === 'pass').length
-  const warn = a.citationChecks.filter((c) => c.status === 'warn').length
+  const pass = a.citationChecks.filter((c) => c.status === 'found').length
+  const warn = a.citationChecks.filter((c) => c.status === 'partial').length
   // An acknowledged failure counts like a warning: the record is imperfect,
   // but the claim resting on it has been brought back within the evidence.
   const acked = acknowledgedFailures(a).length
@@ -157,7 +157,7 @@ export function publishGate(a: Article, state: PrismState): PublishGate {
 
   if (state.lock.engaged) blockers.push('Global Publishing Lock 已开启：全站公开发布被暂停。')
   const blocking = blockingChecks(a)
-  if (blocking.length > 0) blockers.push(`${blocking.length} 项引用检查未通过且尚未处理，必须先修复陈述、补充一手材料，或记录处理说明。`)
+  if (blocking.length > 0) blockers.push(`${blocking.length} 项引用的资源未找到且尚未处理，必须先修复陈述、补充一手材料，或记录处理说明。`)
   const criticals = openRisks(a).filter((r) => r.severity === 'critical')
   if (criticals.length > 0) blockers.push(`${criticals.length} 项极高风险未处理：${criticals.map((r) => r.note).join('；')}`)
   const unapprovedCover = a.assetIds
@@ -167,10 +167,10 @@ export function publishGate(a: Article, state: PrismState): PublishGate {
   if (unapprovedCover.length > 0) blockers.push('封面图尚未通过审核。')
 
   if (profile.primary < 2) warnings.push(`一手来源仅 ${profile.primary} 份，低于本站 2 份的内部下限。`)
-  if (profile.independent < 3) warnings.push(`独立来源 ${profile.independent} 家，交叉核实强度偏弱。`)
+  if (profile.independent < 3) warnings.push(`独立来源 ${profile.independent} 家，独立来源偏少。`)
   if (warnChecks(a).length > 0) warnings.push(`${warnChecks(a).length} 项引用带有保留意见。`)
   const acked = acknowledgedFailures(a)
-  if (acked.length > 0) warnings.push(`${acked.length} 项引用检查未通过但已记录处理说明；相关陈述已相应削弱或改为归因表述。`)
+  if (acked.length > 0) warnings.push(`${acked.length} 项资源未找到但已记录处理说明；相关陈述已相应削弱或改为归因表述。`)
   if (a.confidence < 70) warnings.push(`整体可信度 ${a.confidence}，建议补充证据或下调表述强度。`)
   if (openRisks(a).some((r) => r.severity === 'high')) warnings.push('存在未处理的高风险项。')
   if (!a.contentNotice && a.topics.includes('violence')) warnings.push('涉及性暴力/家暴议题但未设置内容提示。')

@@ -13,5 +13,5 @@ export function riskOf(a: Article): RiskFlag[] {
 
 /** Failures that still block publishing — acknowledged ones do not. */
 export function blockingChecksOf(a: Article): CitationCheck[] {
-  return a.citationChecks.filter((c) => c.status === 'fail' && !c.acknowledged)
+  return a.citationChecks.filter((c) => c.status === 'missing' && !c.acknowledged)
 }

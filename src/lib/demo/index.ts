@@ -43,6 +43,9 @@ export function buildInitialState(): PrismState {
     pipelineRuns: PIPELINE_RUNS,
     audit: AUDIT,
     lock: { engaged: false },
+    // Retrieval defaults to a self-hostable open-source model; authoring is
+    // fixed to Claude and is not settable from the interface.
+    engines: { retrieval: 'qwen-open', authoring: 'claude' },
     today: TODAY,
   }
 }

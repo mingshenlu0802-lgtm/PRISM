@@ -62,7 +62,7 @@ const TABS: TabDef[] = [
     match: (a) => a.status === 'changes-requested',
     empty: {
       title: '没有条目被要求修改',
-      hint: '「退回重新研究」用于整篇重做：重新搜集、重新交叉核实、重写。退回的条目会列在这里。',
+      hint: '「退回重新研究」用于整篇重做：重新搜集、重新检索来源、重写。退回的条目会列在这里。',
     },
   },
   {
@@ -231,7 +231,7 @@ export default function QueuePage(): JSX.Element {
         <p className="qpage__eyebrow u-eyebrow">PRISM Command · 审批</p>
         <h1 className="qpage__title">审批队列</h1>
         <p className="qpage__lede">
-          自动编辑台已完成搜集、去重、交叉核实、起草、配图与自查，并把结果移交到这里。
+          自动编辑台已完成搜集、去重、资源检索、起草、配图与风险标记，并把结果移交到这里。
           它没有发布权限 —— 从这一步开始，每一个状态变更都由人作出，并带着署名与理由写入操作记录。
         </p>
         <p className="qpage__clock">

@@ -3,6 +3,7 @@ import type {
   Article, ArticleStatus, AuditAction, AuditEntry, Correction, ID, ImageAsset,
   PrismState, ReviewDecision, Version, VibeRun,
 } from './types'
+import { ENGINE_MAP } from './constants'
 import { buildInitialState } from './demo'
 import { nowIso, uid } from './util'
 
@@ -41,6 +42,7 @@ export type Action =
   | { type: 'signal-decline'; signalId: ID; reason: string }
   | { type: 'signal-promote'; signalId: ID }
   | { type: 'brief-sent'; briefId: ID }
+  | { type: 'set-retrieval-engine'; engineId: string }
 
 /* ------------------------------------------------------------------ *
  * Helpers
@@ -202,11 +204,11 @@ export function reducer(state: PrismState, action: Action): PrismState {
           // Re-checking never launders a failure into a pass, and never
           // clears an acknowledgement the editor already recorded.
           citationChecks: a.citationChecks.map((c) =>
-            c.status === 'fail' && !c.acknowledged
+            c.status === 'missing' && !c.acknowledged
               ? { ...c, reason: `${c.reason}（已重新核查：仍未取得可验证的一手记录，等待人工判断）`, checkedAt: at }
               : { ...c, checkedAt: at }),
         })),
-        audit: audit(state, 'ai-review', `${article.title} · 引用检查`, '重新核查全部 references。', action.articleId, 'ai-desk'),
+        audit: audit(state, 'ai-review', `${article.title} · 资源检索`, '重新检索全部 references。', action.articleId, 'ai-desk'),
       }
     }
 
@@ -223,7 +225,7 @@ export function reducer(state: PrismState, action: Action): PrismState {
               : c),
         })),
         audit: audit(state, 'edited', `${article.title} · ${action.citationId}`,
-          `引用检查未通过项已记录处理说明：${action.note}`, action.articleId),
+          `资源未找到的引用已记录处理说明：${action.note}`, action.articleId),
       }
     }
 
@@ -382,6 +384,17 @@ export function reducer(state: PrismState, action: Action): PrismState {
         ...state,
         signals: state.signals.map((s) => (s.id === action.signalId ? { ...s, status: 'drafted' } : s)),
       }
+
+    case 'set-retrieval-engine': {
+      const engine = ENGINE_MAP[action.engineId]
+      // Authoring is not reassignable, so only the retrieval slot moves.
+      if (!engine || !engine.jobs.includes('retrieval')) return state
+      return {
+        ...state,
+        engines: { ...state.engines, retrieval: action.engineId },
+        audit: audit(state, 'edited', '资料检索引擎', `检索引擎改为：${engine.name}`),
+      }
+    }
 
     case 'brief-sent': {
       const brief = state.briefs.find((b) => b.id === action.briefId)

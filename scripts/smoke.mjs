@@ -80,12 +80,12 @@ check('性暴力与未成年人内容强制二次确认', () => {
   return `${g.confirmations.length} 项：${kinds.join('/')}`
 })
 
-check('引用检查失败会阻断发布', () => {
+check('资源未找到的引用会阻断发布', () => {
   const withFail = S0.articles.filter((a) => sel.failedChecks(a).length > 0)
-  assert(withFail.length > 0, '演示数据中没有引用检查失败的条目')
+  assert(withFail.length > 0, '演示数据中没有资源未找到的条目')
   for (const a of withFail) {
     const g = sel.publishGate(a, S0)
-    assert(!g.ok, `${a.id} 有失败引用却未被阻断`)
+    assert(!g.ok, `${a.id} 有资源未找到的引用却未被阻断`)
   }
   return `${withFail.length} 篇被阻断`
 })
@@ -233,21 +233,21 @@ check('references 增删可被单独追踪', () => {
   return `删除 ${d.removed[0]}`
 })
 
-check('已记录处理说明的引用失败不再阻断发布', () => {
+check('已记录处理说明的「资源未找到」不再阻断发布', () => {
   const a = S0.articles.find((x) => sel.failedChecks(x).length > 0)
-  assert(a, '演示数据中没有引用检查失败的条目')
+  assert(a, '演示数据中没有资源未找到的条目')
   const before = sel.publishGate(a, S0)
-  assert(before.blockers.some((b) => b.includes('引用检查')), '失败项未阻断发布')
+  assert(before.blockers.some((b) => b.includes('资源未找到')), '资源未找到的引用未阻断发布')
   let s = S0
   for (const c of sel.failedChecks(a)) {
     s = reducer(s, { type: 'ack-citation', articleId: a.id, citationId: c.citationId, note: '已改为归因表述' })
   }
   const a2 = s.articles.find((x) => x.id === a.id)
   const after = sel.publishGate(a2, s)
-  assert(!after.blockers.some((b) => b.includes('引用检查')), '记录处理说明后仍被阻断')
+  assert(!after.blockers.some((b) => b.includes('资源未找到')), '记录处理说明后仍被阻断')
   assert(after.warnings.some((w) => w.includes('已记录处理说明')), '处理说明未降级为警告')
   assert(sel.failedChecks(a2).length === sel.failedChecks(a).length, '失败记录被抹掉了')
-  return `${a.id}：${sel.failedChecks(a).length} 项失败保留在记录中，但不再阻断`
+  return `${a.id}：${sel.failedChecks(a).length} 项「资源未找到」保留在记录中，但不再阻断`
 })
 
 /* ------------------------- editorial decisions --------------------------- */

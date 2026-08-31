@@ -51,7 +51,7 @@ const ROLE_WHO_LABEL: Record<RoleWho, { zh: string; tone: 'neutral' | 'info' | '
 const ROLE_ROWS: { step: string; who: RoleWho; note: string }[] = [
   { step: '多国家、多语言搜集', who: 'desk', note: '每日按议题、语言与辖区抓取公开材料并建立线索簇。' },
   { step: '重复报道合并与选题价值评估', who: 'desk', note: '合并同源报道，给出选题价值分与依据；人可随时推翻。' },
-  { step: '多来源交叉核实', who: 'desk-then-human', note: '编辑台给出对照表，人判断哪些来源真正独立。' },
+  { step: '多来源资源检索', who: 'desk-then-human', note: '编辑台给出可取得的材料清单，人判断哪些来源真正独立。' },
   { step: '深度文章草稿', who: 'desk', note: '按九个固定章节起草，草稿本身不构成发表。' },
   { step: '封面图、图表、社交素材', who: 'desk-then-human', note: '生成后逐张审批；未审批的封面图会直接阻断发布。' },
   { step: '事实、引用、偏见、隐私与法律风险检查', who: 'desk-then-human', note: '编辑台出清单，人作判断；清单不是结论。' },

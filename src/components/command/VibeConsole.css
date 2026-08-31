@@ -519,3 +519,16 @@
 @media (min-width: 1280px) {
   .vibe__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Authoring is fixed to Claude; the label states which engine is running,
+   it is not a control. */
+.vibe__engine {
+  margin-left: auto;
+  padding: 2px var(--s-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--fg-subtle);
+  letter-spacing: .03em;
+}

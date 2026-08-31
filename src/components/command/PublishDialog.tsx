@@ -426,7 +426,7 @@ export function PublishDialog({
             ) : (
               <p className="pubd__ok">
                 <Icon name="check-double" size={14} />
-                没有阻断项：引用检查、极高风险与封面审核均已满足硬性下限。
+                没有阻断项：资源检索、极高风险与封面审核均已满足硬性下限。
               </p>
             )}
 

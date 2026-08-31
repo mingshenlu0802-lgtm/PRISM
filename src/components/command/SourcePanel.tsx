@@ -114,9 +114,9 @@ export function SourcePanel({ article, className }: SourcePanelProps): JSX.Eleme
       const n = numbers.get(c.id)
       if (typeof n === 'number' && (row.first === undefined || n < row.first)) row.first = n
       const status = checkOf.get(c.id)
-      if (status === 'pass') row.pass += 1
-      else if (status === 'warn') row.warn += 1
-      else if (status === 'fail') row.fail += 1
+      if (status === 'found') row.pass += 1
+      else if (status === 'partial') row.warn += 1
+      else if (status === 'missing') row.fail += 1
       map.set(c.sourceId, row)
     }
     return map

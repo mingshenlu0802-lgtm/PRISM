@@ -199,6 +199,7 @@ export function VibeConsole({ article, className }: VibeConsoleProps): JSX.Eleme
           <h3 className="vibe__boxtitle">
             <Icon name="sparkle" size={14} />
             Further Vibe Coding
+            <span className="vibe__engine">Claude</span>
           </h3>
           <p className="vibe__boxhint">
             用一句话说明要怎么改。引擎只会从已入库的来源中取材，不会凭空创造来源；每次修改生成新版本，采用与否由你决定。

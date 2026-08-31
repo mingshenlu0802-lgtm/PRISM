@@ -1,4 +1,4 @@
-import type { DecisionMeta, RiskKind, RiskSeverity, SectionKind, SourceType, Topic, TopicKey, VerdictDef, VerdictKey } from './types'
+import type { CitationCheckStatus, DecisionMeta, EngineOption, RiskKind, RiskSeverity, SectionKind, SourceType, Topic, TopicKey, VerdictDef, VerdictKey } from './types'
 
 /* ------------------------------------------------------------------ *
  * Topics
@@ -92,6 +92,30 @@ export const PRIMARY_TYPES: SourceType[] = [
 ]
 
 /* ------------------------------------------------------------------ *
+ * Resource retrieval
+ *
+ * The desk searches for the cited resource and reports whether it could be
+ * retrieved. Judging the source and the claim is editorial work.
+ * ------------------------------------------------------------------ */
+
+export const CHECK_LABEL: Record<CitationCheckStatus, {
+  zh: string; en: string; tone: 'go' | 'warn' | 'stop'; means: string
+}> = {
+  found: {
+    zh: '资源已找到', en: 'Located', tone: 'go',
+    means: '来源存在且可取得，引用指向的位置能够打开。',
+  },
+  partial: {
+    zh: '仅部分可得', en: 'Partial', tone: 'warn',
+    means: '来源已找到，但引用指向的具体位置无法取得（附录未公开、扫描件不可读、页面已被替换）。',
+  },
+  missing: {
+    zh: '资源未找到', en: 'Not found', tone: 'stop',
+    means: '检索未能找到该资源。',
+  },
+}
+
+/* ------------------------------------------------------------------ *
  * Risk
  * ------------------------------------------------------------------ */
 
@@ -119,6 +143,64 @@ export const RISK_SEVERITY_LABEL: Record<RiskSeverity, { zh: string; var: string
 export const SECOND_CONFIRM_KINDS: RiskKind[] = [
   'sexual-violence', 'minors', 'active-litigation', 'identity-exposure',
 ]
+
+/* ------------------------------------------------------------------ *
+ * Engines
+ *
+ * Retrieval is swappable — it only has to find things. Authoring is not.
+ * ------------------------------------------------------------------ */
+
+export const ENGINES: EngineOption[] = [
+  {
+    id: 'llama-open',
+    name: 'Llama 系列（开源，可自托管）',
+    kind: 'open-source',
+    cost: '免费 · 自建算力',
+    note: '权重公开，可在自有机器上运行。适合大批量的链接检索与网页抓取，不产生外部调用费用。',
+    jobs: ['retrieval'],
+  },
+  {
+    id: 'mistral-open',
+    name: 'Mistral 系列（开源，可自托管）',
+    kind: 'open-source',
+    cost: '免费 · 自建算力',
+    note: '体量较小、吞吐高，适合逐条打开链接、判断资源是否可取得这类重复性工作。',
+    jobs: ['retrieval'],
+  },
+  {
+    id: 'qwen-open',
+    name: 'Qwen 系列（开源，可自托管）',
+    kind: 'open-source',
+    cost: '免费 · 自建算力',
+    note: '多语种覆盖较好，适合跨语种检索——本站每日检索涉及十余个语种。',
+    jobs: ['retrieval'],
+  },
+  {
+    id: 'self-hosted',
+    name: '自定义端点（本地或私有部署）',
+    kind: 'open-source',
+    cost: '免费 · 自建算力',
+    note: '指向你自己的推理服务。检索请求不离开你控制的网络。',
+    jobs: ['retrieval'],
+  },
+  {
+    id: 'claude',
+    name: 'Claude',
+    kind: 'hosted',
+    cost: '按调用计费',
+    note: '检索可选用它；控制端内的起草与改写固定使用它，不可更改。',
+    jobs: ['retrieval', 'authoring'],
+  },
+]
+
+export const ENGINE_MAP: Record<string, EngineOption> = Object.fromEntries(
+  ENGINES.map((e) => [e.id, e]),
+)
+
+/** Options the editor may assign to a job. */
+export function enginesFor(job: EngineOption['jobs'][number]): EngineOption[] {
+  return ENGINES.filter((e) => e.jobs.includes(job))
+}
 
 /* ------------------------------------------------------------------ *
  * Review decisions

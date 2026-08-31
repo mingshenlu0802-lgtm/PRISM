@@ -265,19 +265,33 @@ export interface RiskFlag {
   resolutionNote?: string
 }
 
-export type CitationCheckStatus = 'pass' | 'warn' | 'fail'
+/**
+ * The automated desk performs RESOURCE RETRIEVAL, not verification.
+ *
+ * - 'found'   the cited resource was located and the locator resolves
+ * - 'partial' the resource was located but the specific locator could not be
+ *             resolved (a paywalled annex, a low-resolution scan, a page that
+ *             has since been replaced)
+ * - 'missing' the resource could not be located at all
+ *
+ * A 'found' result means the source EXISTS and is reachable. It does not mean
+ * the source is reliable, and it certainly does not mean the claim resting on
+ * it is true. Judging reliability and truth is editorial work, done by a
+ * person; the desk only establishes what can be retrieved.
+ */
+export type CitationCheckStatus = 'found' | 'partial' | 'missing'
 
 export interface CitationCheck {
   citationId: ID
   status: CitationCheckStatus
-  /** What the automated check actually verified or failed to verify. */
+  /** What the desk was and was not able to retrieve. */
   reason: string
   checkedAt: ISODateTime
   /**
-   * A failed check that the editor has explicitly seen and handled — normally
-   * by weakening or re-attributing the sentence that rested on it. It stays
-   * visible as a failure, but it no longer blocks publishing, because the
-   * claim it could not support is no longer being made.
+   * A missing resource that the editor has explicitly seen and handled —
+   * normally by weakening or re-attributing the sentence that rested on it.
+   * It stays visible as missing, but it no longer blocks publishing, because
+   * the claim it could not support is no longer being made.
    */
   acknowledged?: boolean
   acknowledgedNote?: string
@@ -483,7 +497,7 @@ export interface DailyBrief {
 export type PipelineStageKey =
   | 'collect'
   | 'dedupe'
-  | 'corroborate'
+  | 'locate'
   | 'draft'
   | 'visuals'
   | 'review'
@@ -513,6 +527,41 @@ export interface PipelineRun {
   producedArticleIds: ID[]
   producedSignalIds: ID[]
   demo: true
+}
+
+/* ------------------------------------------------------------------ *
+ * Engines
+ *
+ * Two different jobs, two different rules.
+ *
+ * Retrieval — searching the open web for the material a citation points at —
+ * is swappable: it is bounded, cheap to run, and easy to check, so the editor
+ * may point it at a free or self-hosted open-source model.
+ *
+ * Authoring — drafting, rewriting, and everything Further Vibe Coding does to
+ * a manuscript inside the console — is fixed to Claude and cannot be
+ * reassigned from the interface.
+ * ------------------------------------------------------------------ */
+
+export type EngineJob = 'retrieval' | 'authoring'
+
+export interface EngineOption {
+  id: string
+  name: string
+  /** 'open-source' can be self-hosted or run free; 'hosted' is an API. */
+  kind: 'open-source' | 'hosted'
+  /** What it costs the editor to run. */
+  cost: string
+  note: string
+  /** Retrieval is open to every option; authoring is not. */
+  jobs: EngineJob[]
+}
+
+export interface EngineSettings {
+  /** The editor's choice for overnight resource search. */
+  retrieval: string
+  /** Fixed. Present so the UI can name it, not so it can be changed. */
+  authoring: 'claude'
 }
 
 /* ------------------------------------------------------------------ *
@@ -598,6 +647,7 @@ export interface PrismState {
   pipelineRuns: PipelineRun[]
   audit: AuditEntry[]
   lock: GlobalLock
+  engines: EngineSettings
   /** Prototype clock: fixed so the demo is deterministic. */
   today: ISODate
 }

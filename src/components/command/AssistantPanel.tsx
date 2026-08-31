@@ -100,8 +100,8 @@ function singleSourceSentences(article: Article, state: PrismState): LeanRow[] {
       if (source && !isPrimarySource(source)) reasons.push('该来源不是一手记录')
       if (source && source.tier === 'tertiary') reasons.push('属转述层级')
       if (source?.caution) reasons.push('来源本身带有使用提示')
-      if (check?.status === 'warn') reasons.push('引用核查有保留')
-      if (check?.status === 'fail') reasons.push('引用核查未通过')
+      if (check?.status === 'partial') reasons.push('引用核查有保留')
+      if (check?.status === 'missing') reasons.push('引用核查未通过')
       if (reasons.length === 0) return
       rows.push({
         key: `${blockIndex}-${i}-${ids[0]}`,
@@ -223,7 +223,7 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
   const sourceById = useMemo(() => new Map(state.sources.map((s) => [s.id, s])), [state.sources])
   const citationById = useMemo(() => new Map(article.citations.map((c) => [c.id, c])), [article.citations])
 
-  const passed = article.citationChecks.filter((c) => c.status === 'pass')
+  const passed = article.citationChecks.filter((c) => c.status === 'found')
   const warned = sel.warnChecks(article)
   const failed = sel.failedChecks(article)
   const acked = sel.acknowledgedFailures(article)
@@ -272,7 +272,7 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
       out.push({
         id: 'independent',
         tone: 'warn',
-        title: `独立来源 ${profile.independent} 家，交叉核实强度偏弱`,
+        title: `独立来源 ${profile.independent} 家，独立来源偏少`,
         detail: '「独立」指不共享同一原始信源。同一通稿的多家转载只算一家。',
         actionLabel: '前往材料',
         target: 'sources',
@@ -453,15 +453,15 @@ export function AssistantPanel({ article, onAction, className }: AssistantPanelP
               return (
                 <li
                   key={check.citationId}
-                  className={cx('aip__row', check.status === 'fail' ? 'aip__row--stop' : 'aip__row--warn')}
+                  className={cx('aip__row', check.status === 'missing' ? 'aip__row--stop' : 'aip__row--warn')}
                 >
                   <span className="aip__rown u-num">[{numbers.get(check.citationId) ?? '—'}]</span>
                   <div className="aip__rowmain">
                     <p className="aip__rowclaim">{citation?.claim ?? check.citationId}</p>
                     <p className="aip__rowreason">{check.reason}</p>
                     <p className="aip__rowmeta">
-                      <Badge tone={check.status === 'fail' ? 'stop' : 'warn'} size="sm">
-                        {check.status === 'fail' ? '未通过' : '保留意见'}
+                      <Badge tone={check.status === 'missing' ? 'stop' : 'warn'} size="sm">
+                        {check.status === 'missing' ? '未通过' : '保留意见'}
                       </Badge>
                       {check.acknowledged ? (
                         <Badge tone="info" size="sm" icon={<Icon name="edit" size={11} />}>已记录处理说明</Badge>

@@ -287,9 +287,9 @@ export function ReviewCard({
           />
           <Meter
             value={health}
-            label="引用检查健康度"
+            label="资源可得率"
             hint={checked === 0
-              ? '尚未运行引用检查：本条目还没有可核对的 references。'
+              ? '尚未运行资源检索：本条目还没有可核对的 references。'
               : `${checked} 项引用中，通过 ${passes}、带保留 ${warns.length}、未通过 ${fails.length}（其中 ${acked.length} 项已记录处理说明）。保留意见与已处理项按半分计。`}
             size="sm"
           />
@@ -373,14 +373,14 @@ export function ReviewCard({
           ) : null}
         </section>
 
-        <section className="rvc__sec" aria-label="引用检查">
+        <section className="rvc__sec" aria-label="资源检索">
           <h4 className="rvc__h4">
             <Icon name="quote" size={13} />
-            引用检查
+            资源检索
             <span className="rvc__h4num u-num">{checked}</span>
           </h4>
           {checked === 0 ? (
-            <p className="rvc__none">尚未运行引用检查。条目进入发布流程前必须至少完成一次。</p>
+            <p className="rvc__none">尚未运行资源检索。条目进入发布流程前必须至少完成一次。</p>
           ) : (
             <>
               <p className="rvc__checks">

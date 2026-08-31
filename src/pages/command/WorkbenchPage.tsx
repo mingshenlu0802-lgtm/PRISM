@@ -45,9 +45,9 @@ type ViewKey = 'sources' | 'article' | 'assist'
 type TabKey = 'assistant' | 'vibe' | 'factcheck' | 'risk' | 'publish'
 
 const CHECK_META: Record<CitationCheck['status'], { zh: string; tone: 'go' | 'warn' | 'stop'; mark: string }> = {
-  pass: { zh: '通过', tone: 'go', mark: '✓' },
-  warn: { zh: '保留', tone: 'warn', mark: '!' },
-  fail: { zh: '未通过', tone: 'stop', mark: '✕' },
+  found: { zh: '已找到', tone: 'go', mark: '✓' },
+  partial: { zh: '部分可得', tone: 'warn', mark: '!' },
+  missing: { zh: '未找到', tone: 'stop', mark: '✕' },
 }
 
 const TRANSLATION_STATUS: Record<string, { zh: string; tone: 'go' | 'warn' | 'neutral' }> = {
@@ -226,7 +226,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
 
   const recheck = () => {
     dispatch({ type: 'recheck-citations', articleId: article.id })
-    toast('已重新核查全部 references：未通过项不会被自动改判。', 'info')
+    toast('已重新检索全部 references：未通过项不会被自动改判。', 'info')
   }
 
   const submitAck = () => {
@@ -359,6 +359,9 @@ function Workbench({ article }: { article: Article }): JSX.Element {
                 <span className="wbp__docwhere">{article.countries.join('、')} · {article.region}</span>
               </div>
 
+              {/* The visible title is an editable field, so the page still
+                  needs one real heading for screen readers and landmarks. */}
+              <h1 className="u-sr">文章工作台：{article.title}</h1>
               <GrowField
                 id="wbp-title"
                 label="文章标题"
@@ -636,15 +639,15 @@ function Workbench({ article }: { article: Article }): JSX.Element {
                   )}
                 </section>
 
-                <section aria-label="引用检查表">
+                <section aria-label="资源检索结果">
                   <div className="wbp__fchead">
                     <h3 className="wbp__sectiontitle">
                       <Icon name="link" size={13} />
-                      引用检查（{article.citationChecks.length}）
+                      资源检索（{article.citationChecks.length}）
                     </h3>
                     <button type="button" className="wbp__recheck" onClick={recheck}>
                       <Icon name="refresh" size={13} />
-                      重新核查全部 references
+                      重新检索全部 references
                     </button>
                   </div>
                   <p className="wbp__note">
@@ -653,7 +656,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
                   </p>
 
                   {article.citationChecks.length === 0 ? (
-                    <p className="wbp__note">这篇条目还没有引用检查记录。</p>
+                    <p className="wbp__note">这篇条目还没有资源检索记录。</p>
                   ) : (
                     <div className="wbp__tablewrap">
                       <table className="wbp__table">
@@ -703,7 +706,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
                                   <span className="wbp__tat u-num">{fmtDateTime(check.checkedAt)}</span>
                                 </td>
                                 <td>
-                                  {check.status === 'fail' && !check.acknowledged ? (
+                                  {check.status === 'missing' && !check.acknowledged ? (
                                     <button
                                       type="button"
                                       className="wbp__ackbtn"
@@ -870,7 +873,7 @@ function Workbench({ article }: { article: Article }): JSX.Element {
       <Modal
         open={ackTarget !== null}
         onClose={() => { setAckTarget(null); setAckNote('') }}
-        title="记录引用检查未通过项的处理说明"
+        title="记录资源未找到的引用的处理说明"
         subtitle={ackTarget ? `引用 [${numbers.get(ackTarget.citationId) ?? '—'}] · ${ackTarget.citationId}` : undefined}
         width="md"
         footer={

@@ -684,7 +684,7 @@ export default function HomePage(): JSX.Element {
             </h2>
             <p className="phome__brief-text">
               简报包含：当日最值得关注的信号与理由、建议优先审阅的草稿、待审批队列、
-              研究雷达的新增条目、正在流传且需要核查的说法、风险提示、引用检查未通过的条目，
+              研究雷达的新增条目、正在流传且需要核查的说法、风险提示、资源未找到的条目，
               以及已发布内容中需要更新的部分。
             </p>
             <p className="phome__brief-strong">

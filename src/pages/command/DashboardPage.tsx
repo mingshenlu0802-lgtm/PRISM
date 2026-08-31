@@ -217,7 +217,7 @@ export default function DashboardPage(): JSX.Element {
           <p className="cdash__standing">
             <span className="cdash__standingicon" aria-hidden="true"><Icon name="shield" size={13} /></span>
             <span>
-              自动编辑台完成搜集、去重、交叉核实、起草与自动检查；
+              自动编辑台完成搜集、去重、资源检索、起草与风险标记；
               <strong>批准与公开发布只有你能做</strong>，且始终受 Global Publishing Lock 约束。
             </span>
           </p>
@@ -276,7 +276,7 @@ export default function DashboardPage(): JSX.Element {
           hint={summary.highRisk > 0 ? '含高或极高风险项，发布前需逐项处理' : '无未处理的高风险项'}
         />
         <KpiTile
-          label="引用检查失败"
+          label="资源未找到"
           value={summary.citationFailures}
           icon="link"
           tone={summary.citationFailures > 0 ? 'stop' : 'go'}
@@ -315,7 +315,7 @@ export default function DashboardPage(): JSX.Element {
         <PanelCard
           className="cdash__c7"
           title="今日五个重要事件"
-          subtitle="按选题价值排序；合并同源报道后逐条给出交叉核实状态。"
+          subtitle="按选题价值排序；合并同源报道后逐条给出来源可得状态。"
           icon="target"
           action={<Link className="cdash__more" to="/command/signals">全部信号<Icon name="chevron-right" size={13} /></Link>}
         >
@@ -508,7 +508,7 @@ export default function DashboardPage(): JSX.Element {
         {/* -------------------------- citation failures --------------------- */}
         <PanelCard
           className="cdash__c6"
-          title="引用检查失败"
+          title="资源未找到"
           subtitle="硬性阻断项：在修复或删除相关陈述之前，这些稿件无法发布。"
           icon="link"
           tone={failing.length > 0 ? 'warn' : 'default'}

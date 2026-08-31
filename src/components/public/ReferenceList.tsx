@@ -60,9 +60,9 @@ function langLabel(tag: string): string {
 }
 
 const CHECK_TONE: Record<CitationCheck['status'], { zh: string; cls: string }> = {
-  pass: { zh: '核查通过', cls: 'pass' },
-  warn: { zh: '核查有保留', cls: 'warn' },
-  fail: { zh: '核查未通过', cls: 'fail' },
+  found: { zh: '资源已找到', cls: 'pass' },
+  partial: { zh: '仅部分可得', cls: 'warn' },
+  missing: { zh: '资源未找到', cls: 'fail' },
 }
 
 /**
@@ -71,10 +71,10 @@ const CHECK_TONE: Record<CitationCheck['status'], { zh: string; cls: string }> =
  * sentence that rested on it has already been weakened or re-attributed.
  */
 function CheckChip({ check }: { check: CitationCheck }): JSX.Element {
-  const acked = check.status === 'fail' && Boolean(check.acknowledged)
+  const acked = check.status === 'missing' && Boolean(check.acknowledged)
   const cls = acked ? 'acked' : CHECK_TONE[check.status].cls
   const zh = acked ? '未通过 · 已处理' : CHECK_TONE[check.status].zh
-  const icon = check.status === 'pass' ? 'check' : check.status === 'warn' ? 'alert' : 'x'
+  const icon = check.status === 'found' ? 'check' : check.status === 'partial' ? 'alert' : 'x'
   return (
     <span
       className={cx('reflist__checkchip', `reflist__checkchip--${cls}`)}

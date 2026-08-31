@@ -440,13 +440,13 @@ function attachCitation(
     const check: CitationCheck = source.caution
       ? {
         citationId,
-        status: 'warn',
+        status: 'partial',
         reason: `来源自带使用提示：${source.caution}本次仅用于支撑有限的事实陈述，表述强度需人工确认。`,
         checkedAt: now,
       }
       : {
         citationId,
-        status: 'pass',
+        status: 'found',
         reason: `已比对来源记录的出版方、日期与论断范围：${source.publisher}（${source.date}），与正文陈述一致。`,
         checkedAt: now,
       }
@@ -1046,34 +1046,34 @@ function recheckReferences(ctx: Ctx): IntentResult {
     const source = citation ? sourceById.get(citation.sourceId) : undefined
     const who = source ? source.publisher : '来源记录缺失'
 
-    if (check.status === 'fail') {
+    if (check.status === 'missing') {
       upgraded += 1
       detail.push(`${who}：未通过 → 保留意见。`)
       return {
         citationId: check.citationId,
-        status: 'warn',
+        status: 'partial',
         reason: `${check.reason}｜${today} 复核：改判为保留意见。自动比对仍无法确认原始记录，因此相关陈述不足以支撑强表述；编辑需取得原件，或把正文表述降到「无法核实」的强度。`,
         checkedAt: now,
       }
     }
 
     if (source?.caution) {
-      if (check.status !== 'warn') downgraded += 1
+      if (check.status !== 'partial') downgraded += 1
       else carried += 1
       detail.push(`${who}：因来源使用提示降级为保留意见。`)
       return {
         citationId: check.citationId,
-        status: 'warn',
+        status: 'partial',
         reason: `${today} 复核：来源自带使用提示——${source.caution}在提示解除前，本条只支持有限的事实陈述。原核查结论：${check.reason}`,
         checkedAt: now,
       }
     }
 
-    if (check.status === 'pass') {
+    if (check.status === 'found') {
       refreshed += 1
       return {
         citationId: check.citationId,
-        status: 'pass',
+        status: 'found',
         reason: `${check.reason}｜${today} 复核：出版方、日期与论断范围重新比对一致。`,
         checkedAt: now,
       }
@@ -1095,7 +1095,7 @@ function recheckReferences(ctx: Ctx): IntentResult {
     added += 1
     snap.citationChecks.push({
       citationId: citation.id,
-      status: 'warn',
+      status: 'partial',
       reason: `${today} 复核：此前没有自动核查记录，已补建。${source ? `来源为${sourceLine(source)}，需人工确认它是否支撑「${excerpt(citation.claim, 24)}」这一论断。` : '资料库中找不到对应的来源记录，发布前必须补齐或删除该引用。'}`,
       checkedAt: now,
     })
