@@ -66,9 +66,21 @@ npm run check      # 类型检查 + 上述两项
 | `/command/sources` | 来源库与全球议题 / 语言 / 来源类型分布 |
 | `/command/brief` | 每日编辑简报（仅摘要与安全链接） |
 | `/command/audit` | 完整操作、审批与发布记录 |
-| `/command/settings` | Global Publishing Lock 与系统设置 |
+| `/command/settings` | Global Publishing Lock、引擎分配与系统设置 |
 
 ---
+
+## 引擎分配
+
+两种工作，两套规则：
+
+| 工作 | 谁来做 | 可否更换 |
+|------|--------|----------|
+| **资料检索**——跨语种搜索链接、打开引用指向的材料、判断资源是否可取得 | 免费／自托管的开源模型（Llama · Mistral · Qwen · 自定义端点），或 Claude | **可以**，在 `/command/settings` 更换 |
+| **起草与改写**——控制端内的起草、Further Vibe Coding 的每一次改写 | Claude | **不可以** |
+
+检索是重复性工作，用开源模型即可，不必消耗付费算力。
+改写会直接进入版本历史、并可能被采用为正文，因此不开放切换。
 
 ## 编辑原则（写进了产品的行为里，不只是文案）
 
