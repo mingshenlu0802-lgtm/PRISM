@@ -25,10 +25,10 @@ await build({
 })
 
 const m = await import(pathToFileURL(bundle).href)
-const { buildInitialState, reducer, accessOf, collect, planSteps,
+const { buildInitialState, reducer, accessOf,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
-        parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight } = m
+        parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight, Prose } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -141,43 +141,6 @@ await test('换头条时，改动记录写清楚是哪一条让了位', () => {
 })
 
 /* ------------------------------ 取材规则 ------------------------------ */
-
-await test('打开「优先独立与境外媒体」后，官方媒体排在独立媒体后面', () => {
-  const s = fresh()
-  const r = collect({ ...s.collect, preferIndependent: true, regions: ['cn'], perRun: 10 }, [], [], 0)
-  for (const n of r.news) {
-    const kinds = n.links.map((l) => l.outletKind ?? 'independent')
-    const lastIndependent = kinds.lastIndexOf('independent')
-    const firstState = kinds.indexOf('state')
-    if (firstState >= 0 && lastIndependent >= 0) {
-      ok(firstState > lastIndependent, `「${n.headline}」里官方媒体排在了独立媒体前面`)
-    }
-  }
-})
-
-await test('原始文件永远排最前，不受取材规则影响', () => {
-  const s = fresh()
-  for (const pref of [true, false]) {
-    const r = collect({ ...s.collect, preferIndependent: pref, regions: ['cn'], perRun: 10 }, [], [], 0)
-    for (const n of r.news) {
-      const firstNonPrimary = n.links.findIndex((l) => !l.primary)
-      const lastPrimary = n.links.map((l) => Boolean(l.primary)).lastIndexOf(true)
-      if (firstNonPrimary >= 0 && lastPrimary >= 0) {
-        ok(lastPrimary < firstNonPrimary, `preferIndependent=${pref} 时原始文件没有排在最前`)
-      }
-    }
-  }
-})
-
-await test('官方媒体不会被丢掉，只是被标出来', () => {
-  const s = fresh()
-  const on = collect({ ...s.collect, preferIndependent: true, regions: ['cn'], perRun: 10 }, [], [], 0)
-  const off = collect({ ...s.collect, preferIndependent: false, regions: ['cn'], perRun: 10 }, [], [], 0)
-  const count = (r) => r.news.reduce((a, n) => a + n.links.length, 0)
-  eq(count(on), count(off), '开关不该改变链接总数——它只改顺序和标注')
-  const stateLinks = on.news.flatMap((n) => n.links).filter((l) => l.outletKind === 'state')
-  ok(stateLinks.length > 0, '演示数据里应当有官方媒体，否则这条规则没人验证得了')
-})
 
 await test('演示数据里的中国内地条目带得上境外或独立来源', () => {
   const cn = fresh().news.filter((n) => n.regions.includes('cn'))
@@ -348,72 +311,6 @@ await test('同一个邮箱不会被加两遍', () => {
 })
 
 /* ------------------------------ 搜集 ------------------------------ */
-
-await test('搜集不会凭空造链接：每条新闻都带得走的链接', () => {
-  const s = fresh()
-  const r = collect(s.collect, [], [], 0)
-  ok(r.news.length > 0, '应该搜到东西')
-  for (const n of r.news) ok(n.links.length > 0, `「${n.headline}」没有链接`)
-})
-
-await test('搜集尊重「找到就直接上线」这个开关', () => {
-  const s = fresh()
-  const on = collect({ ...s.collect, autoPublish: true }, [], [], 0)
-  const off = collect({ ...s.collect, autoPublish: false }, [], [], 0)
-  ok(on.news.every((n) => n.status === 'live'), '打开时应直接上线')
-  ok(off.news.every((n) => n.status === 'hidden'), '关掉时应存草稿')
-})
-
-await test('跳过重复的会说明原因，不会悄悄消失', () => {
-  const s = fresh()
-  const first = collect({ ...s.collect, dedupe: true }, [], [], 0)
-  const again = collect({ ...s.collect, dedupe: true }, first.news, first.studies, 0)
-  // 第二次可以带回新的，但绝不能把第一次那些再加一遍。
-  const seen = new Set(first.news.map((n) => n.headline))
-  ok(again.news.every((n) => !seen.has(n.headline)), '同一条不该被加第二遍')
-  ok(again.skipped.length > 0, '被跳过的应当有记录')
-  ok(again.skipped.every((x) => x.reason.trim().length > 0), '每条跳过都要写原因')
-  ok(again.skipped.some((x) => seen.has(x.headline)), '跳过的应当正是第一次已经收过的那些')
-})
-
-await test('关掉去重就真的不去重（开关是有用的）', () => {
-  const s = fresh()
-  const first = collect({ ...s.collect, dedupe: false }, [], [], 0)
-  const again = collect({ ...s.collect, dedupe: false }, first.news, first.studies, 0)
-  const seen = new Set(first.news.map((n) => n.headline))
-  ok(again.news.some((n) => seen.has(n.headline)), '关掉去重后应当允许重复')
-})
-
-await test('只选一个地区就只搜那个地区', () => {
-  const s = fresh()
-  const r = collect({ ...s.collect, regions: ['cn'], perRun: 10 }, [], [], 0)
-  ok(r.news.length > 0, '应该搜到东西')
-  ok(r.news.every((n) => n.regions.includes('cn')), '不该出现别的地区')
-})
-
-await test('撤销一次搜集，会把这次加的全部收回', () => {
-  const s0 = fresh()
-  const r = collect(s0.collect, s0.news, s0.studies, 1)
-  const run = {
-    id: 'run-test', startedAt: new Date().toISOString(),
-    config: s0.collect, steps: planSteps(s0.collect),
-    addedNewsIds: r.news.map((n) => n.id), addedStudyIds: r.studies.map((x) => x.id),
-    skipped: r.skipped, state: 'done',
-  }
-  let s = reducer(s0, { type: 'news-add', items: r.news, who: ME })
-  s = reducer(s, { type: 'study-add', items: r.studies, who: ME })
-  s = reducer(s, { type: 'run-start', run })
-  eq(s.news.length, s0.news.length + r.news.length, '加完之后的条数')
-  const back = reducer(s, { type: 'run-undo', runId: 'run-test', who: ME })
-  eq(back.news.length, s0.news.length, '撤销后应回到原来的条数')
-  eq(back.studies.length, s0.studies.length, '撤销后研究条数')
-})
-
-await test('搜集步骤是有名有姓的，不是一个转圈的图标', () => {
-  const steps = planSteps(fresh().collect)
-  ok(steps.length >= 4, '步骤太少，等待时看不出在干什么')
-  ok(steps.every((x) => x.label.trim() && x.detail.trim()), '每步都要有说明')
-})
 
 await test('调整外观不会碰到新闻内容', () => {
   const s0 = fresh()
@@ -1116,6 +1013,37 @@ await test('被截断的回复要说清楚是截断，不是「没有返回内�
     ok(msg.includes('截断'), `要说是被截断，实际「${msg}」`)
     ok(msg.includes('24'), '要把那个上限报出来，人才知道调哪个数')
   } finally { process.env = keep; globalThis.fetch = realFetch }
+})
+
+await test('正文里的小标题和来源角标要变成真的结构', async () => {
+  // 总结现在是上千字的新闻稿：用「## 小标题」分节，句子后面标 [1] [2]。
+  // 这两样如果原样显示，读者看到的就是一堆井号和方括号。
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  const { createElement } = await import('react')
+  const links = [
+    { id: 'a', outlet: '卫报', title: 't1', url: 'https://a.example', lang: 'en', date: '2026-09-01' },
+    { id: 'b', outlet: '路透社', title: 't2', url: 'https://b.example', lang: 'en', date: '2026-09-01' },
+  ]
+  const html = renderToStaticMarkup(createElement(Prose, {
+    text: '## 最早的投诉\n\n检方指称行为发生于 2019 年。[1] 该机构收到七项投诉。[2]\n\n这里有一个 **加粗** 的词，还有一个对不上的 [9]。',
+    links,
+  }))
+
+  ok(html.includes('<h3'), '「## 小标题」要变成 h3，不是正文里的井号')
+  ok(html.includes('最早的投诉'), '小标题的文字要留下')
+  ok(!html.includes('## '), '井号本身不该出现在页面上')
+
+  ok(html.includes('href="#src-1"'), '[1] 要变成跳到第一个来源的链接')
+  ok(html.includes('href="#src-2"'), '[2] 要跳到第二个来源')
+  ok(html.includes('卫报'), '角标要带上是哪家媒体，给读屏用')
+
+  // 编号对不上的不做成链接——点了没反应比没有链接更糟；但也不能删掉，
+  // 那句话确实有出处，只是编号错了，读者有权看见。
+  ok(html.includes('prose__cite--dead'), '对不上的角标要标成失效，而不是变成死链接')
+  ok(!html.includes('href="#src-9"'), '不存在的来源不能生成锚点')
+
+  ok(html.includes('<strong>加粗</strong>'), '**加粗** 要变成 strong')
+  ok(!html.includes('**'), '星号不该留在页面上')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

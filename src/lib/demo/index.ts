@@ -18,7 +18,6 @@ export function buildInitialState(): PrismState {
   return {
     news: NEWS.map((n) => ({ ...n })),
     studies: STUDIES.map((s) => ({ ...s })),
-    runs: [],
     collect: {
       regions: [...PRIORITY_REGIONS],
       topics: ['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'],

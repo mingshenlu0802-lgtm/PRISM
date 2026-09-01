@@ -1,11 +1,11 @@
 // esbuild entry for the behaviour tests — one file so the bundle is built once.
 export { buildInitialState } from '../src/lib/demo/index'
 export { reducer, accessOf } from '../src/lib/store'
-export { collect, planSteps } from '../src/lib/collect'
 export { contentSnapshot, downloadSnapshot } from '../src/lib/github'
 export { PRIORITY_REGIONS } from '../src/lib/regions'
 export { paragraphs, todayISO, weightedShuffle, recencyWeight } from '../src/lib/util'
 export { TOPICS } from '../src/lib/constants'
 export { readAddress } from '../src/lib/address'
+export { Prose } from '../src/components/site/Prose'
 export { blankNews, blankStudy } from '../src/lib/blank'
 export { keyProblem, keyDanger, keyTyping, urlProblem, urlTyping, parsePasted, friendly } from '../src/lib/backend'

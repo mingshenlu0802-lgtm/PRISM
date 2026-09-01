@@ -18,25 +18,43 @@ import './Prose.css'
  * 比一个几十 KB 的依赖更容易看懂，也不会把模型偶尔写出的星号当成加粗。
  */
 
-/** 把一段文字里的 [1] [2] 变成上标链接。 */
-function withCites(text: string, links: MediaLink[], keyBase: string): (string | JSX.Element)[] {
+/**
+ * 行内记号：`[1]` 角标和 `**加粗**`。
+ *
+ * 加粗要认，是因为**提示词自己就用 `**` 写强调**——模型会照着学，
+ * 于是正文里冒出一串星号。与其在输出上做清洗（那会连同它真正想强调的意思
+ * 一起删掉），不如把这个记号认下来：新闻里偶尔加粗一个关键数字或结论，
+ * 本来就是合理的排版。
+ *
+ * 只认这两种。不做完整 Markdown：没认的记号原样显示，比猜错了好。
+ */
+const INLINE = /\*\*([^*]+)\*\*|\[(\d{1,2})\]/g
+
+function inline(text: string, links: MediaLink[], keyBase: string): (string | JSX.Element)[] {
   const out: (string | JSX.Element)[] = []
   let last = 0
-  const re = /\[(\d{1,2})\]/g
   let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    const n = Number(m[1])
-    // 没有对应来源的角标不做成链接——那会给出一个点了没反应的东西。
-    // 但也不删掉：模型写了它，说明那句话有出处，只是编号对不上，读者有权看到。
-    const link = links[n - 1]
+  INLINE.lastIndex = 0
+  while ((m = INLINE.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index))
-    out.push(link
-      ? (
-        <a key={`${keyBase}-${m.index}`} className="prose__cite" href={`#src-${n}`} aria-label={`来源 ${n}：${link.outlet}`}>
-          {n}
-        </a>
-      )
-      : <sup key={`${keyBase}-${m.index}`} className="prose__cite prose__cite--dead">{n}</sup>)
+    const key = `${keyBase}-${m.index}`
+
+    if (m[1] !== undefined) {
+      out.push(<strong key={key}>{m[1]}</strong>)
+    } else {
+      const n = Number(m[2])
+      const link = links[n - 1]
+      // 没有对应来源的角标不做成链接——那会给出一个点了没反应的东西。
+      // 但也不删掉：模型标了它，说明那句话有出处，只是编号对不上，
+      // 读者有权知道这里本该有一个来源。
+      out.push(link
+        ? (
+          <a key={key} className="prose__cite" href={`#src-${n}`} aria-label={`来源 ${n}：${link.outlet}`}>
+            {n}
+          </a>
+        )
+        : <sup key={key} className="prose__cite prose__cite--dead">{n}</sup>)
+    }
     last = m.index + m[0].length
   }
   if (last < text.length) out.push(text.slice(last))
@@ -47,9 +65,12 @@ export function Prose({ text, links = [] }: { text: string; links?: MediaLink[] 
   return (
     <>
       {paragraphs(text).map((p, i) => {
-        const heading = /^#{2,3}\s+(.+)$/.exec(p.trim())
+        // 「## 小标题」独占一行。模型偶尔会写成「**小标题**」独占一行，
+        // 那也是同一个意思——一行文字、没有句号、明显是个节标题。
+        const heading = /^#{2,3}\s+(.+?)\s*$/.exec(p.trim())
+          ?? /^\*\*([^*]{2,24})\*\*$/.exec(p.trim())
         if (heading) return <h3 key={i} className="prose__h">{heading[1]}</h3>
-        return <p key={i}>{withCites(p, links, String(i))}</p>
+        return <p key={i}>{inline(p, links, String(i))}</p>
       })}
     </>
   )

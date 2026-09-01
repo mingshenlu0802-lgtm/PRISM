@@ -224,20 +224,6 @@ export interface RunStep {
   done: boolean
 }
 
-export interface CollectRun {
-  id: ID
-  startedAt: ISODateTime
-  finishedAt?: ISODateTime
-  config: CollectConfig
-  steps: RunStep[]
-  /** Ids added by this run, so a run can be undone in one action. */
-  addedNewsIds: ID[]
-  addedStudyIds: ID[]
-  /** Headlines the run skipped, with the reason. Nothing vanishes silently. */
-  skipped: { headline: string; reason: string }[]
-  state: 'running' | 'done' | 'stopped'
-}
-
 /* ------------------------------------------------------------------ *
  * Appearance — both surfaces
  * ------------------------------------------------------------------ */
@@ -361,7 +347,6 @@ export interface ChangeEntry {
 export interface PrismState {
   news: NewsItem[]
   studies: StudyItem[]
-  runs: CollectRun[]
   collect: CollectConfig
   appearance: Appearance
   auth: AuthState
