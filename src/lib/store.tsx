@@ -8,7 +8,7 @@ import { buildInitialState } from './demo'
 import type { Mode } from './backend'
 import { backendFailure, getClient, inSandboxFrame, loadConfig } from './backend'
 import { fetchAll, watch } from './remote'
-import { currentWho, onAuthChange } from './session'
+import { completeLinkSignIn, currentWho, onAuthChange } from './session'
 import { mirror } from './sync'
 import { nowIso, uid } from './util'
 
@@ -585,6 +585,10 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
         return
       }
       setMode('shared')
+      // 先把邮件链接带回来的登录接上，再拉数据——否则第一次拉取是以「没登录」
+      // 的身份去的，站长会先看到一眼空网站。
+      await completeLinkSignIn(db)
+      if (!alive) return
       await pull()
       if (!alive) return
       // 别人改了东西，这边不用刷新就跟着变。

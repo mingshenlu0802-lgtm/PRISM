@@ -4,7 +4,8 @@ import { REGIONS } from '../../lib/regions'
 import { TOPICS, DEMO_NOTICE } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
-import { Icon, PrismMark, ToastHost } from '../common'
+import { takeAuthLinkError } from '../../lib/authlink'
+import { Icon, PrismMark, ToastHost, toast } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
 import { AccountMenu } from './AccountMenu'
 import { SignInGate } from './SignInGate'
@@ -23,6 +24,18 @@ export default function SiteLayout(): JSX.Element {
   const loc = useLocation()
 
   useEffect(() => { setMenu('none') }, [loc.pathname])
+
+  /*
+   * 登录链接本身有问题（过期、用过了）时说一声。
+   *
+   * 不说的话，一条过期的链接和一条好的链接**看起来一模一样**：都是回到首页、
+   * 没登录、没有任何解释——那正是最让人以为「这网站坏了」的失败方式。
+   * takeAuthLinkError() 读一次就清，所以只会说一遍。
+   */
+  useEffect(() => {
+    const why = takeAuthLinkError()
+    if (why) toast(why, 'warn')
+  }, [])
 
   useEffect(() => {
     if (menu === 'none') return undefined
