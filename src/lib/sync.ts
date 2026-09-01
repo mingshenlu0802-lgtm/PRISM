@@ -16,6 +16,21 @@ import {
   addMember, logChange, removeMember, removeNews, removeStudy,
   saveNews, saveSite, saveStudies, setMemberRole,
 } from './remote'
+import { toast } from '../components/common'
+
+/*
+ * 降级只说一次。
+ *
+ * 「数据库还没有 subhead 这一列」这句话，站长每保存一次就弹一次的话，
+ * 会变成噪音——它讲的是同一件要去做的事，不是这一次保存出了问题。
+ * 说一次，他去跑那句 SQL；不跑，下次开页面还会再说一次。
+ */
+let warned = false
+const warnOnce = (why: string): void => {
+  if (warned) return
+  warned = true
+  toast(why, 'warn')
+}
 
 /** 这次改动要不要写库、写什么。next 是 reducer 算完之后的状态。 */
 export async function mirror(
@@ -30,7 +45,7 @@ export async function mirror(
   switch (action.type) {
     /* 内容 */
     case 'news-add':
-      await saveNews(db, next.news.filter((n) => action.items.some((i) => i.id === n.id)))
+      await saveNews(db, next.news.filter((n) => action.items.some((i) => i.id === n.id)), warnOnce)
       break
     case 'news-edit':
     case 'news-hide':
@@ -39,7 +54,7 @@ export async function mirror(
     case 'news-link-edit':
     case 'news-link-remove': {
       const item = news(action.id)
-      if (item) await saveNews(db, [item])
+      if (item) await saveNews(db, [item], warnOnce)
       break
     }
     case 'news-feature': {
@@ -48,7 +63,7 @@ export async function mirror(
         const before = prev.news.find((p) => p.id === n.id)
         return before && Boolean(before.featured) !== Boolean(n.featured)
       })
-      if (changed.length > 0) await saveNews(db, changed)
+      if (changed.length > 0) await saveNews(db, changed, warnOnce)
       break
     }
     case 'news-delete':
