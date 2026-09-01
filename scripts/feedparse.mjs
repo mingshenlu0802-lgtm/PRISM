@@ -50,19 +50,38 @@ export function parseFeed(xml) {
  * 判断
  * ------------------------------------------------------------------ */
 
-export const hay = (e) => `${e.title} ${e.summary}`.toLowerCase()
+/**
+ * 匹配一个词。
+ *
+ * 中文和英文必须分开处理：中文没有词边界，「跨性别」就是要按子串找；
+ * 英文按子串找会闯祸——第一次真实抓取里，`mexico` 撞进了「New Mexico」，
+ * 把美国新墨西哥州一所中学的性侵案归到了拉丁美洲。
+ */
+const CJK = /[\u4e00-\u9fff]/
+const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+export function matches(h, word) {
+  const w = word.toLowerCase()
+  if (CJK.test(w)) return h.includes(w)
+  return new RegExp(`(^|[^a-z0-9])${esc(w)}([^a-z0-9]|$)`).test(h)
+}
+
+export const hay = (e) => `${e.title} ${e.summary}`
+  .toLowerCase()
+  // 「New Mexico」是美国的州，不是墨西哥。词边界挡不住它——空格两边都成立。
+  .replace(/new mexico/g, 'united states')
 
 export function topicsOf(entry) {
   const h = hay(entry)
   return Object.entries(TOPIC_WORDS)
-    .filter(([, words]) => words.some((w) => h.includes(w.toLowerCase())))
+    .filter(([, words]) => words.some((w) => matches(h, w)))
     .map(([k]) => k)
 }
 
 export function regionsOf(entry, feed) {
   const h = hay(entry)
   const hit = Object.entries(REGION_WORDS)
-    .filter(([, words]) => words.some((w) => h.includes(w.toLowerCase())))
+    .filter(([, words]) => words.some((w) => matches(h, w)))
     .map(([k]) => k)
   // 认出来的优先；认不出来就用这个源本来覆盖的地区。
   return hit.length ? hit.slice(0, 3) : feed.regions
