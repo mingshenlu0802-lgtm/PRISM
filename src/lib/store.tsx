@@ -522,12 +522,24 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
     const db = await getClient()
     if (!db) return
     const who = await currentWho()
-    if (!who) {
-      // 没登录就不去读——RLS 会挡回来，读了也是空的。
-      rawDispatch({ type: 'signout' })
-      setReady(true)
-      return
-    }
+    /*
+     * **没登录也要读。**
+     *
+     * 这里曾经在没登录时直接 return，注释写着「RLS 会挡回来，读了也是空的」。
+     * 那句话在「看内容需要先进名单」的旧设计下是对的，但权限规则早就改成了
+     *
+     *     create policy news_read on public.news for select using (true);
+     *
+     * ——谁都能读。这个 return 没跟着改，于是**没登录的人根本不去数据库取数**，
+     * state 停在初始值上，也就是演示数据。
+     *
+     * 后果正好打在这个网站的核心承诺上：朋友拿着链接打开，看到的不是站长的
+     * 内容，而是一批虚构的演示条目——而整套共享数据库存在的理由就是这件事。
+     *
+     * members 和 changes 确实会被 RLS 挡回来，但 fetchAll 用的 supabase 客户端
+     * 遇到拒绝是把 error 放进返回值、不是抛出，所以那两张表各自变成空数组，
+     * 不影响 news / studies / site。未登录读取本来就是安全的。
+     */
     try {
       const snap = await fetchAll(db)
       const base = stateRef.current
@@ -543,8 +555,10 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
           appearance: { ...base.appearance, ...snap.appearance },
           auth: {
             ...base.auth,
-            email: who.email,
-            name: who.name,
+            // 没登录就是没登录——别把上一次的身份留在界面上。
+            email: who?.email,
+            name: who?.name,
+            picture: who ? base.auth.picture : undefined,
             admins: snap.members,
             ownerEmail: snap.members.find((m) => m.role === 'owner')?.email,
           },
