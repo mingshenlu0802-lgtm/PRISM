@@ -93,3 +93,42 @@ hr { border: 0; border-top: var(--bw) solid var(--line); margin: 0; }
   body { background: #fff; color: #000; }
   .u-noprint { display: none !important; }
 }
+
+/* ------------------------------------------------------------------ *
+ * 触屏上的点击目标
+ *
+ * 站长要求改善手机和平板。量下来最普遍的问题不是溢出（横向是干净的），
+ * 是**每一个可点的东西都太小**：筛选按钮高 30px、标签 21px、菜单键 36×36、
+ * 卡片里的「读全文」只有 20px 高。
+ *
+ * 手指的接触面大约 9mm，折合 44px 左右。低于这个数就会点错——在这个站上，
+ * 点错的代价是从一篇性暴力报道里误触到另一条，而读者本来在小心地选择要不要读。
+ *
+ * 用 `pointer: coarse` 而不是屏幕宽度：决定要多大的是**手指还是鼠标**，
+ * 不是屏幕多宽。接了触屏的笔记本要大目标，手机上外接鼠标则不需要。
+ *
+ * 只加内边距、不动字号：字号变了整页的节奏就变了，而问题从来不是字太小。
+ * ------------------------------------------------------------------ */
+@media (pointer: coarse) {
+  /* 行内的文字链接：用垂直内边距把可点区域撑开，不影响它在段落里的样子。 */
+  .ncard__more, .ncard__perma, .gate__link, .about__more {
+    padding-block: 12px;
+  }
+
+  /* 独立的控件：直接给最小高度，让它自己撑到手指够用。 */
+  .fbar__chip, .spage__kind, .about__tag, .apm__btn, .acct__bare,
+  .slyt__link, .slyt__sheetlink {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* 汉堡菜单是最常按的一个，也是最小的一个。 */
+  .slyt__burger { min-width: 44px; min-height: 44px; }
+
+  /*
+   * 标签是链接，但它同时是一个视觉元素——撑到 44px 会让卡片顶部散架。
+   * 32px 是妥协：比原来的 21px 好按得多，又不至于把版式撑坏。
+   */
+  a.tagx { min-height: 32px; }
+}

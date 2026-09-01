@@ -38,7 +38,7 @@ export default function SearchPage(): JSX.Element {
       <header className="srch__head">
         <h1 className="srch__title">找新闻</h1>
         <p className="srch__lede">
-          搜集<strong>每天早上六点（北京时间）自动跑一次</strong>，一次最多 30 条，
+          搜集<strong>每天跑两次</strong>（北京时间早上 6:00 和下午 2:00），
           抓到就直接上线。这一页是给它下指示的地方，不是一个要你按的按钮。
         </p>
       </header>
@@ -57,8 +57,9 @@ export default function SearchPage(): JSX.Element {
       <section className="srch__block">
         <h2 className="srch__blocktitle">它什么时候跑</h2>
         <ul className="srch__facts">
-          <li><strong>每天早上 6:00</strong>（北京 / 台北时间）自动开始</li>
-          <li>一次最多 <strong>30 条</strong>，按编辑方针筛过、翻成中文、写好总结</li>
+          <li><strong>早上 6:00</strong> — 15 条新闻 + 3 项研究</li>
+          <li><strong>下午 2:00</strong> — 15 条新闻（研究一天收一次就够）</li>
+          <li>每条按编辑方针筛过、翻成中文，总结写到 <strong>1000 字左右</strong></li>
           <li>和站上已有内容讲同一件事的会<strong>合并</strong>，不重复占位</li>
           <li>抓到<strong>直接上线</strong>，不满意随时在「编辑 → 内容」里下架或删除</li>
         </ul>

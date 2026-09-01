@@ -859,7 +859,10 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
       seen = { url, headers: init.headers, body: JSON.parse(init.body) }
       return new Response(JSON.stringify({
         content: [{ type: 'text', text: '{"ok":true}' }],
-        usage: { input_tokens: 120, output_tokens: 30 },
+        usage: {
+          input_tokens: 120, output_tokens: 30,
+          cache_creation_input_tokens: 6000, cache_read_input_tokens: 0,
+        },
       }), { status: 200 })
     }
 
@@ -869,7 +872,10 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
     eq(seen.headers['x-api-key'], 'sk-ant-fake', '认证是 x-api-key，不是 Bearer')
     ok(!seen.headers.authorization, '不该再带 Authorization 头')
     eq(seen.headers['anthropic-version'], '2023-06-01', '少了版本号直接 400')
-    eq(seen.body.system, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
+    // system 是顶层字段（不是 messages 里的一条），而且带缓存标记：
+    // 整份编辑方针每批都一样，不缓存就是把同一段话重新买十几遍。
+    eq(seen.body.system[0].text, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
+    eq(seen.body.system[0].cache_control.type, 'ephemeral', '编辑方针要开缓存，否则每批重复计费')
     eq(seen.body.messages.length, 1, 'messages 里只该有用户那一条')
     ok(!JSON.stringify(seen.body).includes('response_format'),
       'response_format 是 OpenAI 的字段，发给 Claude 会报错')
@@ -883,6 +889,7 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
     const bill = llm.spendReport()
     ok(bill.includes('120'), '要报出真实的输入 token 数')
     ok(bill.includes('30'), '要报出真实的输出 token 数')
+    ok(bill.includes('6,000'), '缓存写入要单独报——它和普通输入不同价')
     ok(/US\$/.test(bill), '要给一个钱的估算，否则数字对站长没有意义')
   } finally { process.env = keep; globalThis.fetch = realFetch }
 })

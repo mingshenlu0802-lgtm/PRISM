@@ -45,7 +45,7 @@ const PRICES = [
 ]
 
 /** 这一轮累计用掉多少。ask() 每次加上去，跑完由 collect 打印。 */
-const spend = { calls: 0, inTokens: 0, outTokens: 0 }
+const spend = { calls: 0, inTokens: 0, outTokens: 0, cacheWrite: 0, cacheRead: 0 }
 
 export function resolveLlm() {
   const model = (process.env.LLM_MODEL ?? '').trim()
@@ -81,11 +81,18 @@ export function spendReport() {
   if (spend.calls === 0) return null
   const model = resolveLlm()?.model ?? ''
   const price = PRICES.find(([re]) => re.test(model))?.[1]
-  const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token`
+  const cache = spend.cacheWrite + spend.cacheRead
+    ? `，缓存写入 ${spend.cacheWrite.toLocaleString()} / 命中 ${spend.cacheRead.toLocaleString()}`
+    : ''
+  const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token${cache}`
   if (!price) return line
-  const usd = (spend.inTokens * price.in + spend.outTokens * price.out) / 1e6
-  const monthly = usd * 30
-  return `${line}\n估算花费 约 US$${usd.toFixed(4)}（按每天一轮算，一个月约 US$${monthly.toFixed(2)}；价目写在 scripts/llm.mjs，会变）`
+  // 缓存写入约为普通输入的 1.25 倍，命中约为十分之一。
+  const usd = (spend.inTokens * price.in
+    + spend.cacheWrite * price.in * 1.25
+    + spend.cacheRead * price.in * 0.1
+    + spend.outTokens * price.out) / 1e6
+  const daily = usd * 2 // 站长设的是一天两场
+  return `${line}\n估算花费 约 US$${usd.toFixed(4)}（一天两场约 US$${daily.toFixed(2)}，一个月约 US$${(daily * 30).toFixed(2)}；价目写在 scripts/llm.mjs，会变）`
 }
 
 export function llmConfigured() {
@@ -125,6 +132,9 @@ export async function ask(system, user, { timeoutMs = 180000, maxTokens = 8000 }
     spend.calls += 1
     spend.inTokens += u.input_tokens ?? u.prompt_tokens ?? 0
     spend.outTokens += u.output_tokens ?? u.completion_tokens ?? 0
+    // 缓存的读写单独记：它们的价钱和普通输入不一样，混在一起报账就不准了。
+    spend.cacheWrite += u.cache_creation_input_tokens ?? 0
+    spend.cacheRead += u.cache_read_input_tokens ?? 0
 
     const text = cfg.kind === 'anthropic'
       ? (data?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('')
@@ -172,7 +182,17 @@ function anthropicRequest(cfg, system, user, maxTokens) {
      */
     body: JSON.stringify({
       model: cfg.model,
-      system,
+      /*
+       * 系统提示词开缓存。
+       *
+       * 这一段是整份编辑方针，六千多 token，而它**每一批都一模一样**。
+       * 一轮收集要发十几批，等于把同一份方针重新买十几遍——第一次真实收集的
+       * 账单里，38k 输入 token 有九成是这个。
+       *
+       * 标上 cache_control 之后，第一次写入贵 25%，之后每次读只要十分之一。
+       * 批次越多越划算，而「批次多」正是长总结逼出来的结果。
+       */
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: user }],
       max_tokens: maxTokens,
     }),

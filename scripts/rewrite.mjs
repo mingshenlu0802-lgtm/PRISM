@@ -16,14 +16,22 @@
 import { ask, llmName } from './llm.mjs'
 import { systemPrompt } from './editorial.mjs'
 
-const BATCH = Number(process.env.LLM_BATCH ?? 6)
+/*
+ * 一批几条。
+ *
+ * 站长要每条总结 1000 字左右，六条一批就是六千多字的输出——很容易撞上
+ * max_tokens，而撞上的表现是**整批返回空**（模型写到一半被截断，一个字都没落地）。
+ * 三条一批留出余量。批次多一倍意味着系统提示词多发一倍，但那是几千 token 的
+ * 输入，比丢掉一整批便宜得多。
+ */
+const BATCH = Number(process.env.LLM_BATCH ?? 3)
 
 const SHAPE = `
 只返回 JSON，形如：
 {"items":[{
   "keep": true,
   "headline": "中文标题",
-  "summary": "详细的中文总结，分段，用 \\n\\n 断段",
+  "summary": "中文总结，1000 字左右，4-6 段，段间用 \\n\\n 断开",
   "bullets": ["要点一", "要点二"],
   "topics": ["violence"],
   "regions": ["us"],
@@ -50,6 +58,9 @@ async function runBatch(batch, ownerNote) {
   const out = await ask(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
     `候选新闻 ${input.length} 条：\n\n${JSON.stringify(input, null, 1)}`,
+    // 三条 × 1000 字，加上标题、要点和 JSON 结构本身。给够余量，
+    // 因为写到一半被截断等于这一批全丢。
+    { maxTokens: 16000 },
   )
   const items = Array.isArray(out?.items) ? out.items : []
   if (items.length !== batch.length) {
@@ -86,18 +97,31 @@ export function clean(raw, fallback) {
 }
 
 /**
- * 全部跑一遍。
+ * 一直跑到够数为止。
  *
- * 一批失败不拖垮整次收集——报出来，继续下一批。免费额度限速时这很常见。
+ * 第一次真实收集只上线了 3 条：模型按方针从 24 条里丢掉了 21 条。方针本来就写着
+ * 「宁缺毋滥」，丢得多不是 bug——**但把候选数当成目标数就是**。喂 30 条进去，
+ * 站长拿到的不是 30 条，是 3 条。
+ *
+ * 所以这里改成按**产出**算：一批一批地喂，够了就停，不够就继续往下拿候选。
+ * 停得早就省钱，丢得多就多跑几批，两头都不用人去猜一个「大概喂多少」的数。
+ *
+ * `picked` 要比目标长得多（收集脚本按四倍准备）。真的喂完了还不够，
+ * 那是今天的新闻确实不够，不是这里的问题——如实报出来。
+ *
+ * 一批失败不拖垮整次收集——报出来，继续下一批。
  */
-export async function rewriteAll(picked, ownerNote = '') {
-  console.log(`交给模型筛选改写（${llmName()}，每批 ${BATCH} 条）`)
+export async function rewriteAll(picked, ownerNote = '', target = Infinity) {
+  console.log(`交给模型筛选改写（${llmName()}，每批 ${BATCH} 条，要 ${target === Infinity ? '全部' : `${target} 条`}）`)
   const out = []
   let dropped = 0
   let failed = 0
+  let seen = 0
 
   for (let i = 0; i < picked.length; i += BATCH) {
+    if (out.length >= target) break
     const batch = picked.slice(i, i + BATCH)
+    seen += batch.length
     try {
       const items = await runBatch(batch, ownerNote)
       items.forEach((raw, j) => {
@@ -111,7 +135,12 @@ export async function rewriteAll(picked, ownerNote = '') {
     }
   }
 
-  console.log(`  收 ${out.length} 条 · 按方针丢弃 ${dropped} 条${failed ? ` · ${failed} 条因调用失败没处理` : ''}`)
+  // 多留下的那几条不丢——同一批里的，钱已经付过了。
+  const kept = target === Infinity ? out : out.slice(0, target)
+  console.log(`  收 ${kept.length} 条 · 看过 ${seen} 条候选 · 按方针丢弃 ${dropped} 条${failed ? ` · ${failed} 条因调用失败没处理` : ''}`)
+  if (kept.length < target && seen >= picked.length) {
+    console.log(`  没凑够 ${target} 条：候选全看完了。今天符合方针的就这么多。`)
+  }
 
   /*
    * 全军覆没要喊出来。
@@ -120,7 +149,7 @@ export async function rewriteAll(picked, ownerNote = '') {
    * 而如果只是静静地写 0 条，站长看到的是「今天没有新闻」，
    * 完全想不到是额度的问题。这类沉默的失败，这个项目已经踩过太多次。
    */
-  if (out.length === 0 && failed > 0) {
+  if (kept.length === 0 && failed > 0) {
     console.log('')
     console.log('!! 每一批都失败了。常见原因，按可能性排：')
     console.log('   1 免费额度用完或需要绑定付款方式（错误信息里通常有 quota / credit / billing）')
@@ -129,7 +158,7 @@ export async function rewriteAll(picked, ownerNote = '') {
     console.log('   照着 probe 跑一次（Run workflow 勾 probe），它会直接告诉你是哪一种。')
     console.log('   上面每一批的错误原文就是答案，照着看。')
   }
-  return out
+  return kept
 }
 
 /* ------------------------------------------------------------------ *
@@ -192,7 +221,7 @@ export function cleanStudy(raw, fallback) {
     // 模型没给或给了个不存在的类型，就退回这个源的默认类型，不要让研究页
     // 出现一个显示不出可信度提示的空类别。
     kind: KINDS.has(raw?.kind) ? raw.kind : fallback.kind,
-    summary: summary.length >= 80 ? summary : fallback.summary,
+    summary: summary.length >= 200 ? summary : fallback.summary,
     limitation: String(raw?.limitation ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
     figures,
     topics: topics.length ? topics : fallback.topics,

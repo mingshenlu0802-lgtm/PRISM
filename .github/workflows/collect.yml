@@ -10,15 +10,22 @@ name: 找新闻
 
 on:
   schedule:
-    # UTC 22:00 = 北京/台北早上 6 点。站长要的是「每天早上自动搜寻 30 条新闻、
-    # 3 个研究」——定时触发时 inputs 是空的，下面那两个 || 默认值就是这个数。
+    # 站长要一天两次，北京时间：
+    #   早上 6:00 → 15 条新闻 + 3 个研究
+    #   下午 2:00 → 15 条新闻（研究一天一次就够，机构不会一天发两批）
+    #
+    # cron 按 UTC 走，所以要减八小时。早上 6:00 落在前一天的 22:00 UTC，
+    # 下午 2:00 落在当天的 06:00 UTC。
+    #
+    # 定时触发没法带 inputs，所以下面用 github.event.schedule 分辨是哪一场。
     - cron: '0 22 * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
     inputs:
       max:
-        description: '这次最多处理多少条新闻（默认 30，越少越省）'
+        description: '这次最多处理多少条新闻（默认 15，越少越省）'
         type: string
-        default: '30'
+        default: '15'
       studies:
         description: '这次最多加几项研究（默认 3）'
         type: string
@@ -114,6 +121,8 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          MAX_ITEMS: ${{ inputs.max || '30' }}
-          MAX_STUDIES: ${{ inputs.studies || '3' }}
+          MAX_ITEMS: ${{ inputs.max || '15' }}
+          # 研究只在早上那一场收。下午那场（06:00 UTC）设成 0——
+          # 发布方一天不会出两批报告，第二次去抓只会抓到同样的东西再被去重掉。
+          MAX_STUDIES: ${{ inputs.studies || (github.event.schedule == '0 6 * * *' && '0' || '3') }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}

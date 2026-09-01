@@ -50,7 +50,17 @@ const AUTO = process.env.AUTO_PUBLISH !== '0'
  * 排序已经把性犯罪与司法案件放在最前，所以砍掉的是尾巴，不是重点。
  * 站长在控制端写「今天要 20 条」时，改的就是这个。
  */
-const MAX_ITEMS = Number(process.env.MAX_ITEMS ?? 30)
+const MAX_ITEMS = Number(process.env.MAX_ITEMS ?? 15)
+/*
+ * 候选要备多少倍。
+ *
+ * 第一次真实收集把这件事教明白了：喂 30 条进去，模型按方针丢掉 21 条，
+ * 站长拿到 3 条。方针严格是对的，把候选数当目标数是错的。
+ *
+ * 所以现在喂的是目标的四倍，模型够数就停——丢得多就多跑几批，丢得少就早停省钱。
+ * 四倍是按那次的通过率（约 1/8）留的余量，仍然可能不够，不够会如实报出来。
+ */
+const POOL = Number(process.env.POOL_FACTOR ?? 4)
 /*
  * 每天几项研究。站长要的是「30 条新闻，3 个研究」。
  *
@@ -216,15 +226,16 @@ async function ownerNote() {
   } catch { return '' }
 }
 
-if (picked.length > MAX_ITEMS) {
-  console.log(`按优先级取前 ${MAX_ITEMS} 条交给模型（共 ${picked.length} 条候选）`)
-  picked = picked.slice(0, MAX_ITEMS)
+const poolSize = MAX_ITEMS * POOL
+if (picked.length > poolSize) {
+  console.log(`按优先级备 ${poolSize} 条候选，目标上线 ${MAX_ITEMS} 条（共 ${picked.length} 条）`)
+  picked = picked.slice(0, poolSize)
 }
 
 if (llmConfigured()) {
   const note = await ownerNote()
   if (note) console.log(`站长本次指示：${note}`)
-  picked = await rewriteAll(picked, note)
+  picked = await rewriteAll(picked, note, MAX_ITEMS)
 } else {
   console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
   console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
