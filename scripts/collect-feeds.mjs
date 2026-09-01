@@ -435,7 +435,18 @@ async function hydrate(list) {
     }
     // 太短就当没取到——一两句话还不如 feed 的摘要，塞进去只会添乱。
     if (info.text && info.text.length > 400) {
-      ;(j.group.bodies ??= []).push({ outlet: j.src.feed.outlet, text: info.text })
+      /*
+       * 第二、第三家只取开头。
+       *
+       * 全文一篇 6000 字，三家就是 18000 字，两条一批就是三万六——
+       * 光输入就把一轮的账单翻倍，而多出来的多半是重复：同一件事，
+       * 三家的后半段讲的是同样的背景。
+       *
+       * 第一家给全文（它是主来源，配图也用它的），
+       * 其余各取前 2500 字——独家细节基本都在前几段。
+       */
+      const text = j.main ? info.text : info.text.slice(0, 2500)
+      ;(j.group.bodies ??= []).push({ outlet: j.src.feed.outlet, text })
     }
   })
 
