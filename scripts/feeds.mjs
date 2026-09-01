@@ -166,12 +166,12 @@ export const TOPIC_WORDS = {
 
 /** @type {StudyFeed[]} */
 export const STUDY_FEEDS = [
-  { id: 'unwomen-pub', topical: true, publisher: '联合国妇女署', url: 'https://www.unwomen.org/en/rss/publications', kind: 'official-statistics', regions: ['global'], lang: 'en',
-    note: '性别统计与各国进展报告，口径随表公布。' },
+  { id: 'unwomen-pub', topical: true, publisher: '联合国妇女署', url: 'https://www.unwomen.org/en/rss', kind: 'official-statistics', regions: ['global'], lang: 'en',
+    note: '性别统计与各国进展报告，口径随表公布。用的是它主 feed——publications 那个路径 403。' },
   { id: 'unfpa', topical: true, publisher: '联合国人口基金', url: 'https://www.unfpa.org/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
     note: '生育健康与人口数据，《世界人口状况》年报出自这里。' },
-  { id: 'unicef', publisher: '联合国儿童基金会', url: 'https://www.unicef.org/press-releases/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
-    note: '童婚、女童失学、儿童保护的跨国统计——站长新加的「儿童」议题主要靠它。' },
+  { id: 'unicef', publisher: '联合国儿童基金会', url: 'https://www.unicef.org/rss/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
+    note: '童婚、女童失学、儿童保护的跨国统计。前两个路径分别是 403 和 404，这是第三个。' },
   { id: 'who', publisher: '世界卫生组织', url: 'https://www.who.int/rss-feeds/news-english.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
     note: '亲密伴侣暴力患病率、孕产死亡率这类全球估算的原始发布方。' },
   { id: 'guttmacher', topical: true, publisher: '古特马赫研究所', url: 'https://www.guttmacher.org/rss.xml', kind: 'peer-reviewed', regions: ['global', 'us'], lang: 'en',
@@ -182,8 +182,25 @@ export const STUDY_FEEDS = [
     note: '抽样与问卷全文公开，态度调查的常用参照。综合源，要过关键词。' },
   { id: 'eige', topical: true, publisher: '欧洲性别平等研究所', url: 'https://eige.europa.eu/rss.xml', kind: 'official-statistics', regions: ['eu'], lang: 'en',
     note: '欧盟的性别平等指数，成员国可比口径。' },
-  { id: 'hrw-reports', publisher: '人权观察', url: 'https://www.hrw.org/rss/pubs', kind: 'ngo-report', regions: ['global'], lang: 'en',
-    note: '实地取证报告，方法写在报告里。倡导机构，立场公开。' },
+  { id: 'hrw-reports', publisher: '人权观察', url: 'https://www.hrw.org/rss/news', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '实地取证报告，方法写在报告里。reports 和 pubs 两个路径都 404，退回主 feed。' },
+
+  /*
+   * 下面这几家是后加的。
+   *
+   * 第一轮真实抓取里，十一个研究源有六个打不开或者一条都没命中，
+   * 结果每天只凑得出三条候选，模型再筛一遍就只剩一条。
+   * 这几家都是 WordPress 站（`/feed/` 几乎一定在），而且**整站都是本站题目**
+   * ——童婚、女性割礼、儿童性剥削——正好补上站长新加的「儿童」这一栏。
+   */
+  { id: 'girlsnotbrides', topical: true, publisher: 'Girls Not Brides', url: 'https://www.girlsnotbrides.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '全球童婚联盟，逐国的法律与流行率数据。' },
+  { id: 'ecpat', topical: true, publisher: 'ECPAT International', url: 'https://ecpat.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '儿童性剥削与性侵的跨国研究网络。' },
+  { id: 'equalitynow', topical: true, publisher: 'Equality Now', url: 'https://equalitynow.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '性别歧视法律的逐条盘点，法律文本可核对。' },
+  { id: 'plan-intl', topical: true, publisher: 'Plan International', url: 'https://plan-international.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '女童权利的实地调查，样本与方法通常写在报告里。' },
   { id: 'amnesty-research', publisher: '国际特赦组织', url: 'https://www.amnesty.org/en/latest/research/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
     note: '同上：可核对，但选题服务于其倡导目标。' },
   { id: 'ilga', topical: true, publisher: '国际同志联合会', url: 'https://ilga.org/feed', kind: 'ngo-report', regions: ['global'], lang: 'en',

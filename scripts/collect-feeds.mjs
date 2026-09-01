@@ -509,13 +509,16 @@ async function collectStudies() {
     if (have.keys.some((k) => sameStory(k, key))) continue
     if (fresh.some((f) => sameStory(tokens(f.title), key))) continue
     fresh.push(c)
-    if (fresh.length >= MAX_STUDIES) break
+    // 备到目标的三倍再交给模型——和新闻那边同一个教训：
+    // 只备三条，模型按方针丢掉两条，站长就只拿到一条。
+    if (fresh.length >= MAX_STUDIES * 3) break
   }
   if (fresh.length === 0) { console.log('候选研究站上都有了。'); return }
 
-  const kept = llmConfigured()
+  const all = llmConfigured()
     ? await rewriteStudies(fresh, await ownerNote())
     : fresh.map((c) => ({ ...c, limitation: '原报告未说明方法与抽样，这里不代为推断。', figures: [] }))
+  const kept = all.slice(0, MAX_STUDIES)
   if (kept.length === 0) { console.log('模型一项都没留下。'); return }
 
   const rows = kept.map((c, i) => {
