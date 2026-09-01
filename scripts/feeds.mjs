@@ -69,6 +69,50 @@ export const FEEDS = [
   { id: 'apnews-world', outlet: 'AP', url: 'https://feedx.net/rss/ap.xml', regions: ['global'], major: true, lang: 'en',
     note: '美联社。官方已不提供公开 RSS，这是第三方镜像——跑一次就知道能不能用。' },
 
+  /*
+   * 女性主义与 LGBTQIA+ 媒体，铺开一点。
+   *
+   * 站长：「主流媒体 + 大量女性主义 lgbtqia 团体的媒体。」两边都要，
+   * 而且理由不一样：主流媒体给的是量和重复（同一件事两家报，就有两个来源），
+   * 这些媒体给的是**主流不会报的那部分**——一天里综合大报一条都没有的题目，
+   * 它们整版都是。
+   *
+   * 全部标 topical：整站都是本站题目，不再过关键词。
+   * 地域上刻意不只收英美：只订英美媒体，站点就会变成「英美之外没有新闻」。
+   */
+  { id: 'rewire', outlet: 'Rewire News Group', url: 'https://rewirenewsgroup.com/feed/', regions: ['us'], topical: true, lang: 'en',
+    note: '生育权与司法报道，长期跟踪美国各州法案与法院。' },
+  { id: 'openly', outlet: 'Openly（汤森路透）', url: 'https://www.openlynews.com/rss', regions: ['global'], topical: true, lang: 'en',
+    note: '路透基金会的 LGBTQIA+ 全球报道。' },
+  { id: 'advocate', outlet: 'The Advocate', url: 'https://www.advocate.com/feeds/feed.rss', regions: ['us'], topical: true, lang: 'en',
+    note: '美国历史最久的 LGBTQIA+ 刊物。' },
+  { id: 'pinknews', outlet: 'PinkNews', url: 'https://www.thepinknews.com/feed/', regions: ['eu'], topical: true, lang: 'en',
+    note: '英国为主的 LGBTQIA+ 新闻。' },
+  { id: 'erin-in-the-morning', outlet: 'Erin in the Morning', url: 'https://www.erininthemorning.com/feed', regions: ['us'], topical: true, lang: 'en',
+    note: '美国跨性别立法的逐州追踪，更新比大报快。' },
+  { id: 'lily-wapo', outlet: 'The Lily', url: 'https://www.thelily.com/feed/', regions: ['us'], topical: true, lang: 'en',
+    note: '华盛顿邮报的女性报道线。' },
+  { id: 'fuller-project', outlet: 'The Fuller Project', url: 'https://fullerproject.org/feed/', regions: ['global'], topical: true, lang: 'en',
+    note: '专做女性议题的国际调查报道机构，常与主流大报合作发表。' },
+  { id: 'womens-media-center', outlet: "Women's Media Center", url: 'https://womensmediacenter.com/rss', regions: ['us', 'global'], topical: true, lang: 'en',
+    note: '媒体中的性别再现与暴力报道。' },
+  { id: 'feminist-majority', outlet: 'Feminist Majority Foundation', url: 'https://feminist.org/news/feed/', regions: ['us', 'global'], topical: true, lang: 'en',
+    note: '倡议机构的每日简报，立场公开。' },
+  { id: 'genderit', outlet: 'GenderIT', url: 'https://genderit.org/rss.xml', regions: ['global', 'sasia'], topical: true, lang: 'en',
+    note: '数字权利与性别，网络暴力与平台治理的一手研究。' },
+  { id: 'feminism-in-india', outlet: 'Feminism in India', url: 'https://feminisminindia.com/feed/', regions: ['sasia'], topical: true, lang: 'en',
+    note: '南亚视角，印度本地的性别报道与评论。' },
+  { id: 'kohl-journal', outlet: 'Kohl（西亚北非）', url: 'https://kohljournal.press/feed', regions: ['mena'], topical: true, lang: 'en',
+    note: '西亚北非的女性主义研究与报道。' },
+  { id: 'african-feminism', outlet: 'African Feminism', url: 'https://africanfeminism.com/feed/', regions: ['africa'], topical: true, lang: 'en',
+    note: '非洲各国的女性主义写作与个案记录。' },
+  { id: 'latfem', outlet: 'LATFEM（拉美）', url: 'https://latfem.org/feed/', regions: ['latam'], topical: true, lang: 'es',
+    note: '拉美女性主义媒体，西语。翻译交给模型。' },
+  { id: 'gaytimes', outlet: 'GAY TIMES', url: 'https://www.gaytimes.co.uk/feed/', regions: ['eu'], topical: true, lang: 'en',
+    note: '英国 LGBTQIA+ 刊物。' },
+  { id: 'autostraddle', outlet: 'Autostraddle', url: 'https://www.autostraddle.com/feed/', regions: ['us'], topical: true, lang: 'en',
+    note: '女同志与酷儿女性的独立媒体。' },
+
   { id: 'guardian-gender', outlet: 'The Guardian · Gender', url: 'https://www.theguardian.com/world/gender/rss', regions: ['global'], topical: true, lang: 'en',
     note: '有专职性别记者和公开的更正栏。' },
   { id: 'guardian-lgbt', outlet: 'The Guardian · LGBTQ+', url: 'https://www.theguardian.com/world/lgbt-rights/rss', regions: ['global'], topical: true, lang: 'en', note: '同上。' },

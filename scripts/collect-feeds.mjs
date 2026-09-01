@@ -190,27 +190,6 @@ picked.sort((a, b) => {
 })
 
 /*
- * 有两家以上报道的排前面。
- *
- * 站长：「每个新闻最好有两个或以上的引用。」这有两层意思，都成立：
- *   - 对读者：两家独立报道过的事，比一家报道的更值得信，也更好核对。
- *   - 对写作：两篇原文比一篇多出一倍的细节，稿子才写得实。
- *
- * 所以在议题优先级之内，**多来源的排在单来源前面**。
- * 不是把单来源的丢掉——很多重要的调查报道全世界只有一家做了，
- * 尤其是本地媒体和独立媒体，那正是这个站要收的东西。
- */
-picked.sort((a, b) => {
-  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
-  const sources = (p) => ((p.also?.length ?? 0) >= 1 ? 0 : 1)
-  // 主流媒体优先（站长要求），但只在前两个条件之后——
-  // 一篇本地媒体做的性侵调查，仍然要排在主流媒体的一般报道前面。
-  const major = (p) => (p.feed.major || (p.also ?? []).some((o) => o.feed.major) ? 0 : 1)
-  return tier(a) - tier(b) || sources(a) - sources(b) || major(a) - major(b)
-    || Date.parse(b.at) - Date.parse(a.at)
-})
-
-/*
  * 同一家媒体不要霸占版面。
  *
  * 每个源最多收 8 条，而一天的目标是 15 条——所以理论上两家媒体就能把整个
@@ -296,6 +275,30 @@ for (const p of picked) {
 }
 const merged = groups.reduce((n, g) => n + g.also.length, 0)
 if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲过的事，合并成来源`)
+
+/*
+ * 有两家以上报道的排前面。
+ *
+ * 站长：「每个新闻最好有两个或以上的引用。」这有两层意思，都成立：
+ *   - 对读者：两家独立报道过的事，更好核对。
+ *   - 对写作：两篇原文比一篇多出一倍的细节，稿子才写得实。
+ *
+ * **这一步必须在合并之后。** 第一版写在合并之前，那时候 `also` 还不存在，
+ * 于是「有几个来源」永远算作 1，整个偏好一次都没生效过——
+ * 一个不报错、也不改变任何结果的排序条件。
+ *
+ * 不是把单来源的丢掉：很多重要的调查全世界只有一家做了，尤其是本地媒体
+ * 和独立媒体，那正是这个站要收的东西。
+ */
+groups.sort((a, b) => {
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  const sources = (p) => (p.also.length >= 1 ? 0 : 1)
+  // 主流媒体优先（站长要求），但只在前两个条件之后——
+  // 一篇本地媒体做的性侵调查，仍然要排在主流媒体的一般报道前面。
+  const major = (p) => (p.feed.major || p.also.some((o) => o.feed.major) ? 0 : 1)
+  return tier(a) - tier(b) || sources(a) - sources(b) || major(a) - major(b)
+    || Date.parse(b.at) - Date.parse(a.at)
+})
 
 let picked2 = groups
 const poolSize = MAX_ITEMS * POOL
