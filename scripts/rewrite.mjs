@@ -126,6 +126,7 @@ export async function rewriteAll(picked, ownerNote = '') {
     console.log('   1 免费额度用完或需要绑定付款方式（错误信息里通常有 quota / credit / billing）')
     console.log('   2 LLM_MODEL 名字不对——供应商的型号名会变，去它的控制台核对一次')
     console.log('   3 LLM_API_KEY 不对，或者 LLM_BASE_URL 少了 /v1')
+    console.log('   4 走的是 GitHub Models 而 workflow 少了 permissions: models: read')
     console.log('   上面每一批的错误原文就是答案，照着看。')
   }
   return out

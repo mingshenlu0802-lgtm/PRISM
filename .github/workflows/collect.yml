@@ -30,6 +30,14 @@ on:
         description: '先清空网站所有新闻与研究（不碰成员名单）'
         type: boolean
         default: false
+      probe:
+        description: '只探测这个 key 能用哪些模型，不抓取也不写库'
+        type: boolean
+        default: false
+      probe_models:
+        description: '想试的型号名，空格分隔（留空则试它列出来的前几个）'
+        type: string
+        default: ''
 
 # 同时只跑一个，免得两次收集互相写重复条目。
 concurrency:
@@ -39,6 +47,13 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # models: read 就是「真正免费」那把钥匙——GitHub Models 用仓库自带的
+    # token 就能调，不用绑卡、不用注册第三方、不用再存一把密钥。
+    # 写清 contents: read 是因为一旦写了 permissions，默认权限就全被收回，
+    # checkout 还要读代码。
+    permissions:
+      contents: read
+      models: read
     steps:
       - uses: actions/checkout@v4
 
@@ -63,6 +78,17 @@ jobs:
             echo "dry=" >> "$GITHUB_OUTPUT"
           fi
 
+      # 站长要「真正免费的 API」。我在的环境连不上任何供应商，查不了；
+      # 这台 runner 可以，所以让它去问，并且真的发一次最小请求——
+      # 「有免费额度」和「你这个账号现在能不能免费跑」是两回事。
+      - name: 探测模型
+        if: inputs.probe
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: node scripts/llm-check.mjs ${{ inputs.probe_models }}
+
       - name: 清空内容
         if: inputs.purge
         env:
@@ -71,12 +97,16 @@ jobs:
         run: node scripts/purge-news.mjs
 
       - name: 抓取
+        if: '!inputs.probe'
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           AUTO_PUBLISH: ${{ inputs.hold && '0' || '1' }}
-          # 模型：任何 OpenAI 兼容的服务都行（Groq、DeepSeek、OpenRouter、
-          # 本地 Ollama…）。三个都配上才会启用；缺一个就退回不带模型的模式。
+          # 模型，按这个顺序挑：
+          #   1 三个 LLM_* 都配齐了 → 用你自己的（任何 OpenAI 兼容的服务）
+          #   2 什么都没配 → GitHub Models，用下面这把仓库自带的 token
+          # 所以「不配任何密钥」也有模型可用，这是默认路径，不是降级路径。
+          GITHUB_TOKEN: ${{ github.token }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}

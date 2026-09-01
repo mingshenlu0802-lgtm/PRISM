@@ -218,7 +218,8 @@ if (llmConfigured()) {
   if (note) console.log(`站长本次指示：${note}`)
   picked = await rewriteAll(picked, note)
 } else {
-  console.log('没有配置模型（LLM_BASE_URL / LLM_MODEL / LLM_API_KEY），')
+  console.log('这一轮没有模型可用：既没配 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY，')
+  console.log('也没有 GITHUB_TOKEN（在 Actions 里跑的话，workflow 要有 permissions: models: read）。')
   console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译。')
 }
 

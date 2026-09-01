@@ -646,6 +646,7 @@ await test('发信失败和额度用完不能混为一谈', () => {
 
 const feedparse = await import('./feedparse.mjs')
 const ed = await import('./editorial.mjs')
+const llm = await import('./llm.mjs')
 
 await test('RSS 和 Atom 都要认得出来', () => {
   const rss = `<rss><channel>
@@ -815,6 +816,66 @@ await test('编辑方针要完整传给模型', () => {
   ok(p.includes('整条报道'),
     '要说清楚「不编造」是在保护幸存者的陈述，不是在怀疑她')
   ok(p.includes('台湾的司法进展'), '站长当次的额外指示要接得上')
+})
+
+await test('什么都不配也要有模型可用，这是默认不是降级', async () => {
+  // 站长要的是「真正免费的 API」。免费到底的那一条是 GitHub Models：
+  // 仓库自带的 token 就能调，不用绑卡、不用注册第三方、不用再存密钥。
+  const keep = { ...process.env }
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.GITHUB_TOKEN = 'ghs_fake'
+
+    const c = llm.resolveLlm()
+    ok(c, '有 GITHUB_TOKEN 就该有模型可用')
+    ok(c.base.includes('models.github.ai'), '应当落到 GitHub Models')
+    eq(c.key, 'ghs_fake', '用的就是仓库那把 token，不需要另外的 key')
+    ok(c.model, '必须给一个默认型号，否则等于没配')
+    ok(llm.llmConfigured(), '这种情况要算「已配置」')
+  } finally { process.env = keep }
+})
+
+await test('自己配的端点优先于默认，三个要齐', async () => {
+  const keep = { ...process.env }
+  try {
+    process.env.GITHUB_TOKEN = 'ghs_fake'
+    process.env.LLM_BASE_URL = 'https://api.groq.com/openai/v1/'
+    process.env.LLM_MODEL = 'llama-3.3-70b-versatile'
+    process.env.LLM_API_KEY = 'gsk_fake'
+    const c = llm.resolveLlm()
+    eq(c.base, 'https://api.groq.com/openai/v1', '结尾的斜杠要洗掉，否则会拼出 //chat')
+    eq(c.model, 'llama-3.3-70b-versatile', '要用站长指定的型号')
+    eq(c.key, 'gsk_fake', '要用站长自己的 key')
+
+    // 缺一个就不能半途用别人的 key 去打别人的端点——那只会得到一串 401。
+    delete process.env.LLM_API_KEY
+    const back = llm.resolveLlm()
+    ok(back.base.includes('models.github.ai'), '缺一个就整套退回默认，不许混搭')
+  } finally { process.env = keep }
+})
+
+await test('连 GITHUB_TOKEN 都没有时，老老实实说没有', async () => {
+  const keep = { ...process.env }
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    delete process.env.GITHUB_TOKEN
+    eq(llm.resolveLlm(), null, '没得用就要返回 null')
+    eq(llm.llmConfigured(), false, '不能假装配好了——收集会以为能翻译，结果整批失败')
+  } finally { process.env = keep }
+})
+
+await test('抓取的 workflow 必须真的开了 models 权限', async () => {
+  // 少这一行，GitHub Models 会回 401，而站长看到的只是「今天没有新闻」。
+  const { readFileSync } = await import('node:fs')
+  const y = readFileSync('.github/workflows/collect.yml', 'utf8')
+  // 行首要顶得住：注释掉的 `# models: read` 不算数，那正是会漏过去的写法。
+  ok(/^\s*models:\s*read\s*$/m.test(y), 'collect.yml 要有 permissions: models: read（不能是注释）')
+  ok(/^\s*contents:\s*read\s*$/m.test(y), '写了 permissions 之后 checkout 还要 contents: read')
+  ok(y.includes('GITHUB_TOKEN: ${{ github.token }}'), '要把仓库那把 token 交给抓取步骤')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
