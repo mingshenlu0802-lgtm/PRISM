@@ -1541,6 +1541,50 @@ await test('日常词做关键词——这一类错已经犯了三次', () => {
   }
 })
 
+await test('抠正文：要取最长的那个 article，还要认得 JSON-LD', () => {
+  /*
+   * 真实一轮里 23 条只有 13 条拿到正文，而拿到正文的平均 1672 字、
+   * 没拿到的平均 855 字——差了一倍。**取不到正文就是写不长**，
+   * 所以这一步的命中率直接就是稿子的质量。
+   *
+   * 查下去有两类：
+   *
+   * 一、**取到的是「相关报道」卡片。** 很多新闻页在正文前先排几张推荐卡，
+   *    每张自己就是一个 <article>。非贪婪的正则停在第一个 </article>，
+   *    抠出来是一句话的卡片摘要，不足 400 字，于是判成「没有正文」。
+   *
+   * 二、**人家不用 <p> 排版。** 但几乎所有新闻站都会为搜索引擎塞一段
+   *    schema.org 的 NewsArticle，正文原文就在 articleBody 里。
+   */
+  const para = (t, i) => `<p>${t} 第${i}段：检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪，涉及二〇一九年至二〇二二年间的行为。</p>`
+  const long = (n, t) => Array.from({ length: n }, (_, i) => para(t, i)).join('')
+
+  // 一、卡片在前，正文在后
+  const teasers = '<article><p>相关报道：另一宗案件的简短摘要，只有这么一句。</p></article>'.repeat(3)
+  const withTeasers = `<html><body>${teasers}<article>${long(12, '正文')}</article></body></html>`
+  const got = feedparse.articleText(withTeasers)
+  ok(got.length > 400, `推荐卡在前时要抠到正文，只拿到 ${got.length} 字`)
+  ok(!got.includes('相关报道'), '抠出来的不能是推荐卡')
+  ok(got.startsWith('正文'), '要取最长的那个 article，不是第一个')
+
+  // 二、没有 <p>，只有 JSON-LD
+  const body = '检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪。'.repeat(20)
+  const ld = (obj) => `<script type="application/ld+json">${JSON.stringify(obj)}</script>`
+  const divOnly = `<html><head>${ld({ '@type': 'NewsArticle', articleBody: body })}</head><body><div>${body}</div></body></html>`
+  ok(feedparse.articleText(divOnly).length > 400, '没有 <p> 时要退回 JSON-LD')
+
+  const graph = `<html><head>${ld({ '@graph': [{ '@type': 'WebPage' }, { '@type': 'Article', articleBody: body }] })}</head><body></body></html>`
+  ok(feedparse.articleText(graph).length > 400, '@graph 的写法也要认')
+
+  // 三、有 <p> 就用 <p>——那条路保住了段落结构，不能被 JSON-LD 顶掉
+  const both = `<html><head>${ld({ '@type': 'NewsArticle', articleBody: '短的' })}</head><body><article>${long(12, '乙')}</article></body></html>`
+  eq(feedparse.articleText(both).split('\n\n').length, 12, '有段落时要保住段落')
+
+  // 四、坏 JSON 不能把整轮抓取炸掉
+  const broken = `<html><head><script type="application/ld+json">{ 这不是 JSON }</script></head><body><p>短</p></body></html>`
+  eq(feedparse.articleText(broken), '', '坏 JSON 要安静地跳过')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

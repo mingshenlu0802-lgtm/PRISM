@@ -120,9 +120,17 @@ export function articleText(html, limit = 6000) {
   // 混进去会让模型把「订阅我们的通讯」当成事实写进稿子。
   h = h.replace(/<(script|style|noscript|svg|form|nav|header|footer|aside|figure)\b[\s\S]*?<\/\1>/gi, ' ')
 
-  // 有 <article> 就只看它——正文几乎总在里面，且能避开推荐位。
-  const article = /<article\b[^>]*>([\s\S]*?)<\/article>/i.exec(h)
-  const body = article ? article[1] : (/<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(h)?.[1] ?? h)
+  /*
+   * 有 <article> 就只看它——正文几乎总在里面，且能避开推荐位。
+   *
+   * **但要取最长的那个，不是第一个。** 非贪婪的正则停在第一个 </article>，
+   * 而很多新闻页在正文之前先排几张「相关报道」卡片，每张卡片自己就是一个
+   * <article>。取第一个，抠出来的是一句话的卡片摘要，然后因为不足 400 字
+   * 被判成「没取到正文」——真实抓取里 23 条里有 10 条没拿到正文，这是其中一类。
+   */
+  const blocks = [...h.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)].map((m) => m[1])
+  const longest = blocks.sort((a, b) => b.length - a.length)[0]
+  const body = longest ?? (/<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(h)?.[1] ?? h)
 
   const paras = []
   for (const m of body.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)) {
@@ -143,7 +151,37 @@ export function articleText(html, limit = 6000) {
     paras.push(t)
     if (paras.join('\n\n').length > limit) break
   }
-  return paras.join('\n\n').slice(0, limit)
+  const out = paras.join('\n\n')
+  if (out.length >= 400) return out.slice(0, limit)
+
+  /*
+   * <p> 抠不出东西时，再试 JSON-LD。
+   *
+   * 多数新闻站会在页面里塞一段 schema.org 的 NewsArticle，把**正文原文**
+   * 放在 articleBody 字段里——那是给搜索引擎看的，比 HTML 干净得多，
+   * 也不受人家用 <div> 还是 <p> 排版的影响。
+   *
+   * 只在前一条路走不通时才用：<p> 那条路保住了段落结构，而这里拿到的是
+   * 一整块，段落要靠换行猜。
+   */
+  const ld = jsonLdBody(String(html))
+  if (ld && ld.length > out.length) return ld.slice(0, limit)
+  return out.slice(0, limit)
+}
+
+/** 从 schema.org 的 NewsArticle / Article 里取 articleBody。 */
+function jsonLdBody(html) {
+  for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data
+    try { data = JSON.parse(m[1].trim()) } catch { continue }
+    // @graph、数组、单个对象三种写法都见过。
+    const nodes = Array.isArray(data) ? data : (Array.isArray(data['@graph']) ? data['@graph'] : [data])
+    for (const n of nodes) {
+      const body = typeof n?.articleBody === 'string' ? n.articleBody.trim() : ''
+      if (body.length >= 400) return body.replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n')
+    }
+  }
+  return ''
 }
 
 export function parseFeed(xml, outlet = '来源媒体') {

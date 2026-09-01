@@ -438,6 +438,14 @@ picked = picked2
  * 那是给真实事件配一张无关的照片。
  * ------------------------------------------------------------------ */
 
+/*
+ * 取不到正文，是这个站眼下最贵的一个失败。
+ *
+ * 真实一轮：拿到正文的稿子平均 1672 字，只有 RSS 摘要的平均 855 字。
+ * 而 23 条里有 10 条没拿到。想知道该修哪里，就得先知道**卡在哪一步**：
+ * 是请求被挡了（付费墙、403）、回的不是网页、还是抠出来太短。
+ * 三种要改的东西完全不同。所以每一次失败都带一个原因回去。
+ */
 async function pageInfo(url, outlet) {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 12000)
@@ -451,13 +459,14 @@ async function pageInfo(url, outlet) {
         'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
       },
     })
-    if (!res.ok) return null
+    if (!res.ok) return { why: `HTTP ${res.status}` }
     const type = res.headers.get('content-type') ?? ''
-    if (!/html/i.test(type)) return null
+    if (!/html/i.test(type)) return { why: '不是网页' }
     const html = (await res.text()).slice(0, 400000)
-    return { image: ogImage(html, outlet), text: articleText(html) }
-  } catch {
-    return null
+    const text = articleText(html)
+    return { image: ogImage(html, outlet), text, why: text.length > 400 ? '' : `抠出来只有 ${text.length} 字` }
+  } catch (e) {
+    return { why: e.name === 'AbortError' ? '超时' : String(e.message ?? e).slice(0, 40) }
   } finally {
     clearTimeout(t)
   }
@@ -530,6 +539,16 @@ async function hydrate(list) {
   const after = list.filter((g) => g.image).length
   console.log(`配图：feed 自带 ${before} 张，报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
   console.log(`原文：${withText}/${list.length} 条拿到正文，共 ${totalSrc} 篇（一条新闻可能读了不止一家）`)
+
+  // 没取到的，按原因归堆——下一步该修哪里全看这几行。
+  const why = new Map()
+  got.forEach((info) => {
+    const w = info?.why
+    if (w) why.set(w.replace(/\d+/g, 'N'), (why.get(w.replace(/\d+/g, 'N')) ?? 0) + 1)
+  })
+  if (why.size) {
+    console.log(`  取不到正文的原因：${[...why].sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w} ${n} 次`).join('，')}`)
+  }
 }
 
 const have = await existingItems()
