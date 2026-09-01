@@ -19,8 +19,9 @@
 import { chromium } from 'playwright'
 import { createServer } from 'node:http'
 import { readFile } from 'node:fs/promises'
-import { existsSync, globSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
+import { launchOptions } from './_browser.mjs'
 
 const ROOT = join(process.cwd(), 'dist')
 if (!existsSync(ROOT)) {
@@ -48,11 +49,7 @@ const server = createServer(async (req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const base = `http://127.0.0.1:${server.address().port}/#`
 
-const candidates = [
-  ...globSync('/opt/pw-browsers/chromium-*/chrome-linux/chrome'),
-  ...globSync('/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell'),
-]
-const browser = await chromium.launch(candidates.length ? { executablePath: candidates[0] } : {})
+const browser = await chromium.launch(launchOptions())
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 
 // 外部字体在沙箱里连不上，那是渐进增强，不算缺陷。

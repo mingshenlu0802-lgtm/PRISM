@@ -15,6 +15,7 @@ import { createServer } from 'node:http'
 import { readFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
+import { launchOptions } from './_browser.mjs'
 
 const ROOT = join(process.cwd(), 'dist')
 const SHOTS = process.argv.includes('--shots')
@@ -69,15 +70,7 @@ const VIEWPORTS = [
 
 if (SHOTS) await mkdir(SHOT_DIR, { recursive: true })
 
-// Resolve the pre-installed Chromium; the versioned directory name varies.
-const { globSync } = await import('node:fs')
-const candidates = [
-  ...globSync('/opt/pw-browsers/chromium-*/chrome-linux/chrome'),
-  ...globSync('/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/headless_shell'),
-]
-const browser = await chromium.launch(
-  candidates.length ? { executablePath: candidates[0] } : {},
-)
+const browser = await chromium.launch(launchOptions())
 const problems = []
 const rows = []
 let fontsOffline = false
