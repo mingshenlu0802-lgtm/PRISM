@@ -214,16 +214,29 @@ for (const { feed, r } of fetched) {
   if (!r.ok) { report.push([feed, 0, 0, r.why, 0]); continue }
 
   let kept = 0
+  /*
+   * 一个源交回三十条、一条都没留下，日志上只写「0 条 / 共 30」。
+   * 那句话不回答任何问题：是这三十条今天都跟性别无关，还是太旧了，
+   * 还是别家已经收过？第一次真实抓取里 BBC 中文 0/42、德国之声 0/65、
+   * 自由亚洲电台 0/30，我盯着这三行看了半天，没法判断该不该改词表。
+   * 所以把落选的理由分开数。
+   */
+  const dropped = { old: 0, dup: 0, offTopic: 0, full: 0 }
+  const samples = []
   for (const e of r.entries) {
-    if (kept >= MAX_PER_FEED) break
-    if (seenUrl.has(e.link)) continue
+    if (kept >= MAX_PER_FEED) { dropped.full += 1; continue }
+    if (seenUrl.has(e.link)) { dropped.dup += 1; continue }
 
     const when = e.date ? Date.parse(e.date) : NaN
-    if (Number.isFinite(when) && when < since) continue
+    if (Number.isFinite(when) && when < since) { dropped.old += 1; continue }
 
     const topics = topicsOf(e)
     // 专题源整版都是本站题目；综合源必须命中关键词，否则体育财经也会进来。
-    if (!feed.topical && topics.length === 0) continue
+    if (!feed.topical && topics.length === 0) {
+      dropped.offTopic += 1
+      if (samples.length < 3) samples.push(e.title)
+      continue
+    }
 
     seenUrl.add(e.link)
     kept += 1
@@ -238,7 +251,7 @@ for (const { feed, r } of fetched) {
       at: Number.isFinite(when) ? new Date(when).toISOString() : new Date().toISOString(),
     })
   }
-  report.push([feed, r.entries.length, kept, '', r.via ?? 0])
+  report.push([feed, r.entries.length, kept, '', r.via ?? 0, dropped, samples])
 }
 
 /*
@@ -281,9 +294,19 @@ for (const tier of [...byTier.keys()].sort()) {
 
 console.log('PRISM 新闻收集')
 console.log('—'.repeat(76))
-for (const [feed, total, kept, why, via] of report) {
+for (const [feed, total, kept, why, via, dropped, samples] of report) {
   const status = why ? `✗ ${why}` : `${String(kept).padStart(2)} 条 / 共 ${total}${via ? `（第 ${via} 个地址）` : ''}`
   console.log(`  ${feed.outlet.padEnd(26, '·')} ${status}`)
+
+  // 一条都没留下的时候，说清楚是为什么，并且给两个真实标题当样本。
+  if (!why && kept === 0 && total > 0 && dropped) {
+    const bits = []
+    if (dropped.offTopic) bits.push(`${dropped.offTopic} 条不属于任何议题`)
+    if (dropped.old) bits.push(`${dropped.old} 条太旧`)
+    if (dropped.dup) bits.push(`${dropped.dup} 条别家已收`)
+    console.log(`      └ ${bits.join('，') || '没有可用条目'}`)
+    for (const t of (samples ?? []).slice(0, 2)) console.log(`        例：${t.slice(0, 60)}`)
+  }
 }
 console.log('—'.repeat(76))
 const dead = report.filter(([, , , why]) => why)
@@ -521,6 +544,8 @@ const linkOf = (p, i, j) => ({
  */
 const toInsert = []
 const toAppend = []
+/** 哪几条是**读了报道正文**写出来的（其余只有 RSS 摘要）。下面用来对比篇幅。 */
+const hydrated = new Set()
 
 picked.forEach((g, i) => {
   const sources = [g, ...g.also]
@@ -536,6 +561,7 @@ picked.forEach((g, i) => {
   let slug = slugify(g.title) || `item-${i}`
   while (have.slugs.has(slug)) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
   have.slugs.add(slug)
+  if (g.bodies?.length) hydrated.add(slug)
 
   toInsert.push({
     id: `news-${Date.now().toString(36)}-${i}`,
@@ -561,6 +587,33 @@ picked.forEach((g, i) => {
 })
 
 console.log(`本站没提过的 ${toInsert.length} 条；已提过、补上新来源的 ${toAppend.length} 条`)
+
+/*
+ * 这一轮写出来的东西，量一量。
+ *
+ * 站长对质量的要求是具体的、可以数的：「每个新闻最好有两个或以上的引用」、
+ * 「内容 up to 3000 字」。而日志一直只说「已上线 15 条」——那说明不了
+ * 这十五条是长是短、是一家媒体还是三家。要判断改动有没有用，得先能量。
+ *
+ * 还要分开看**有原文**和**只有 RSS 摘要**两组的长度。给模型真正的报道正文
+ * 是这轮最大的一处改动，如果那一组明显更长更实，就说明这条路走对了；
+ * 如果两组差不多，那问题就不在材料上，得往别处找。
+ */
+if (toInsert.length > 0) {
+  const len = (t) => String(t ?? '').replace(/\s+/g, '').length
+  const lens = toInsert.map((n) => len(n.summary)).sort((a, b) => a - b)
+  const mid = lens[Math.floor(lens.length / 2)]
+  const multi = toInsert.filter((n) => n.links.length >= 2).length
+  const withText = toInsert.filter((n) => hydrated.has(n.slug))
+  const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0)
+  console.log(`  篇幅 中位 ${mid} 字（最短 ${lens[0]}，最长 ${lens[lens.length - 1]}）`)
+  console.log(`  两家以上媒体报道的 ${multi}/${toInsert.length} 条`)
+  if (withText.length && withText.length < toInsert.length) {
+    const a = avg(withText.map((n) => len(n.summary)))
+    const b = avg(toInsert.filter((n) => !hydrated.has(n.slug)).map((n) => len(n.summary)))
+    console.log(`  拿到原文的 ${withText.length} 条平均 ${a} 字；只有摘要的 ${toInsert.length - withText.length} 条平均 ${b} 字`)
+  }
+}
 
 for (const { item, links } of toAppend) {
   const res = await db(`news?id=eq.${encodeURIComponent(item.id)}`, {

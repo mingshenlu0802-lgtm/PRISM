@@ -243,8 +243,23 @@ const RAW = {
 
   sexual: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
     'rape', 'raped', 'gang rape', 'femicide', 'sexual harassment',
-    'honour killing', 'honor killing', 'groping', 'stalking', 'revenge porn', 'image-based abuse',
-    'deepfake porn', 'sexual exploitation', 'trafficking',
+    'honour killing', 'honor killing', 'groping', 'revenge porn', 'image-based abuse',
+    'deepfake porn', 'sexual exploitation',
+    /*
+     * **裸的 trafficking 和 stalking 收不得。**
+     *
+     * 一次真实抓取里，'trafficking' 一个词就把 drug trafficking、
+     * arms trafficking、wildlife trafficking 全收成了性犯罪；
+     * 'stalking' 撞上 stalking horse（政治里的「探路人选」）。
+     * 跟当初 'settlement' 撞上以色列定居点是同一类错：
+     * 一个词在这个题材里有专门含义，在新闻里却是日常词。
+     * 所以都绑上宾语。
+     */
+    'human trafficking', 'sex trafficking', 'sexual trafficking',
+    'trafficking of women', 'trafficking in women', 'trafficking in persons',
+    'trafficked women', 'trafficking victims',
+    'stalker', 'cyberstalking', 'stalking and harassment',
+    'convicted of stalking', 'accused of stalking', 'stalking offence', 'stalking offense',
     /*
      * 这里原本还有一整段司法词：charged with / convicted / sentenced /
      * guilty / arrested / settlement / on trial……
@@ -286,7 +301,10 @@ const RAW = {
    */
   children: ['child abuse', 'child sexual', 'sexual abuse of children', 'child marriage',
     'child bride', 'child trafficking', 'child protection', 'child labour', 'child labor',
-    "children's rights", 'underage', 'schoolgirl', 'grooming', 'paedophile', 'pedophile',
+    "children's rights", 'underage', 'schoolgirl', 'paedophile', 'pedophile',
+    // 裸的 grooming 会收「宠物美容店开业」。同 trafficking，绑上宾语。
+    'grooming gang', 'online grooming', 'sexual grooming', 'child grooming',
+    'grooming of children', 'groomed a child', 'grooming offence',
     'csam', 'female genital mutilation', 'fgm', 'girls education', 'teen pregnancy',
     'foster care', 'juvenile detention',
     // 中文这边同理不放裸的「儿童」：儿童医院、儿童节、儿童剧全会中招。
@@ -312,7 +330,9 @@ const RAW = {
   /* LGBTQIA+ 权益。跨性别权利与医疗并进来了。 */
   lgbtq: ['lgbt', 'lgbtq', 'lgbtqia', 'queer', 'gay rights', 'same-sex', 'marriage equality',
     'transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
-    'intersex', 'conversion therapy', 'pride parade', 'coming out',
+    'intersex', 'conversion therapy', 'pride parade',
+    // 裸的 'coming out' 收了美联社的「秋季新片上映指南」（films coming out this fall）。
+    'coming out as', 'came out as', 'comes out as', 'coming-out story', 'came out publicly',
     '同性', '同志', '性少数', '婚姻平权', '同婚', '同性婚姻', '同性伴侣', '性别认同',
     '彩虹', '出柜', '性倾向', '跨性别', '变性', '性别重置', '性别不安',
     '性别承认', '非二元', '性别友善', '扭转治疗', '双性人', '荷尔蒙治疗'],

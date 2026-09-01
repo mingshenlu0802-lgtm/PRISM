@@ -1479,6 +1479,68 @@ await test('中文的真实标题：该收的收得到，不该收的收不到',
   }
 })
 
+await test('日常词做关键词——这一类错已经犯了三次', () => {
+  /*
+   * 三次了，每一次都是同一个形状：一个词在这个题材里有专门含义，
+   * 在普通新闻里却是家常话。
+   *
+   *   settlement   → 以色列定居点贸易      （司法「和解」）
+   *   coming out   → 美联社秋季新片上映指南 （出柜）
+   *   trafficking  → 鹿特丹毒品走私网络     （人口贩运）
+   *   grooming     → 宠物美容店开业        （诱哄儿童）
+   *   stalking     → stalking horse 探路人选（跟踪骚扰）
+   *
+   * 每一条都是从真实抓取里捞回来的。所以这里立一份**噪声样本**：
+   * 全部必须是零议题。以后往词表里加词，先在这里过一遍——
+   * 加一个短词很省事，代价却是站长一条条删。
+   */
+  const noise = [
+    // 真的被误收过的那几条
+    'Irish minister calls for EU action in banning Israeli settlement trade',
+    'Fall Movie Guide: Here are the films coming out this fall, from September to December',
+    'Police smash drug trafficking ring in Rotterdam',
+    'Tupac murder trial: Ex-gang leader found guilty',
+    'Football hooligan gang chief arrested over ecstasy ring',
+    '中印边境对峙持续　两国举行军长级会谈',
+    '男子恐吓邻居被判刑六个月',
+    '酒店五号房发生火警　无人受伤',
+    // 同一类的其他说法
+    'Arms trafficking network dismantled across the Sahel',
+    'Wildlife trafficking of pangolins hits record levels',
+    'A new album coming out in October',
+    'Dog grooming salon opens downtown',
+    'The stalking horse candidate withdrew before the vote',
+    '深度伪造技术用于电影特效引发讨论',
+    '未经同意使用肖像　摄影师起诉广告公司',
+    // 纯粹无关的
+    '英超：曼联主场击败利物浦',
+    '苹果发布新款手机　股价上涨',
+    'Central bank holds interest rates steady',
+    'Fall harvest festival draws record crowds',
+  ]
+  for (const title of noise) {
+    const got = feedparse.topicsOf({ title, summary: '' })
+    eq(got.length, 0, `「${title}」不该命中任何议题（收到 ${JSON.stringify(got)}）`)
+  }
+
+  /*
+   * 反过来：绑上宾语之后，真正的报道还要收得到。
+   * 不然「不滥」就变成了「什么都不收」。
+   */
+  const real = [
+    ['Sex trafficking ring broken up in Atlanta', 'sexual'],
+    ['Human trafficking of women from Nigeria to Italy', 'sexual'],
+    ['Man convicted of stalking his ex-partner', 'sexual'],
+    ['Woman killed by her stalker in Manchester', 'sexual'],
+    ['Actor came out as bisexual in a magazine interview', 'lgbtq'],
+    ['Grooming gang convictions in Rochdale', 'children'],
+    ['Online grooming reports rise 40% in a year', 'children'],
+  ]
+  for (const [title, topic] of real) {
+    ok(feedparse.topicsOf({ title, summary: '' }).includes(topic), `「${title}」应当归到 ${topic}`)
+  }
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
