@@ -1068,42 +1068,30 @@ await test('被截断的回复要说清楚是截断，不是「没有返回内�
   } finally { process.env = keep; globalThis.fetch = realFetch }
 })
 
-await test('正文里的小标题和来源角标要变成真的结构', async () => {
-  // 总结现在是上千字的新闻稿：用「## 小标题」分节，句子后面标 [1] [2]。
-  // 这两样如果原样显示，读者看到的就是一堆井号和方括号。
+await test('正文里的小标题要变成真的结构，角标不再渲染', async () => {
+  // 总结是上千字的新闻稿：用「## 小标题」分节。这些如果原样显示，
+  // 读者看到的就是一堆井号。
+  //
+  // 角标（[1] [2]）取消了——站长要求不要 reference number，出处写进句子里。
+  // 万一模型还是写了，就原样显示：那是正文的一部分，悄悄删掉一段文字
+  // 比留着一个方括号更糟。
   const { renderToStaticMarkup } = await import('react-dom/server')
   const { createElement } = await import('react')
-  const links = [
-    { id: 'a', outlet: '卫报', title: 't1', url: 'https://a.example', lang: 'en', date: '2026-09-01' },
-    { id: 'b', outlet: '路透社', title: 't2', url: 'https://b.example', lang: 'en', date: '2026-09-01' },
-  ]
   const html = renderToStaticMarkup(createElement(Prose, {
-    text: '## 最早的投诉\n\n检方指称行为发生于 2019 年。[1] 该机构收到七项投诉。[2]\n\n这里有一个 **加粗** 的词，还有一个对不上的 [9]。',
-    links,
+    text: '## 最早的投诉\n\n据《卫报》报道，检方指称行为发生于 2019 年。\n\n这里有一个 **加粗** 的词。',
   }))
 
   ok(html.includes('<h3'), '「## 小标题」要变成 h3，不是正文里的井号')
   ok(html.includes('最早的投诉'), '小标题的文字要留下')
   ok(!html.includes('## '), '井号本身不该出现在页面上')
-
-  /*
-   * 角标必须是按钮，不能是 <a href="#src-1">。
-   *
-   * 这个站用 HashRouter：地址栏的 `#/news/xxx` 就是路由。一个 #src-1 的链接
-   * 会把 hash 整个换掉，路由匹配不到，兜底规则把人送回首页——
-   * 读者点一下出处，正在读的文章就没了。实测过，hash 从 #/news/… 变成 #/。
-   */
-  ok(html.includes('<button'), '角标要用按钮，不能用 hash 链接')
-  ok(!html.includes('href="#src-'), 'href="#…" 在 HashRouter 下会把人踢回首页')
-  ok(html.includes('卫报'), '角标要带上是哪家媒体，给读屏用')
-
-  // 编号对不上的不做成链接——点了没反应比没有链接更糟；但也不能删掉，
-  // 那句话确实有出处，只是编号错了，读者有权看见。
-  ok(html.includes('prose__cite--dead'), '对不上的角标要标成失效，而不是变成死链接')
-  ok(!html.includes('src-9'), '不存在的来源不能生成跳转目标')
+  ok(html.includes('据《卫报》报道'), '出处写在句子里，照原样留着')
 
   ok(html.includes('<strong>加粗</strong>'), '**加粗** 要变成 strong')
   ok(!html.includes('**'), '星号不该留在页面上')
+
+  // 不再生成任何跳转按钮或锚点。
+  ok(!html.includes('prose__cite'), '不该再有角标')
+  ok(!html.includes('src-'), '不该再有来源锚点')
 })
 
 await test('时间按北京时间显示，不是 UTC', () => {

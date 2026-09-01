@@ -1,4 +1,3 @@
-import type { MediaLink } from '../../lib/types'
 import { paragraphs } from '../../lib/util'
 import './Prose.css'
 
@@ -19,72 +18,38 @@ import './Prose.css'
  */
 
 /**
- * 行内记号：`[1]` 角标和 `**加粗**`。
+ * 行内记号：只认 `**加粗**`。
  *
  * 加粗要认，是因为**提示词自己就用 `**` 写强调**——模型会照着学，
  * 于是正文里冒出一串星号。与其在输出上做清洗（那会连同它真正想强调的意思
  * 一起删掉），不如把这个记号认下来：新闻里偶尔加粗一个关键数字或结论，
  * 本来就是合理的排版。
  *
- * 只认这两种。不做完整 Markdown：没认的记号原样显示，比猜错了好。
+ * **角标已经取消。** 这里一度把 [1] [2] 渲染成可以跳到来源的小按钮，
+ * 站长看过之后说不要 reference number——读完几篇来源，融成一篇稿子就好，
+ * 出处写进句子里（「据《卫报》报道」），来源清单仍然列在文末。
+ * 学术论文的引注放在新闻里，读起来是隔的。
+ *
+ * 万一模型还是写了 [1]，就让它原样显示——那是它写的正文的一部分，
+ * 悄悄删掉一段文字比留着一个方括号更糟。
  */
-const INLINE = /\*\*([^*]+)\*\*|\[(\d{1,2})\]/g
+const INLINE = /\*\*([^*]+)\*\*/g
 
-function inline(text: string, links: MediaLink[], keyBase: string): (string | JSX.Element)[] {
+function inline(text: string, keyBase: string): (string | JSX.Element)[] {
   const out: (string | JSX.Element)[] = []
   let last = 0
   let m: RegExpExecArray | null
   INLINE.lastIndex = 0
   while ((m = INLINE.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index))
-    const key = `${keyBase}-${m.index}`
-
-    if (m[1] !== undefined) {
-      out.push(<strong key={key}>{m[1]}</strong>)
-    } else {
-      const n = Number(m[2])
-      const link = links[n - 1]
-      // 没有对应来源的角标不做成链接——那会给出一个点了没反应的东西。
-      // 但也不删掉：模型标了它，说明那句话有出处，只是编号对不上，
-      // 读者有权知道这里本该有一个来源。
-      /*
-       * 角标是**按钮**，不是 <a href="#src-1">。
-       *
-       * 这个站用的是 HashRouter：地址栏里的 `#/news/xxx` 就是路由。
-       * 一个 href="#src-1" 会把 hash 整个换掉，路由匹配不到 `src-1`，
-       * 兜底规则把人送回首页——读者点一下出处，文章就没了。
-       * 实测过：hash 从 `#/news/…` 变成 `#/`。
-       *
-       * 所以自己滚过去，不碰地址栏。
-       */
-      out.push(link
-        ? (
-          <button
-            key={key}
-            type="button"
-            className="prose__cite"
-            aria-label={`跳到来源 ${n}：${link.outlet}`}
-            onClick={() => {
-              const el = document.getElementById(`src-${n}`)
-              if (!el) return
-              el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-              // 滚过去还不够——要让读者一眼看到是哪一条。
-              el.classList.add('lnk__item--flash')
-              window.setTimeout(() => el.classList.remove('lnk__item--flash'), 1600)
-            }}
-          >
-            {n}
-          </button>
-        )
-        : <sup key={key} className="prose__cite prose__cite--dead">{n}</sup>)
-    }
+    out.push(<strong key={`${keyBase}-${m.index}`}>{m[1]}</strong>)
     last = m.index + m[0].length
   }
   if (last < text.length) out.push(text.slice(last))
   return out
 }
 
-export function Prose({ text, links = [] }: { text: string; links?: MediaLink[] }): JSX.Element {
+export function Prose({ text }: { text: string }): JSX.Element {
   return (
     <>
       {paragraphs(text).map((p, i) => {
@@ -93,7 +58,7 @@ export function Prose({ text, links = [] }: { text: string; links?: MediaLink[] 
         const heading = /^#{2,3}\s+(.+?)\s*$/.exec(p.trim())
           ?? /^\*\*([^*]{2,24})\*\*$/.exec(p.trim())
         if (heading) return <h3 key={i} className="prose__h">{heading[1]}</h3>
-        return <p key={i}>{inline(p, links, String(i))}</p>
+        return <p key={i}>{inline(p, String(i))}</p>
       })}
     </>
   )

@@ -66,7 +66,7 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
       />
 
       <div className={cx('ncard__summary', clamped && 'ncard__summary--clamp')}>
-        <Prose text={item.summary} links={item.links} />
+        <Prose text={item.summary} />
       </div>
 
       {clamped && (

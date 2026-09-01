@@ -47,7 +47,7 @@ export function StudyCard({ item, variant = 'feed' }: { item: StudyItem; variant
 
       {/* 总结现在是成段的新闻稿，不再是一句话，所以要按段落渲染。 */}
       <div className={cx('scard__summary', clamped && 'scard__summary--clamp')}>
-        <Prose text={item.summary} links={item.links} />
+        <Prose text={item.summary} />
       </div>
 
       {clamped && (
