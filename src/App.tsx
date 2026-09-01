@@ -48,6 +48,7 @@ export default function App(): JSX.Element {
           <Route path="/region/:key" element={<RegionPage />} />
           <Route path="/topic/:key" element={<TopicPage />} />
           <Route path="/studies" element={<StudiesPage />} />
+          <Route path="/studies/:kind" element={<StudiesPage />} />
           <Route path="/study/:slug" element={<StudyPage />} />
           <Route path="/about" element={<AboutPage />} />
         </Route>

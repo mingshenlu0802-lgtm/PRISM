@@ -580,11 +580,21 @@ await test('综合来源要靠关键词筛，不能什么都收', () => {
   const sport = { title: 'Local team wins the cup', summary: 'A football final.' }
   eq(feedparse.topicsOf(sport).length, 0, '体育新闻不该命中任何议题')
 
-  const real = { title: 'New law on domestic violence', summary: '' }
-  ok(feedparse.topicsOf(real).includes('violence'), '家暴应当归到暴力')
+  // 家暴现在是独立的一栏（站长把它从性犯罪里拆了出来）。
+  const dv = { title: 'New law on domestic violence', summary: '' }
+  ok(feedparse.topicsOf(dv).includes('domestic'), '家暴应当归到家庭暴力')
+  ok(!feedparse.topicsOf(dv).includes('sexual'), '家暴不该同时算成性犯罪——拆开就是为了分清')
 
+  const sv = { title: 'Man charged with sexual assault of a student', summary: '' }
+  ok(feedparse.topicsOf(sv).includes('sexual'), '性侵要归到性犯罪')
+
+  // Incel 是新加的一栏，认的是这套亚文化自己的黑话。
+  const inc = { title: 'How the manosphere turned red pill talk into a business', summary: '' }
+  ok(feedparse.topicsOf(inc).includes('incel'), 'manosphere 要认得出来')
+
+  // 跨性别并进了 LGBTQIA+ 权益那一栏。
   const zh = { title: '跨性别者就医权益争议', summary: '' }
-  ok(feedparse.topicsOf(zh).includes('trans'), '中文也要认得出来')
+  ok(feedparse.topicsOf(zh).includes('lgbtq'), '中文也要认得出来')
 })
 
 await test('地区认得出来，认不出来就用来源默认的', () => {
@@ -863,9 +873,12 @@ await test('儿童议题要认出侵害，不要把儿科新闻也收进来', ()
 await test('议题清单要以性暴力开头，并且真的有儿童这一项', () => {
   // 顺序不是装饰：它就是筛选栏和「关于」页上的排列顺序，而站长把性犯罪
   // 定成了这个站的重心。
-  eq(TOPICS[0].key, 'violence', '性暴力排第一')
-  eq(TOPICS[1].key, 'children', '儿童排第二')
-  ok(TOPICS.some((t) => t.key === 'children'), '儿童议题必须存在')
+  // 站长两次重排过分类。现在的顺序由他指定：家暴、性犯罪、儿童……
+  eq(TOPICS[0].key, 'domestic', '家庭暴力排第一')
+  eq(TOPICS[1].key, 'sexual', '性犯罪排第二')
+  eq(TOPICS[2].key, 'children', '儿童排第三')
+  ok(TOPICS.some((t) => t.key === 'incel'), 'Incel 与厌女文化必须存在')
+  ok(TOPICS.some((t) => t.key === 'lgbtq'), 'LGBTQIA+ 权益必须存在')
   ok(TOPICS.every((t) => t.zh && t.short && t.hue), '每一项都要有中文名、短名和颜色')
 
   // 界面上的议题和抓取时能识别的议题必须是同一套，否则会出现一个
@@ -943,14 +956,14 @@ await test('研究里的数字不能是模型编的', () => {
     FIGURES: ['- 有说明的 | 38% | 只统计了报案的案件',
       '- 没说明的 | 99% |',
       '- 没数字的 | | 有说明但没有数字'].join('\n'),
-    TOPICS: 'violence, 不存在的议题',
+    TOPICS: 'sexual, 不存在的议题',
     REGIONS: 'us, 火星',
   }, fallback)
 
   eq(got.figures.length, 1, '没有边界说明、或者没有数字的都要丢掉')
   eq(got.figures[0].value, '38%', '留下的必须是两样都齐的那个')
   eq(got.kind, 'ngo-report', '类型不认识就退回这个源的默认，不要留空')
-  eq(got.topics.join(), 'violence', '不存在的议题要过滤掉')
+  eq(got.topics.join(), 'sexual', '不存在的议题要过滤掉')
   eq(got.regions.join(), 'us', '不存在的地区要过滤掉')
   ok(got.limitation.length > 0, '局限不能空着——空着等于默许读者过度解读')
 

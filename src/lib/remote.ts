@@ -14,6 +14,7 @@ import type {
   Account, Appearance, ChangeEntry, NewsItem, Role, SiteCopy, StudyItem,
 } from './types'
 import type { RegionKey } from './regions'
+import { TOPIC_ALIAS } from './types'
 import type { TopicKey } from './types'
 
 export type { Role }
@@ -41,6 +42,22 @@ type Row = Record<string, unknown>
 const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? v as T[] : [])
 const str = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback)
 
+/**
+ * 把旧议题名翻译成现在的。
+ *
+ * 分类合并过（生育权→女性权利，跨性别→LGBTQIA+，平等和运动争议并回女性权利），
+ * 而数据库里还留着旧名字的条目。不翻译的话，它们的标签会变成一个点不开、
+ * 也显示不出中文的空壳。翻译一次，就不用为了改分类去改历史数据。
+ */
+function topicsOf(raw: unknown): TopicKey[] {
+  const seen = new Set<TopicKey>()
+  for (const t of arr<string>(raw)) {
+    const key = (TOPIC_ALIAS[t] ?? t) as TopicKey
+    seen.add(key)
+  }
+  return [...seen]
+}
+
 function toNews(r: Row): NewsItem {
   return {
     id: str(r.id),
@@ -52,7 +69,7 @@ function toNews(r: Row): NewsItem {
     summary: str(r.summary),
     bullets: arr<string>(r.bullets),
     regions: arr<RegionKey>(r.regions),
-    topics: arr<TopicKey>(r.topics),
+    topics: topicsOf(r.topics),
     links: arr<NewsItem['links'][number]>(r.links),
     image: (r.image ?? undefined) as NewsItem['image'],
     status: r.status === 'hidden' ? 'hidden' : 'live',
@@ -91,7 +108,7 @@ function toStudy(r: Row): StudyItem {
     kind: str(r.kind, 'report') as StudyItem['kind'],
     date: str(r.date),
     regions: arr<RegionKey>(r.regions),
-    topics: arr<TopicKey>(r.topics),
+    topics: topicsOf(r.topics),
     summary: str(r.summary),
     limitation: str(r.limitation),
     figures: arr<StudyItem['figures'][number]>(r.figures),

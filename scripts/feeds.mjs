@@ -116,63 +116,97 @@ export const FEEDS = [
  * 站长要一条条删，而删漏了就会出现在读者面前。
  */
 export const TOPIC_WORDS = {
-  rights: ['lgbt', 'lgbtq', 'queer', 'gay rights', 'same-sex', 'marriage equality', 'gender equality',
-    '同性', '同志', '性少数', '婚姻平权', '同婚', '性别平等', '女权', '女性主义', '性别认同',
-    '彩虹', '出柜', '性倾向', '妇女权益', '性别歧视'],
   /*
    * 性犯罪是这个站的报道重心（站长指定），所以词表比别的议题厚：
    * 除了行为本身，还要覆盖**司法程序**——起诉、开庭、判决、和解、上诉。
    * 一件性侵案在新闻里出现，往往不是以「性侵」为标题，而是以
    * 「某某被判刑」「检方起诉某某」的形式出现。只认行为词会漏掉一大半。
    */
-  violence: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
-    'domestic violence', 'domestic abuse', 'rape', 'raped', 'femicide', 'harassment',
+  /* 家庭暴力单独一栏（站长后来把它从性犯罪里拆了出来）。 */
+  domestic: ['domestic violence', 'domestic abuse', 'intimate partner violence',
+    'coercive control', 'restraining order', 'protection order', 'family violence',
+    'honour killing', 'honor killing', 'dowry death', 'marital rape',
+    '家暴', '家庭暴力', '亲密伴侣暴力', '親密伴侶暴力', '人身保护令', '人身保護令',
+    '婚内强奸', '婚內強姦', '荣誉处决', '嫁妆致死', '控制型暴力'],
+
+  sexual: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
+    'rape', 'raped', 'femicide', 'sexual harassment',
     'honour killing', 'honor killing', 'groping', 'stalking', 'revenge porn', 'image-based abuse',
-    'grooming', 'child abuse', 'trafficking',
+    'trafficking',
     // 司法程序：案子进到哪一步，往往就是标题本身
     'charged with', 'indicted', 'convicted', 'sentenced', 'acquitted', 'on trial', 'verdict',
     'guilty', 'prosecutors', 'lawsuit', 'sues', 'settlement', 'appeal', 'arrested',
     'accused of', 'allegation', 'accuser', 'testified', 'court heard',
-    '性暴力', '性侵', '性侵犯', '性虐待', '家暴', '家庭暴力', '性骚扰', '强奸', '猥亵',
-    '杀害女性', '拐卖妇女', '荣誉处决', '迷奸', '偷拍', '性剥削', '诱奸', '未成年',
+    '性暴力', '性侵', '性侵犯', '性虐待', '性骚扰', '性騷擾', '强奸', '強姦', '猥亵',
+    '杀害女性', '拐卖妇女', '迷奸', '偷拍', '性剥削', '诱奸', '权势性侵',
     // 司法
     '起诉', '起訴', '被控', '被指控', '判刑', '定罪', '无罪', '無罪', '开庭', '開庭',
     '检方', '檢方', '一审', '二审', '上诉', '和解', '逮捕', '刑事', '民事诉讼', '出庭作证'],
+
   /*
-   * 儿童（站长后加的议题）。
-   *
-   * 词表刻意**不收裸的 child / 儿童**。综合源要命中关键词才会被收进来，
-   * 而「child」什么新闻里都有——学校预算、儿科医院、育儿建议。放它进来，
-   * 站长刚抱怨过的「题材不全是女性主义」会立刻更严重。
-   * 所以每一条都绑着侵害、婚配、失学或监护，也就是这个站真正要盯的部分。
+   * 儿童。词表刻意**不收裸的 child / 儿童**——综合源要命中关键词才会被收进来，
+   * 而「child」什么新闻里都有：学校预算、儿科医院、育儿建议。
+   * 每一条都绑着侵害、婚配、失学或监护，也就是这个站真正要盯的部分。
    */
   children: ['child abuse', 'child sexual', 'sexual abuse of children', 'child marriage',
     'child bride', 'child trafficking', 'child protection', 'child labour', 'child labor',
     "children's rights", 'underage', 'schoolgirl', 'grooming', 'paedophile', 'pedophile',
     'csam', 'female genital mutilation', 'fgm', 'girls education', 'teen pregnancy',
     'foster care', 'juvenile detention',
-    // 中文这边**不放裸的「儿童」**，理由和英文那边一样：「儿童医院」「儿童节」
-    // 「儿童剧」全会中招。CJK 是按子串匹配的（中文没有词边界可依），
-    // 所以词越短，误伤越大。每一条都带上侵害、婚配、失学或监护。
+    // 中文这边同理不放裸的「儿童」：儿童医院、儿童节、儿童剧全会中招。
+    // CJK 是按子串匹配的（中文没有词边界），词越短误伤越大。
     '未成年', '幼女', '女童', '童婚', '童工', '少女怀孕', '少女懷孕',
     '儿童性侵', '兒童性侵', '性侵儿童', '性侵兒童', '侵害儿童', '侵害兒童',
     '虐待儿童', '虐待兒童', '猥亵儿童', '猥褻兒童', '拐卖儿童', '拐賣兒童',
     '儿童保护', '兒童保護', '儿童权利', '兒童權利', '校园性侵', '校園性侵',
     '师生恋', '師生戀', '监护权', '監護權', '寄养', '寄養', '割礼', '割禮'],
-  repro: ['abortion', 'reproductive rights', 'contraception', 'maternal', 'sterilisation', 'sterilization',
-    '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主'],
-  trans: ['transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
-    '跨性别', '变性', '性别重置', '性别承认', '跨性別', '非二元', '性別友善'],
-  hate: ['hate crime', 'online abuse', 'doxxing', 'anti-lgbt', 'homophobic', 'transphobic',
-    '仇恨犯罪', '网络暴力', '网暴', '人肉搜索', '恐同', '恐跨', '厌女', '性别对立'],
-  equality: ['gender pay gap', 'pay gap', 'workplace discrimination', 'women in politics', 'quota',
-    'childcare', 'care work',
+
+  /* 女性权利。生育权、身体自主、职场与校园的制度性歧视都并进来了。 */
+  rights: ['women\'s rights', 'gender equality', 'womens rights', 'feminist', 'feminism',
+    'abortion', 'reproductive rights', 'contraception', 'maternal', 'sterilisation', 'sterilization',
+    'surrogacy', 'menstrual', 'gender pay gap', 'pay gap', 'workplace discrimination',
+    'women in politics', 'gender quota', 'childcare', 'care work', 'maternity leave',
+    'guardianship', 'divorce law', 'dowry', 'inheritance law',
+    '女权', '女性主义', '妇女权益', '婦女權益', '性别平等', '性別平等', '性别歧视', '性別歧視',
+    '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主', '月经',
     '同工同酬', '职场歧视', '就业歧视', '育儿', '照护', '女性参政', '玻璃天花板',
-    '女性就业', '婚育歧视'],
-  displacement: ['refugee women', 'asylum', 'trafficking', 'conflict-related sexual violence', 'statelessness',
-    '难民', '庇护', '人口贩运', '无国籍', '移工', '战时性暴力'],
-  movement: ['feminist movement', 'womens movement', "women's march", 'metoo', '#metoo',
-    '女权运动', '米兔', 'MeToo', '妇女运动', '女性主义者'],
+    '女性就业', '婚育歧视', '监护权', '离婚冷静期', '彩礼', '财产继承'],
+
+  /* LGBTQIA+ 权益。跨性别权利与医疗并进来了。 */
+  lgbtq: ['lgbt', 'lgbtq', 'lgbtqia', 'queer', 'gay rights', 'same-sex', 'marriage equality',
+    'transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
+    'intersex', 'conversion therapy', 'pride parade', 'coming out',
+    '同性', '同志', '性少数', '性少數', '婚姻平权', '同婚', '性别认同', '性別認同',
+    '彩虹', '出柜', '性倾向', '性傾向', '跨性别', '跨性別', '变性', '性别重置',
+    '性别承认', '非二元', '性別友善', '扭转治疗', '双性人'],
+
+  hate: ['hate crime', 'online abuse', 'doxxing', 'anti-lgbt', 'homophobic', 'transphobic',
+    'harassment campaign', 'death threats', 'platform moderation',
+    '仇恨犯罪', '网络暴力', '網絡暴力', '网暴', '人肉搜索', '恐同', '恐跨', '死亡威胁'],
+
+  displacement: ['refugee women', 'asylum', 'conflict-related sexual violence', 'statelessness',
+    'displaced women', 'migrant women', 'war crimes',
+    '难民', '難民', '庇护', '庇護', '人口贩运', '无国籍', '移工', '战时性暴力', '流离失所'],
+
+  /*
+   * Incel 与厌女文化（站长后加）。
+   *
+   * 这一栏不是「针对某个人的仇恨」——那是 hate。这里要的是**有组织的厌女**：
+   * 论坛话术、男性导师产业、以及它怎么从线上走到线下。
+   * 所以收的是这套亚文化自己的黑话，那是它最好认的特征。
+   */
+  movement: ['feminist movement', "women's movement", 'metoo', '#metoo', 'womens march',
+    'trans-exclusionary', 'terf', 'intersectionality debate', 'funding cuts to women',
+    '女权运动', '女權運動', '米兔', 'MeToo', '妇女运动', '婦女運動', '女性主义者',
+    '运动内部', '運動內部', '排跨', '路线之争'],
+
+  incel: ['incel', 'manosphere', 'red pill', 'blackpill', 'black pill', 'mgtow',
+    'andrew tate', 'pickup artist', 'alpha male', 'toxic masculinity',
+    'misogyny', 'misogynist', 'male supremacist', 'looksmaxxing', 'femoid',
+    'men going their own way', 'anti-feminist', 'gender war',
+    '厌女', '厭女', '仇女', '男权', '男權', '性别对立', '性別對立',
+    '男性气概', '男德', '普信男', '女拳', '取关女权', '红药丸', '紅藥丸',
+    '兄弟会话术', '田园女权'],
 }
 
 /* ------------------------------------------------------------------ *

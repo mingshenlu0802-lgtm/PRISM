@@ -20,7 +20,7 @@ export function buildInitialState(): PrismState {
     studies: STUDIES.map((s) => ({ ...s })),
     collect: {
       regions: [...PRIORITY_REGIONS],
-      topics: ['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'],
+      topics: ['domestic', 'sexual', 'children', 'rights', 'lgbtq', 'hate', 'displacement', 'incel', 'movement'],
       mode: 'both',
       autoPublish: true,
       engine: 'qwen-open',

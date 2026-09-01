@@ -20,7 +20,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'peer-reviewed',
     date: '2026-08-20',
     regions: ['cn'],
-    topics: ['equality', 'movement'],
+    topics: ['rights', 'rights'],
     summary:
       '研究使用两轮时间利用调查的微观数据，估计城镇家庭中无偿照护时间的性别差距，并按有无学龄前子女、是否与父母同住分层。结果显示差距在有学龄前子女的家庭中最大，且与女性劳动参与率呈负相关。',
     limitation:
@@ -44,7 +44,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'official-statistics',
     date: '2026-08-14',
     regions: ['hk', 'tw', 'jpkr', 'cn'],
-    topics: ['trans', 'rights'],
+    topics: ['lgbtq', 'rights'],
     summary:
       '研究按统一编码规则，统计八个东亚法域完成法律性别变更所需的法定步骤数，并与实际完成率对照。编码规则与逐法域的条文引用一并公开，任何人都可以重新编码一遍。',
     limitation:
@@ -68,7 +68,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'peer-reviewed',
     date: '2026-07-30',
     regions: ['us'],
-    topics: ['violence'],
+    topics: ['sexual'],
     summary:
       '在多州急诊科实施统一筛查问卷，得到按区域分列的就诊率与 95% 置信区间。区域间差距大于此前行政数据所显示的差距，作者认为差异部分来自筛查覆盖率而非发生率本身。',
     limitation:
@@ -91,7 +91,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'dataset',
     date: '2026-07-02',
     regions: ['eu'],
-    topics: ['violence', 'equality'],
+    topics: ['sexual', 'rights'],
     summary:
       '各国登记在册的庇护床位数与成年女性人口之比，附各国的登记标准说明。数据以 CSV 与 API 两种形式开放，登记标准差异被单独列出而不是被平均掉。',
     limitation:
@@ -114,7 +114,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'peer-reviewed',
     date: '2026-06-18',
     regions: ['jpkr'],
-    topics: ['hate', 'movement'],
+    topics: ['hate', 'rights'],
     summary:
       '比较五种识别协同行为的方法，在有标注真值的数据集上报告各自的误判率，并说明在缺乏平台内部数据时哪些结论在方法上无法成立。',
     limitation:
@@ -136,7 +136,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'systematic-review',
     date: '2026-05-28',
     regions: ['global', 'sasia', 'africa'],
-    topics: ['repro', 'equality'],
+    topics: ['rights', 'rights'],
     summary:
       '汇总多个队列研究，估计行程距离与首次产检时间之间的关联，并按收入与户籍状态分层。分层分析让「距离」与「贫困」的效应可以部分分离。',
     limitation:
@@ -158,7 +158,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'official-statistics',
     date: '2026-05-10',
     regions: ['tw'],
-    topics: ['equality'],
+    topics: ['rights'],
     summary:
       '按县市与性别分列的中等教育入学、在学与辍学统计，附学籍登记规则与转学处理方式。以开放资料格式发布，可直接下载。',
     limitation:
@@ -180,7 +180,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'preprint',
     date: '2026-08-05',
     regions: ['sea'],
-    topics: ['displacement', 'equality'],
+    topics: ['displacement', 'rights'],
     summary:
       '对家务移工的抽样访谈调查，报告工时、休假与扣薪情况的自报数据，并与雇主端记录做部分对照。作者提出合规率的区间估计。',
     limitation:

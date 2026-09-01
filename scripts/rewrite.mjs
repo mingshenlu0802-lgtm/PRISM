@@ -34,7 +34,7 @@ const SHAPE = `
 KEEP: yes
 HEADLINE: 主标题
 SUBHEAD: 副标题，一句话
-TOPICS: violence, children
+TOPICS: sexual, children
 REGIONS: us
 BULLETS:
 - 要点一
@@ -53,7 +53,7 @@ SUMMARY:
 - 每一条候选都要有一个块，编号就是输入里的 i，顺序不变，不要增删。
 - 不符合方针的写 KEEP: no，其余字段可以留空。
 - SUMMARY 从冒号后**换行开始**，一直写到 ===END 为止。
-- TOPICS 只能从这些里选：violence children rights repro trans hate equality displacement movement
+- TOPICS 只能从这些里选：domestic sexual children rights lgbtq hate displacement incel movement
 - REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
@@ -102,7 +102,7 @@ async function runBatch(batch, ownerNote) {
 
 const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY']
 
-const TOPICS = new Set(['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'])
+const TOPICS = new Set(['domestic', 'sexual', 'children', 'rights', 'lgbtq', 'hate', 'displacement', 'incel', 'movement'])
 const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
 
 /**
@@ -293,7 +293,7 @@ KEEP: yes
 TITLE: 中文标题
 PUBLISHER: 中文机构名
 KIND: official-statistics
-TOPICS: violence, children
+TOPICS: sexual, children
 REGIONS: global
 FIGURES:
 - 指标名 | 数字带单位 | 这个数字没有说什么
@@ -307,7 +307,7 @@ SUMMARY:
 规则：
 - 每一项都要有一个块，编号是输入里的 i，顺序不变。不属于本站题目的写 KEEP: no。
 - KIND 只能是：peer-reviewed systematic-review official-statistics dataset ngo-report preprint
-- TOPICS 只能从这些里选：violence children rights repro trans hate equality displacement movement
+- TOPICS 只能从这些里选：domestic sexual children rights lgbtq hate displacement incel movement
 - REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global
 - FIGURES 里只放**原文里真的出现过的数字**，一行一个，三段用 | 隔开。
   原文没给数字就整个留空——编一个数字比没有数字糟糕得多。

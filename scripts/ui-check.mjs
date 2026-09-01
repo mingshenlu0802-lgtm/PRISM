@@ -71,7 +71,10 @@ const ROUTES = [
   ['news', '/news/cn-workplace-harassment-guideline'],
   ['region-cn', '/region/cn'],
   ['region-tw', '/region/tw'],
-  ['topic', '/topic/violence'],
+  ['topic', '/topic/sexual'],
+  // 旧议题名也要能打开：分类改过，而已经转发出去的链接不该变成空页。
+  ['topic-alias', '/topic/violence'],
+  ['studies-kind', '/studies/peer-reviewed'],
   ['studies', '/studies'],
   // 研究详情页是新加的（站长要研究「可以点进去」）。种子里第一项的 slug。
   ['study', '/study/cn-time-use-care-labour'],

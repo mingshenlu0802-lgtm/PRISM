@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { TOPIC_MAP } from '../../lib/constants'
+import { TOPIC_ALIAS } from '../../lib/types'
 import type { TopicKey } from '../../lib/types'
 import { usePrism } from '../../lib/store'
 import { usePageTitle } from '../../lib/title'
@@ -12,7 +13,15 @@ import './ListPage.css'
 export default function TopicPage(): JSX.Element {
   const { key } = useParams()
   const { state } = usePrism()
-  const topic = key ? TOPIC_MAP[key as TopicKey] : undefined
+  /*
+   * 旧议题名也要认。
+   *
+   * 分类改过两轮（violence 拆成 domestic/sexual，repro 并进 rights……），
+   * 而这个站是靠转发链接传播的——已经发出去的 /topic/violence
+   * 不该变成一个「没有这个议题」的空页。翻译一次就好。
+   */
+  const resolved = key ? ((TOPIC_ALIAS[key] ?? key) as TopicKey) : undefined
+  const topic = resolved ? TOPIC_MAP[resolved] : undefined
   usePageTitle(topic?.zh)
 
   if (!topic) {

@@ -9,6 +9,8 @@ import { EmptyState, Icon } from '../../components/common'
 import { NewsCard } from '../../components/site/NewsCard'
 import { StudyCard } from '../../components/site/StudyCard'
 import { FilterBar } from '../../components/site/FilterBar'
+import { Toll } from '../../components/site/Toll'
+import { RegionMap } from '../../components/site/RegionMap'
 import './HomePage.css'
 
 /**
@@ -91,6 +93,20 @@ export default function HomePage(): JSX.Element {
           {liveStudies.length > 0 && <> · {liveStudies.length} 项研究与数据</>}
         </p>
       </section>
+
+      {/*
+        * 数据块和地图只在**没有筛选**的时候出现。
+        * 读者点了「香港」，要的是香港的全部内容，不是先滚过一屏全球统计。
+        */}
+      {!filtering && (
+        <>
+          <Toll />
+          <section className="home__map" aria-labelledby="home-map">
+            <h2 className="home__sectitle" id="home-map">按地区看</h2>
+            <RegionMap counts={counts.regions} />
+          </section>
+        </>
+      )}
 
       {lead && (
         <section className="home__lead" aria-label="头条">

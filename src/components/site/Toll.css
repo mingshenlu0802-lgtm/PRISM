@@ -1,0 +1,48 @@
+/*
+ * 数据块。
+ *
+ * 深底色，让它在首页上「醒目」（站长的要求），同时把它和下面的新闻分开——
+ * 这不是今天的新闻，是长期的量级。
+ *
+ * 底色写死不跟随主题：这块的对比度是它唯一的作用，
+ * 让它在浅色和深色下变成两种观感，就失去意义了。
+ */
+.toll {
+  display: grid; gap: var(--s-4);
+  padding: var(--s-6) var(--s-5);
+  border-radius: var(--r-lg);
+  background: #14162E;
+  color: #F4F1EA;
+}
+@media (min-width: 700px) { .toll { padding: var(--s-7) var(--s-6); } }
+
+.toll__h {
+  font-size: var(--fs-md); font-weight: 700; letter-spacing: .01em;
+  color: #F4F1EA;
+}
+
+.toll__list {
+  display: grid; gap: var(--s-5);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 620px) { .toll__list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .toll__list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+.toll__item { display: grid; gap: 4px; align-content: start; }
+
+.toll__value {
+  font-size: var(--fs-2xl); font-weight: 800; line-height: 1.1;
+  letter-spacing: -0.01em;
+  /* 数字才是这块的主角，用暖白拉开层次。 */
+  color: #FFFFFF;
+}
+@media (min-width: 700px) { .toll__value { font-size: var(--fs-3xl); } }
+
+.toll__label { font-size: var(--fs-sm); line-height: 1.55; color: #DAD5C9; }
+.toll__src { font-size: var(--fs-2xs); color: #9A94A8; }
+
+.toll__note {
+  font-size: var(--fs-2xs); line-height: 1.6; color: #9A94A8;
+  border-top: 1px solid rgba(255, 255, 255, .12);
+  padding-top: var(--s-3);
+}
