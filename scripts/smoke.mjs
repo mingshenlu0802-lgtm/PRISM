@@ -1567,7 +1567,27 @@ await test('抠正文：要取最长的那个 article，还要认得 JSON-LD', (
   ok(!got.includes('相关报道'), '抠出来的不能是推荐卡')
   ok(got.startsWith('正文'), '要取最长的那个 article，不是第一个')
 
-  // 二、没有 <p>，只有 JSON-LD
+  /*
+   * 二、正文在 <main> 里，页面另有一个小 <article> 卡片。
+   *
+   * 「取最长的 article」修好了一半，另一半是：一旦页面里有任何 <article>，
+   * 就再也不去看 <main> 和整页了。于是正文用 <div>/<main> 排版、
+   * 旁边有一张推荐卡的站，抠到的还是那张卡。
+   *
+   * 现在按精确度先后试，谁先够 400 字用谁——**不是谁抠得多**：
+   * 按长度取会让「整页」永远赢，因为它把推荐卡一起抠进来了。
+   */
+  const small = '<article><p>推荐：一句话卡片。</p></article>'
+  const inMain = `<html><body>${small}<main>${long(12, '正文')}</main></body></html>`
+  const g2 = feedparse.articleText(inMain)
+  ok(g2.length > 400, `正文在 <main> 里也要抠得到，只拿到 ${g2.length} 字`)
+  ok(!g2.includes('推荐'), '不能抠到旁边那张小卡片')
+
+  // 三、既没有 <article> 也没有 <main>
+  const bare = `<html><body><div>${long(12, '正文')}</div></body></html>`
+  ok(feedparse.articleText(bare).length > 400, '只有 <div> 的页面也要抠得到')
+
+  // 四、没有 <p>，只有 JSON-LD
   const body = '检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪。'.repeat(20)
   const ld = (obj) => `<script type="application/ld+json">${JSON.stringify(obj)}</script>`
   const divOnly = `<html><head>${ld({ '@type': 'NewsArticle', articleBody: body })}</head><body><div>${body}</div></body></html>`
@@ -1576,11 +1596,11 @@ await test('抠正文：要取最长的那个 article，还要认得 JSON-LD', (
   const graph = `<html><head>${ld({ '@graph': [{ '@type': 'WebPage' }, { '@type': 'Article', articleBody: body }] })}</head><body></body></html>`
   ok(feedparse.articleText(graph).length > 400, '@graph 的写法也要认')
 
-  // 三、有 <p> 就用 <p>——那条路保住了段落结构，不能被 JSON-LD 顶掉
+  // 五、有 <p> 就用 <p>——那条路保住了段落结构，不能被 JSON-LD 顶掉
   const both = `<html><head>${ld({ '@type': 'NewsArticle', articleBody: '短的' })}</head><body><article>${long(12, '乙')}</article></body></html>`
   eq(feedparse.articleText(both).split('\n\n').length, 12, '有段落时要保住段落')
 
-  // 四、坏 JSON 不能把整轮抓取炸掉
+  // 六、坏 JSON 不能把整轮抓取炸掉
   const broken = `<html><head><script type="application/ld+json">{ 这不是 JSON }</script></head><body><p>短</p></body></html>`
   eq(feedparse.articleText(broken), '', '坏 JSON 要安静地跳过')
 })

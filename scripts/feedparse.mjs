@@ -130,8 +130,56 @@ export function articleText(html, limit = 6000) {
    */
   const blocks = [...h.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)].map((m) => m[1])
   const longest = blocks.sort((a, b) => b.length - a.length)[0]
-  const body = longest ?? (/<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(h)?.[1] ?? h)
 
+  /*
+   * 三个容器都试，取抠出来最多的那个。
+   *
+   * 上一版是 `longest ?? main ?? 整页`——**一旦页面里有任何 <article>，
+   * 就再也不会去看 <main> 和整页了**。而正文放在 <div> 里、页面另有一个
+   * 小小的 <article>（推荐卡、评论区）的站，抠到的就是那张卡片。
+   * 我修了「取第一个」，又在同一个地方留下了「只取一个」。
+   *
+   * 真实一轮的诊断说得很清楚：取不到正文的六次里，五次是「抠出来太少」，
+   * 只有一次是 HTTP 错误——不是被挡，是抠错了地方。
+   */
+  const containers = [
+    longest,
+    /<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(h)?.[1],
+    h,
+  ].filter(Boolean)
+
+  /*
+   * **按精确度先后试，不是按谁抠得多。**
+   *
+   * 第一版是「三个都抠，取最长的」，结果整页那一个总是赢——它把正文和
+   * 前面几张推荐卡一起抠了出来，比只有正文的那个长。于是「相关报道：……」
+   * 又回到了稿子里，正是上一个提交刚修掉的东西。
+   *
+   * 所以顺序是 <article> → <main> → 整页，谁先够 400 字就用谁；
+   * 都不够时才退回最长的那个，聊胜于无。
+   */
+  const tries = containers.map((c) => paragraphsOf(c, limit))
+  const enough = tries.find((t) => t.length >= 400)
+  if (enough) return enough.slice(0, limit)
+  const best = [...tries].sort((a, b) => b.length - a.length)[0] ?? ''
+
+  /*
+   * <p> 抠不出东西时，再试 JSON-LD。
+   *
+   * 多数新闻站会在页面里塞一段 schema.org 的 NewsArticle，把**正文原文**
+   * 放在 articleBody 字段里——那是给搜索引擎看的，比 HTML 干净得多，
+   * 也不受人家用 <div> 还是 <p> 排版的影响。
+   *
+   * 只在前一条路走不通时才用：<p> 那条路保住了段落结构，而这里拿到的是
+   * 一整块，段落要靠换行猜。
+   */
+  const ld = jsonLdBody(String(html))
+  if (ld && ld.length > best.length) return ld.slice(0, limit)
+  return best.slice(0, limit)
+}
+
+/** 从一个容器里把像正文的段落挑出来。 */
+function paragraphsOf(body, limit) {
   const paras = []
   for (const m of body.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)) {
     const t = strip(m[1])
@@ -151,22 +199,7 @@ export function articleText(html, limit = 6000) {
     paras.push(t)
     if (paras.join('\n\n').length > limit) break
   }
-  const out = paras.join('\n\n')
-  if (out.length >= 400) return out.slice(0, limit)
-
-  /*
-   * <p> 抠不出东西时，再试 JSON-LD。
-   *
-   * 多数新闻站会在页面里塞一段 schema.org 的 NewsArticle，把**正文原文**
-   * 放在 articleBody 字段里——那是给搜索引擎看的，比 HTML 干净得多，
-   * 也不受人家用 <div> 还是 <p> 排版的影响。
-   *
-   * 只在前一条路走不通时才用：<p> 那条路保住了段落结构，而这里拿到的是
-   * 一整块，段落要靠换行猜。
-   */
-  const ld = jsonLdBody(String(html))
-  if (ld && ld.length > out.length) return ld.slice(0, limit)
-  return out.slice(0, limit)
+  return paras.join('\n\n')
 }
 
 /** 从 schema.org 的 NewsArticle / Article 里取 articleBody。 */
