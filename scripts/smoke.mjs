@@ -28,7 +28,7 @@ const m = await import(pathToFileURL(bundle).href)
 const { buildInitialState, reducer, accessOf, collect, planSteps,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
-        parsePasted } = m
+        parsePasted, friendly } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -607,6 +607,24 @@ await test('粘进来的 Secret key 照样会被拦下', () => {
   const r = parsePasted('https://abc.supabase.co\nsb_secret_' + 'x'.repeat(40))
   ok(r.anonKey.startsWith('sb_secret_'), '应当认出这一串')
   ok(keyDanger(r.anonKey), '认出来之后必须立刻被判危险')
+})
+
+await test('发信被限流时，说的等待时间必须是对的', () => {
+  /*
+   * 这两种限流的等待时间差了两个数量级，说错了就是把人支去白等：
+   * 短冷却是几十秒，发信配额是按小时算的。
+   * 站长真的照着「等一分钟再试」一分钟试一次，每次都失败。
+   */
+  const cool = friendly(new Error('For security purposes, you can only request this after 41 seconds.'))
+  ok(cool.includes('41'), '短冷却要照搬服务器给的秒数，不要自己编一个')
+  ok(!cool.includes('额度'), '短冷却不是额度问题，别混为一谈')
+
+  for (const raw of ['email rate limit exceeded', 'over_email_send_rate_limit']) {
+    const quota = friendly(new Error(raw))
+    ok(quota.includes('额度'), `「${raw}」要认成发信额度用完`)
+    ok(!/等一分钟再试/.test(quota), '不能再说「等一分钟」——配额是按小时刷新的')
+    ok(/SMTP/i.test(quota), '要说出真正的出路：配自己的 SMTP')
+  }
 })
 
 /* ------------------------------ 结果 ------------------------------ */
