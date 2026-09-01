@@ -21,24 +21,48 @@
   color: #F4F1EA;
 }
 
+/*
+ * 手机上分两列，第一条通栏。
+ *
+ * 五条数字一条一行，在手机上这一块有 664px 高——加上下面的地图，
+ * 读者要划过一屏半才看得到今天的第一条新闻。这是一个新闻站的首页，
+ * 数字是引子，不是内容。
+ *
+ * 第一条通栏、其余两列，高度差不多减半，而「醒目」这一点没有丢：
+ * 最大的那个数字仍然独占一行，剩下四条是它的注脚。
+ */
 .toll__list {
-  display: grid; gap: var(--s-5);
-  grid-template-columns: 1fr;
+  display: grid; gap: var(--s-4) var(--s-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-@media (min-width: 620px) { .toll__list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 1000px) { .toll__list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.toll__item:first-child { grid-column: 1 / -1; }
+@media (max-width: 359px) { .toll__list { grid-template-columns: 1fr; } }
+@media (min-width: 620px) { .toll__list { gap: var(--s-5); } }
+@media (min-width: 1000px) {
+  .toll__list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .toll__item:first-child { grid-column: auto; }
+}
 
-.toll__item { display: grid; gap: 4px; align-content: start; }
+.toll__item { display: grid; gap: 3px; align-content: start; }
 
 .toll__value {
-  font-size: var(--fs-2xl); font-weight: 800; line-height: 1.1;
+  font-size: var(--fs-lg); font-weight: 800; line-height: 1.15;
   letter-spacing: -0.01em;
   /* 数字才是这块的主角，用暖白拉开层次。 */
   color: #FFFFFF;
 }
-@media (min-width: 700px) { .toll__value { font-size: var(--fs-3xl); } }
+/* 领头那个数字要比其余的大——这一块的「醒目」全靠它。 */
+.toll__item:first-child .toll__value { font-size: var(--fs-2xl); }
+@media (min-width: 700px) {
+  .toll__value { font-size: var(--fs-2xl); }
+  .toll__item:first-child .toll__value { font-size: var(--fs-3xl); }
+}
+@media (min-width: 1000px) {
+  .toll__value, .toll__item:first-child .toll__value { font-size: var(--fs-3xl); }
+}
 
-.toll__label { font-size: var(--fs-sm); line-height: 1.55; color: #DAD5C9; }
+.toll__label { font-size: var(--fs-xs); line-height: 1.5; color: #DAD5C9; }
+@media (min-width: 700px) { .toll__label { font-size: var(--fs-sm); line-height: 1.55; } }
 .toll__src { font-size: var(--fs-2xs); color: #9A94A8; }
 
 .toll__note {

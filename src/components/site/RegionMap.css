@@ -20,11 +20,11 @@
 .rmap__grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-auto-rows: 46px;
-  gap: 6px;
+  grid-auto-rows: 40px;
+  gap: 5px;
 }
-@media (min-width: 700px) { .rmap__grid { grid-auto-rows: 58px; gap: 8px; } }
-@media (min-width: 1000px) { .rmap__grid { grid-auto-rows: 64px; } }
+@media (min-width: 700px) { .rmap__grid { grid-auto-rows: 50px; gap: 7px; } }
+@media (min-width: 1000px) { .rmap__grid { grid-auto-rows: 56px; } }
 
 .rmap__tile {
   position: relative;
@@ -77,9 +77,13 @@
 }
 
 /*
- * 触屏。单行的那几块（日韩、台湾、香港、南亚）高 46px，过了 44px 的线；
- * 其余都跨两行，更大。间距收窄一点，免得六列把每格压得太窄。
+ * 触屏。单行的那几块（日韩、台湾、香港、南亚）在手机上高 40px，
+ * 差 44px 那条线一点，所以触屏上把行高补回 44px——只在真的用手指点的
+ * 设备上补，桌面仍然是紧凑的 40px。
  */
+@media (pointer: coarse) {
+  .rmap__grid { grid-auto-rows: 44px; }
+}
 @media (pointer: coarse) and (max-width: 420px) {
   .rmap__grid { gap: 4px; }
 }
