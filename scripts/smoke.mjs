@@ -692,6 +692,34 @@ await test('地区认得出来，认不出来就用来源默认的', () => {
     '认不出来时退回来源本来覆盖的地区，而不是留空')
 })
 
+await test('第一次真实抓取里归错的那几条，不能再错', () => {
+  /*
+   * 这些标题是 2026-09-01 那次演练真的抓回来的，也真的归错了。
+   * 根因是英文按子串匹配：`mexico` 撞进「New Mexico」，
+   * `america` 把「Latin America」整片吃成美国。
+   */
+  const r = (title) => feedparse.regionsOf({ title, summary: '' }, { regions: [] })
+
+  ok(r('A middle schooler said she was raped. New Mexico Title IX').includes('us'),
+    '新墨西哥州是美国，不是墨西哥')
+  ok(!r('A middle schooler said she was raped. New Mexico Title IX').includes('latam'),
+    '尤其不该同时被算成拉美')
+  ok(r('Ecuador: New Adoption Law Entrenches Bias').includes('latam'), '厄瓜多尔是拉美')
+  ok(r('Texas law banning drag shows struck down').includes('us'), '德州是美国')
+  ok(r('Latin America sees rise in femicide').includes('latam'),
+    '「Latin America」不该被 america 吃成美国')
+  eq(r('Dolly Parton, unabashedly herself').length, 0,
+    '认不出地区就该留空，交给来源的默认值，而不是乱配')
+})
+
+await test('中文和英文的匹配方式必须分开', () => {
+  // 中文没有词边界，英文有——用错一边就会大面积误判。
+  ok(feedparse.matches('跨性别者就医', '跨性别'), '中文按子串找')
+  ok(feedparse.matches('a gay rights ruling', 'gay rights'), '英文词组要能匹配')
+  ok(!feedparse.matches('the therapist said', 'rape'), '英文不能子串乱撞（therapist 里没有 rape）')
+  ok(!feedparse.matches('ukraine war', 'uk'), '短缩写不能撞进别的词里')
+})
+
 await test('slug 能进网址，中文也不会变成空串', () => {
   ok(/^[a-z0-9-]+$/.test(feedparse.slugify('Court Strikes Down Ban!')), '英文标题要变成干净的 slug')
   ok(feedparse.slugify('跨性别者就医权益').length > 0, '中文标题不能被清成空串')
