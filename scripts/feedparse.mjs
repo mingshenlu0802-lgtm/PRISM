@@ -200,6 +200,24 @@ export function topicsOf(entry) {
     .map(([k]) => k)
 }
 
+/**
+ * 是**哪个词**把这条收进来的。
+ *
+ * 只在演练里用。上一轮我改掉了裸的 'coming out'，跑完发现美联社那条
+ * 「秋季新片上映指南」还在名单上——我在本地只试了标题，而 topicsOf 连
+ * 摘要一起看，真正命中的那个词我根本不知道是哪一个，只能再猜一轮。
+ *
+ * 「这条为什么被收进来」应该是日志能直接回答的问题，不是猜谜。
+ */
+export function matchedWords(entry) {
+  const h = hay(entry)
+  const out = []
+  for (const [topic, words] of Object.entries(TOPIC_WORDS)) {
+    for (const w of words) if (matches(h, w)) out.push(`${topic}:${w}`)
+  }
+  return out
+}
+
 export function regionsOf(entry, feed) {
   const h = hay(entry)
   const hit = Object.entries(REGION_WORDS)

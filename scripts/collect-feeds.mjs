@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
+import { parseFeed, topicsOf, matchedWords, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
@@ -318,6 +318,12 @@ if (DRY) {
   for (const p of picked.slice(0, 20)) {
     console.log(`  [${p.regions.join(',')}] ${p.title.slice(0, 70)}`)
     console.log(`     ${p.feed.outlet} · ${p.link.slice(0, 90)}`)
+    // 综合源是靠关键词收进来的，那就说清楚是哪个词——不然发现误收之后
+    // 只能一个一个词去猜。专题源整版都算，没有词可报。
+    if (!p.feed.topical) {
+      const hits = matchedWords({ title: p.title, summary: p.summary })
+      console.log(`     命中：${hits.slice(0, 4).join('、') || '（无）'}`)
+    }
   }
   process.exit(dead.length === FEEDS.length ? 1 : 0)
 }
