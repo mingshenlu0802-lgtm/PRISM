@@ -174,8 +174,17 @@ create policy site_write    on public.site    for all
 -- The member list is NOT public. It holds other people's email addresses,
 -- which are theirs, not the site's. Only signed-in members see it; only the
 -- owner changes it.
+--
+-- The test has to go through my_role(). Inlining a select over members here
+-- would make the policy read the table it guards, and Postgres refuses with
+-- "infinite recursion detected in policy for relation members". Nothing can
+-- then read the list at all — and the cost is not a missing list. The site
+-- learns who you are from that read, so the owner signs in, the site cannot
+-- tell it is them, and the console entry never appears: locked out of their
+-- own desk while apparently logged in. my_role() is security definer, so it
+-- bypasses RLS and cannot recurse.
 create policy members_read  on public.members for select
-  using (exists (select 1 from public.members m where m.email = public.me()));
+  using (public.my_role() is not null);
 create policy members_write on public.members for all
   using (public.is_owner()) with check (public.is_owner());
 

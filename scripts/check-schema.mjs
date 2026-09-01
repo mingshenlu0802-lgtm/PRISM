@@ -31,7 +31,8 @@ const mustHave = [
   [/create policy news_read\s+on public\.news\s+for select using \(true\)/, '新闻应当对所有人可读'],
   [/create policy studies_read\s+on public\.studies\s+for select using \(true\)/, '研究应当对所有人可读'],
   // 但名单和日志不行：名单里是别人的邮箱
-  [/create policy members_read[\s\S]{0,200}public\.me\(\)/, '成员名单不该对所有人可读'],
+  // 认 my_role()：直接内联 members 子查询会触发策略递归，见 schema.sql 里的说明。
+  [/create policy members_read[\s\S]{0,300}public\.(me|my_role)\(\)/, '成员名单不该对所有人可读'],
   [/create policy changes_read\s+on public\.changes\s+for select using \(public\.can_edit\(\)\)/, '编辑日志不该对所有人可读'],
   // 写入一律要权限
   [/create policy news_write[\s\S]{0,120}can_edit/, '新闻写入必须要编辑权限'],
