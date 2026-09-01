@@ -1214,6 +1214,69 @@ await test('一家媒体不该霸占首页', () => {
     '轮转不能把性犯罪优先挤掉')
 })
 
+await test('司法词不能单独决定议题——真实抓取里捞回来的全是无关刑案', () => {
+  /*
+   * 加进 8 家综合大报之后的第一次演练，词表里的司法词（guilty / arrested /
+   * settlement / on trial）把这些捞了回来。最后一条最能说明问题：
+   * 法律意义的「和解 settlement」撞上了以色列的「定居点 settlement」。
+   *
+   * 所以司法词只留在 ACCUSATION 里判断「这是不是一桩案子」（排序用），
+   * 不再决定议题。议题要靠行为本身。
+   */
+  const off = feedparse.topicsOf
+  const noise = [
+    'Tupac murder trial: Ex-gang leader found guilty',
+    'Football hooligan gang chief arrested over ecstasy ring from Spain',
+    'Man Arrested in Switzerland After Deadly Shooting at Rave',
+    'Irish minister calls for EU action in banning Israeli settlement trade',
+    'Zambia president inaugurated for second term after disputed vote',
+    'Alleged Charlie Kirk killer faces judgment on standing trial',
+  ]
+  for (const title of noise) {
+    eq(off({ title, summary: '' }).length, 0, `不该收：${title.slice(0, 40)}`)
+  }
+
+  // 但真正的性犯罪报道一条都不能漏——同样是这次演练里的真标题。
+  const keep = [
+    'Ex-prosecutor who accused boss of rape urges reform',
+    'A middle schooler said she was raped. Then she was suspended from class',
+    'Sexual assaults happening almost every day in Ceuta, prosecutors say',
+    '匡智會助理舍監涉強姦女院友　官引導陪審團',
+  ]
+  for (const title of keep) {
+    ok(off({ title, summary: '' }).includes('sexual'), `该收：${title.slice(0, 40)}`)
+  }
+
+  // isCase 仍然认得司法进展——排序要用它把案子排在前面。
+  ok(feedparse.isCase({ title: 'Man convicted of sexual assault', summary: '' }),
+    '司法信号还在，只是不再决定议题')
+})
+
+await test('英文的复数要认得出来', () => {
+  /*
+   * 「Sexual assaults happening almost every day in Ceuta」——词表写的是
+   * 'sexual assault'，词边界卡在 assault 后面，一个复数的 s 就让整条落选。
+   * 一篇讲一个城市几乎天天发生性侵的报道，因为多了一个字母没被收。
+   */
+  ok(feedparse.matches('sexual assaults reported daily', 'sexual assault'), '复数要匹配')
+  ok(feedparse.matches('a sexual assault case', 'sexual assault'), '单数当然要匹配')
+  ok(feedparse.matches('hate crimes rose', 'hate crime'), 'hate crimes 也一样')
+
+  // 但只放开一个 s，不要变成前缀匹配。
+  ok(!feedparse.matches('assaulted her', 'assault'), '不能变成前缀匹配')
+  ok(!feedparse.matches('rapeseed oil prices', 'rape'), '不能匹配到别的词里去')
+  ok(!feedparse.matches('trafficked goods', 'trafficking'), '词形变化不是复数，不该放开')
+
+  /*
+   * 「New Mexico」这类不是靠词边界解决的——mexico 前后都是空格，
+   * 边界拦不住。它由 regionsOf 在匹配前把整个词组改写成 United States，
+   * 见那边的注释。这里只确认这条路仍然有效。
+   */
+  const nm = feedparse.regionsOf({ title: 'Assault at a New Mexico middle school', summary: '' }, { regions: ['global'] })
+  ok(nm.includes('us'), 'New Mexico 要算美国')
+  ok(!nm.includes('latam'), 'New Mexico 不能算拉丁美洲')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

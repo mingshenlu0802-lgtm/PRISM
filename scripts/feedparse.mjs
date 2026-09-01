@@ -174,7 +174,18 @@ const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export function matches(h, word) {
   const w = word.toLowerCase()
   if (CJK.test(w)) return h.includes(w)
-  return new RegExp(`(^|[^a-z0-9])${esc(w)}([^a-z0-9]|$)`).test(h)
+  /*
+   * 英文允许一个复数的 s。
+   *
+   * 真实抓取里漏掉过这一条：
+   *   Sexual assaults happening almost every day in Ceuta
+   * 词表写的是 'sexual assault'，词边界卡在 assault 后面，
+   * 复数的 s 让整条新闻落选——一篇讲一个城市几乎天天发生性侵的报道。
+   *
+   * 只放开这一个字母，不做词干还原：那需要一整套规则，
+   * 而这里要解决的就是单复数。中文没有这个问题，所以只动英文这一支。
+   */
+  return new RegExp(`(^|[^a-z0-9])${esc(w)}s?([^a-z0-9]|$)`).test(h)
 }
 
 export const hay = (e) => `${e.title} ${e.summary}`

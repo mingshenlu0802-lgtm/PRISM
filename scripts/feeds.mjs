@@ -205,15 +205,31 @@ export const TOPIC_WORDS = {
     'rape', 'raped', 'femicide', 'sexual harassment',
     'honour killing', 'honor killing', 'groping', 'stalking', 'revenge porn', 'image-based abuse',
     'trafficking',
-    // 司法程序：案子进到哪一步，往往就是标题本身
-    'charged with', 'indicted', 'convicted', 'sentenced', 'acquitted', 'on trial', 'verdict',
-    'guilty', 'prosecutors', 'lawsuit', 'sues', 'settlement', 'appeal', 'arrested',
-    'accused of', 'allegation', 'accuser', 'testified', 'court heard',
+    /*
+     * 这里原本还有一整段司法词：charged with / convicted / sentenced /
+     * guilty / arrested / settlement / on trial……
+     *
+     * 加它们的理由是对的：一件性侵案上新闻，标题往往是「某某被判刑」
+     * 而不是「性侵」。但**司法词不能单独成立**——加进 8 家综合大报之后，
+     * 一次演练里它们捞回来的是：
+     *
+     *   Tupac murder trial: Ex-gang leader found guilty        （guilty）
+     *   Football hooligan gang chief arrested over ecstasy ring （arrested）
+     *   Irish minister calls for EU action ... settlement trade （settlement！）
+     *
+     * 最后那条最能说明问题：法律意义的「和解」撞上了以色列的「定居点」。
+     * 一个议题词表，捞回来的全是跟性别无关的刑案和国际政治。
+     *
+     * 所以司法词整段搬去 feedparse 的 ACCUSATION，只用来判断
+     * 「这条讲的是一桩案子吗」——那是排序用的信号（司法进展优先），
+     * 不再是「这条属于哪个议题」的依据。
+     * 判定议题要靠行为本身：强奸、性侵、家暴、性骚扰。
+     */
     '性暴力', '性侵', '性侵犯', '性虐待', '性骚扰', '性騷擾', '强奸', '強姦', '猥亵',
     '杀害女性', '拐卖妇女', '迷奸', '偷拍', '性剥削', '诱奸', '权势性侵',
-    // 司法
-    '起诉', '起訴', '被控', '被指控', '判刑', '定罪', '无罪', '無罪', '开庭', '開庭',
-    '检方', '檢方', '一审', '二审', '上诉', '和解', '逮捕', '刑事', '民事诉讼', '出庭作证'],
+    // 中文的司法词同理搬走了。「和解」「上诉」「逮捕」放在这里，
+    // 会把所有刑案都收成性犯罪。
+    '性侵案', '性騷擾案', '强奸案', '強姦案', '猥亵案'],
 
   /*
    * 儿童。词表刻意**不收裸的 child / 儿童**——综合源要命中关键词才会被收进来，
