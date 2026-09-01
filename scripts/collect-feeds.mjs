@@ -325,7 +325,21 @@ if (picked2.length > poolSize) {
   picked2 = picked2.slice(0, poolSize)
 }
 
-if (llmConfigured()) {
+/*
+ * 演练时不叫模型。
+ *
+ * 演练是用来看「哪些源还活着、抓到了什么」的——写完两千字再全部扔掉，
+ * 是拿站长的余额买一份不会上线的稿子。源清单从 27 涨到 58 之后，
+ * 光验证地址就得跑好几次演练，这笔钱没有必要花。
+ *
+ * 真想在演练里看模型写成什么样，设 LLM_IN_DRY=1。
+ */
+const useModel = llmConfigured() && (!DRY || process.env.LLM_IN_DRY === '1')
+if (DRY && llmConfigured() && !useModel) {
+  console.log('（演练）跳过模型：只看抓到什么。要连模型一起演练，设 LLM_IN_DRY=1。')
+}
+
+if (useModel) {
   const note = await ownerNote()
   if (note) console.log(`站长本次指示：${note}`)
   picked2 = await rewriteAll(picked2, note, MAX_ITEMS, { onPicked: hydrate })
