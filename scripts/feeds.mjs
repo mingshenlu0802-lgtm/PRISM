@@ -106,6 +106,32 @@ export const FEEDS = [
     note: '拉美女性主义媒体，西语。翻译交给模型。' },
   { id: 'gaytimes', outlet: 'GAY TIMES', url: ['https://www.gaytimes.com/feed/', 'https://www.gaytimes.co.uk/feed/'], regions: ['eu'], topical: true, lang: 'en',
     note: '英国 LGBTQIA+ 刊物。' },
+  /*
+   * 补上来的一批。
+   *
+   * Openly 和 The Lily 停刊、Women's Media Center 和 Context 的地址怎么试都
+   * 是 404，而站长要的是「主流媒体 + **大量**女性主义 lgbtqia团体的媒体」。
+   * 少了四家就得补回来，而且要补在原来薄的地方：非洲、拉美、南亚的
+   * LGBTQIA+ 报道，以及劳工与移民口的性别报道。
+   *
+   * 这几家我在这个沙箱里验证不了（没有出网），所以每一家都写了备用地址，
+   * 下一次演练的报告会说哪一个通。
+   */
+  { id: 'lgbtq-nation', outlet: 'LGBTQ Nation', url: ['https://www.lgbtqnation.com/feed/', 'https://www.lgbtqnation.com/rss'], regions: ['us'], topical: true, lang: 'en',
+    note: '美国 LGBTQIA+ 日报，立法与仇恨犯罪跟得紧。' },
+  { id: 'washington-blade', outlet: 'Washington Blade', url: ['https://www.washingtonblade.com/feed/', 'https://www.washingtonblade.com/rss'], regions: ['us', 'global'], topical: true, lang: 'en',
+    note: '美国最老的 LGBTQIA+ 报纸，有华盛顿的政治线，也做国际报道。' },
+  { id: '76crimes', outlet: 'Erasing 76 Crimes', url: ['https://76crimes.com/feed/', 'https://76crimes.com/rss'], regions: ['africa', 'global'], topical: true, lang: 'en',
+    note: '专门跟踪把同性关系入罪的国家，非洲与加勒比的覆盖别处很难找到。' },
+  { id: 'womens-agenda', outlet: "Women's Agenda（澳）", url: ['https://womensagenda.com.au/feed/', 'https://womensagenda.com.au/rss'], regions: ['anz'], topical: true, lang: 'en',
+    note: '澳大利亚的女性议题媒体。原来这个地区只有卫报澳洲版一家。' },
+  { id: 'globalvoices-gender', outlet: 'Global Voices · 性别', url: ['https://globalvoices.org/-/topics/women-gender/feed/', 'https://globalvoices.org/feed/'], regions: ['global'], topical: true, lang: 'en',
+    note: '全球公民记者网络的性别专题，覆盖大报不去的地方，稿件都注明译者与来源。' },
+  { id: 'ips-gender', outlet: 'IPS 国际新闻社 · 性别', url: ['https://www.ipsnews.net/news/gender/feed/', 'https://www.ipsnews.net/feed/'], regions: ['global', 'latam'], topical: true, lang: 'en',
+    note: '全球南方视角的通讯社，性别与发展是它的常设线。' },
+  { id: 'opendemocracy-5050', outlet: 'openDemocracy 5050', url: ['https://www.opendemocracy.net/en/5050/feed/', 'https://www.opendemocracy.net/en/feed/'], regions: ['global', 'eu'], topical: true, lang: 'en',
+    note: '5050 是它的性别与性权利专栏，做过多次跨国调查报道。' },
+
   { id: 'autostraddle', outlet: 'Autostraddle', url: 'https://www.autostraddle.com/feed/', regions: ['us'], topical: true, lang: 'en',
     note: '女同志与酷儿女性的独立媒体。' },
 
@@ -140,11 +166,11 @@ export const FEEDS = [
    */
   { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: ['https://hotline.org.tw/feed', 'https://hotline.org.tw/rss', 'https://hotline.org.tw/news/feed', 'https://hotline.org.tw/blog/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '台湾历史最久的同志权益组织，法案与个案协助的一手记录。' },
-  { id: 'awakening-tw', outlet: '婦女新知基金會', url: ['https://www.awakening.org.tw/feed', 'https://www.awakening.org.tw/rss', 'https://www.awakening.org.tw/news/feed', 'https://www.awakening.org.tw/feed/rss'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'awakening-tw', outlet: '婦女新知基金會', url: ['https://www.awakening.org.tw/feed', 'https://www.awakening.org.tw/rss', 'https://www.awakening.org.tw/?feed=rss2', 'https://www.awakening.org.tw/rss.xml', 'https://www.awakening.org.tw/index.php/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '台湾妇运的老牌团体，长期做修法倡议，法条讨论写得细。' },
-  { id: 'twrf', outlet: '婦女救援基金會', url: ['https://www.twrf.org.tw/feed', 'https://www.twrf.org.tw/rss', 'https://www.twrf.org.tw/news/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'twrf', outlet: '婦女救援基金會', url: ['https://www.twrf.org.tw/feed', 'https://www.twrf.org.tw/rss', 'https://www.twrf.org.tw/?feed=rss2', 'https://www.twrf.org.tw/rss.xml', 'https://www.twrf.org.tw/index.php/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '性暴力与人口贩运的服务机构，个案与统计都出自实务。' },
-  { id: 'mwf-tw', outlet: '現代婦女基金會', url: ['https://www.38.org.tw/feed', 'https://www.38.org.tw/rss', 'https://www.38.org.tw/news/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'mwf-tw', outlet: '現代婦女基金會', url: ['https://www.38.org.tw/feed', 'https://www.38.org.tw/rss', 'https://www.38.org.tw/?feed=rss2', 'https://www.38.org.tw/rss.xml', 'https://www.38.org.tw/index.php/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '家暴与性侵害防治，台湾相关立法的主要推动者之一。' },
   { id: 'tgeea', outlet: '台灣性別平等教育協會', url: 'https://www.tgeea.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '性别平等教育，校园性侵与性骚扰的处理机制。对应「儿童」议题。' },
