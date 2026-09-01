@@ -28,6 +28,15 @@ export function BackendSetup(): JSX.Element {
   const [copied, setCopied] = useState(false)
   const [saving, setSaving] = useState(false)
   const [published, setPublished] = useState<string | null>(null)
+  const [siteCopied, setSiteCopied] = useState(false)
+
+  /*
+   * 这个网站自己的地址，也就是登录链接该跳回来的地方。
+   *
+   * 跟 session.ts 里 sendLink() 传给 emailRedirectTo 的是同一个值——必须一致，
+   * 否则填进 Supabase 的白名单是另一串，照样不管用。
+   */
+  const siteUrl = typeof document === 'undefined' ? '' : new URL('.', document.baseURI).href
 
   /*
    * 已经配置过的话，把现有的值填回来，方便核对和修改。
@@ -91,9 +100,20 @@ export function BackendSetup(): JSX.Element {
       return
     }
     saveLocal({ url: cfg.url.trim(), anonKey: cfg.anonKey.trim() })
-    // 整个网站要按共享模式重新起来，最干净的做法是重新载入。
-    // 用 assign 而不是 reload：在 iframe 预览里 reload 有时会留下一个空白框。
-    window.location.assign(window.location.href)
+    /*
+     * 整个网站要按共享模式重新起来，最干净的做法是重新载入。
+     *
+     * 这里必须用 reload()。曾经写的是 assign(location.href)，为的是躲开
+     * 「在 iframe 预览里 reload 有时会留下一个空白框」——但这个网站是 hash 路由，
+     * 控制端的地址永远带 `#/console/manage`。跳到一个**连 hash 都完全相同**的地址，
+     * 浏览器判定为同文档内的片段跳转，**根本不会重新加载**。
+     * 于是站长填对了两串、按下按钮，屏幕上什么都不发生——配置其实已经存进去了，
+     * 只是网站没有重新起来，看上去就是「连不上」。
+     *
+     * 而躲 iframe 的那个理由也早就不成立了：上面的 inSandboxFrame() 已经提前 return，
+     * 预览环境走不到这一行。
+     */
+    window.location.reload()
   }
 
   async function publishConfig() {
@@ -147,7 +167,7 @@ export function BackendSetup(): JSX.Element {
       )}
 
       <details className="mng__setup" open={mode !== 'shared'}>
-        <summary>四步接上（约十五分钟，只做一次）</summary>
+        <summary>五步接上（约十五分钟，只做一次）</summary>
         <ol className="mng__steps">
           <li>
             打开 <a href="https://supabase.com" target="_blank" rel="noreferrer">supabase.com</a> 注册，
@@ -225,6 +245,36 @@ export function BackendSetup(): JSX.Element {
             <span className="mng__stepwhy">
               这两串是公开的，可以放心提交进仓库——它们不授予任何权限，
               能不能读写完全取决于你登录后的身份和第 2 步建好的规则。
+            </span>
+          </li>
+          <li>
+            回 Supabase，左边点 <strong>Authentication</strong> →
+            <strong> URL Configuration</strong>，把下面这个地址填进
+            <strong> Site URL</strong>，并且在 <strong>Redirect URLs</strong> 里<strong>也加一条</strong>。
+            <div className="bke__site">
+              <code className="bke__siteurl">{siteUrl || '（打开你自己的网址时这里会显示它）'}</code>
+              <button
+                type="button"
+                className="mng__solid"
+                disabled={!siteUrl}
+                onClick={() => {
+                  void navigator.clipboard?.writeText(siteUrl)
+                    .then(() => { setSiteCopied(true); toast('地址已复制，去 Supabase 粘贴。', 'go') })
+                    .catch(() => toast('复制不了，手动选中上面那一串。', 'warn'))
+                }}
+              >
+                <Icon name="link" size={14} />{siteCopied ? '已复制 ✓' : '复制这个地址'}
+              </button>
+            </div>
+            <span className="mng__stepwhy">
+              <strong>不做这一步，登录就是坏的。</strong>Supabase 的 Site URL 默认是
+              <code> http://localhost:3000</code>，那是给在自己电脑上写代码的人用的。
+              邮件里的登录链接会跳到那儿，点开只会看到「无法访问此网站」。
+              网站发出登录链接时已经带上了正确的跳转地址，但 Supabase 只认白名单里的——
+              没加进去就当没说，照样跳 localhost。
+            </span>
+            <span className="mng__stepwhy">
+              改完之后，<strong>旧的登录邮件作废</strong>，要重新发一次。
             </span>
           </li>
         </ol>

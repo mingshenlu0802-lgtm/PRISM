@@ -68,3 +68,14 @@
 }
 .bke__pastehint > svg { flex: none; margin-top: 2px; }
 .bke__pastehint strong { color: var(--fg); font-weight: 640; }
+
+/* 第五步：要粘进 Supabase 白名单的那个地址。 */
+.bke__site { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; margin: var(--s-3) 0; }
+.bke__siteurl {
+  flex: 1 1 240px; min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  font-family: var(--font-mono); font-size: var(--fs-2xs);
+  word-break: break-all;
+}

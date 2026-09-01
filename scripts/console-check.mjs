@@ -222,6 +222,84 @@ await nCard.locator('textarea[id^="s-"]').fill('正文。')
 await page.waitForTimeout(250)
 check(!(await crashed()), '给新闻写标题和正文不会把控制端打崩')
 })
+
+/* ------------------------------------------------------------------ *
+ * 4. 「在这台电脑上连起来」必须真的把网站重新起一遍
+ *
+ * 放在最后：这一步会写 localStorage 并重新加载，会影响后面的任何断言。
+ *
+ * 这里曾经写的是 assign(location.href)。网站是 hash 路由，控制端地址永远带
+ * `#/console/manage`，而跳到一个连 hash 都完全相同的地址，浏览器当作同文档内的
+ * 片段跳转，根本不会重新加载。站长填对了两串、按下按钮，屏幕上什么都不发生。
+ * 配置其实存进去了——只是网站没重新起来，看上去就是「连不上」。
+ * ------------------------------------------------------------------ */
+await run('账号与同步：按下「连起来」', async () => {
+  await manage()
+  await page.getByRole('tab', { name: '账号与同步' }).first().click()
+  await page.waitForTimeout(400)
+
+  await page.getByLabel('Supabase Project URL').fill('https://examplecheck.supabase.co')
+  await page.getByLabel('Supabase Publishable key').fill('sb_publishable_ABCDEFGHIJKLMNOPQRSTUV')
+  await page.waitForTimeout(250)
+
+  const connect = page.getByRole('button', { name: /在这台电脑上连起来/ })
+  check(await connect.isEnabled(), '两串都填对了，「在这台电脑上连起来」就可以按')
+
+  // 页面真的重载的话，这个标记会消失。
+  await page.evaluate(() => { window.__beforeConnect = true })
+  await connect.click()
+  await page.waitForTimeout(2500)
+
+  const survived = await page.evaluate(() => window.__beforeConnect === true).catch(() => false)
+  check(!survived, '按下之后网站真的重新起来了（不是存了配置却什么都不发生）')
+
+  const saved = await page.evaluate(
+    () => window.localStorage.getItem('prism.backend.v1'),
+  ).catch(() => null)
+  check(Boolean(saved && saved.includes('examplecheck.supabase.co')), '填的配置确实存下来了')
+
+  // 别把共享模式留给下一次运行。
+  await page.evaluate(() => { try { window.localStorage.clear() } catch { /* 无所谓 */ } })
+})
+
+/* ------------------------------------------------------------------ *
+ * 5. 登录邮件把人送回来的那一刻
+ *
+ * Supabase 的 magic link 用 implicit 流程，令牌挂在地址的 hash 里回来。
+ * 这个网站是 HashRouter——hash 就是路由。`#access_token=…` 匹配不上任何页面，
+ * 兜底路由立刻把它换成 `#/`，令牌在几十毫秒内就没了，Supabase 永远读不到。
+ * 站长点了链接、回到网站、一切正常——只是没登录，也没有任何解释。
+ * ------------------------------------------------------------------ */
+await run('登录回调', async () => {
+  // 过期的链接必须说出来。这条路径是看得见的，所以拿它验「抢在路由前面」这件事：
+  // 能显示这句话，就证明 hash 在被路由抹掉之前已经被读走了。
+  await page.goto(
+    `${base.slice(0, -1)}#error=access_denied&error_code=otp_expired`
+    + '&error_description=Email+link+is+invalid+or+has+expired',
+    { waitUntil: 'load' },
+  )
+  await page.waitForTimeout(1200)
+  const said = await page.locator('text=登录链接已经过期').isVisible().catch(() => false)
+  check(said, '过期的登录链接会说明原因，而不是默默回到首页')
+  check(!(await page.evaluate(() => window.location.hash)).includes('error='),
+    '说完之后把地址清干净，不把回调参数留在地址栏和历史里')
+
+  // 带令牌回来时，地址栏不能留着令牌——那会进浏览器历史，也会被分享出去。
+  await page.goto(
+    `${base.slice(0, -1)}#access_token=FAKE_A&refresh_token=FAKE_R&token_type=bearer&type=magiclink`,
+    { waitUntil: 'load' },
+  )
+  await page.waitForTimeout(1200)
+  const hash = await page.evaluate(() => window.location.hash)
+  check(!hash.includes('access_token'), '令牌不会留在地址栏里')
+  check(!(await crashed()), '带着登录回调进来不会把网站打崩')
+
+  // 普通路由的 hash 一个字都不能动。
+  await page.goto(`${base}/console/manage`, { waitUntil: 'load' })
+  await page.waitForTimeout(800)
+  check((await page.evaluate(() => window.location.hash)) === '#/console/manage',
+    '普通地址不受影响，该去哪还去哪')
+})
 } catch (e) {
   if (!(e instanceof Error) || e.message !== '__stop__') throw e
 }

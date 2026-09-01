@@ -11,6 +11,7 @@
  */
 import type { SupabaseClient, Session } from '@supabase/supabase-js'
 import { friendly, getClient } from './backend'
+import { clearPendingAuth, pendingAuth } from './authlink'
 
 export interface Who {
   email: string
@@ -63,6 +64,31 @@ export async function sendLink(email: string): Promise<SendResult> {
     return { ok: true, message: `登录链接已发到 ${clean}。去邮箱点一下就好，链接一小时内有效。` }
   } catch (e) {
     return { ok: false, message: friendly(e) }
+  }
+}
+
+/**
+ * 用登录链接带回来的令牌，把登录状态真正建立起来。
+ *
+ * 令牌是 `authlink` 在路由启动前抢下来的（否则会被 HashRouter 抹掉）。
+ * 这里等 Supabase 客户端就绪之后交给它。
+ *
+ * 存成功了才清——否则 React 严格模式下 effect 跑两遍时，
+ * 第一遍取走、第二遍就没了，反而把登录弄丢。
+ */
+export async function completeLinkSignIn(db: SupabaseClient): Promise<void> {
+  const p = pendingAuth()
+  if (!p) return
+  try {
+    const { error } = await db.auth.setSession({
+      access_token: p.accessToken,
+      refresh_token: p.refreshToken,
+    })
+    if (error) throw error
+    clearPendingAuth()
+  } catch {
+    // 令牌无效或过期。清掉，免得每次刷新都再试一遍一定会失败的事。
+    clearPendingAuth()
   }
 }
 
