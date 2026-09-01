@@ -175,12 +175,25 @@ export default function SiteLayout(): JSX.Element {
         </div>
       )}
 
-      <div className="slyt__demo">
-        <div className="u-shell slyt__demoin">
-          <span className="slyt__demotag">演示数据</span>
-          <span>{DEMO_NOTICE}</span>
+      {/*
+        * 只有真的在看演示数据时才说这句话。
+        *
+        * 这条横幅原来是无条件渲染的。站长接上自己的数据库、写完真实报道、
+        * 把链接发给朋友之后，每个朋友头顶还是会挂着「条目、媒体名称与链接均为虚构」
+        * ——网站在对读者否认自己刚发布的报道。对一个新闻站来说，
+        * 没有比这更伤的假话了。
+        *
+        * 按数据判断而不是按模式：演示种子里每一条都带 demo 标记，真实内容不带。
+        * 所以只要还混着演示条目它就留着，全换成真的就自己消失。
+        */}
+      {(state.news.some((n) => n.demo) || state.studies.some((s) => s.demo)) && (
+        <div className="slyt__demo">
+          <div className="u-shell slyt__demoin">
+            <span className="slyt__demotag">演示数据</span>
+            <span>{DEMO_NOTICE}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <main id="main" className="slyt__main">
         <Outlet />

@@ -46,6 +46,8 @@ const MIME = {
  * 也就是这个仓库开箱即用的样子。
  */
 const EMPTY_CONFIG = JSON.stringify({ url: '', anonKey: '' })
+/* 第 6 节要临时冒充一个已配置的后端；其余时候一律返回空配置。 */
+let configOverride = null
 
 const server = createServer(async (req, res) => {
   try {
@@ -54,7 +56,7 @@ const server = createServer(async (req, res) => {
     if (p === '/' || !extname(p)) p = '/index.html'
     if (p === '/prism-config.json') {
       res.writeHead(200, { 'content-type': 'application/json' })
-      res.end(EMPTY_CONFIG)
+      res.end(configOverride ?? EMPTY_CONFIG)
       return
     }
     const body = await readFile(join(ROOT, p))
@@ -73,9 +75,14 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 // 外部字体在沙箱里连不上，那是渐进增强，不算缺陷。
 const external = (t) => /fonts\.(googleapis|gstatic)\.com|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED/.test(t)
 const errors = []
+/* 第 6 节会故意让数据库拒绝 members / changes，那几条 401 是预期内的。 */
+let expect401 = false
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
 page.on('console', (m) => {
-  if (m.type() === 'error' && !external(m.text())) errors.push(m.text().slice(0, 200))
+  const t = m.text()
+  if (m.type() !== 'error' || external(t)) return
+  if (expect401 && /status of 401/.test(t)) return
+  errors.push(t.slice(0, 200))
 })
 
 const results = []
@@ -326,6 +333,75 @@ await run('登录回调', async () => {
   check((await page.evaluate(() => window.location.hash)) === '#/console/manage',
     '普通地址不受影响，该去哪还去哪')
 })
+
+/* ------------------------------------------------------------------ *
+ * 6. 共享模式：没登录的朋友必须看得到内容
+ *
+ * 这个网站的核心承诺是「拿着链接就能看，不用登录」，数据库规则也是这么写的
+ * （`using (true)`）。但在这之前，pull() 在没登录时直接 return，注释说
+ * 「RLS 会挡回来」——那是旧设计留下的话。于是朋友打开网站，**根本不去取数**，
+ * 看到的是初始状态里的演示条目，而不是站长写的东西。
+ *
+ * 之前所有检查跑的都是本地模式，共享模式一行没测过，所以谁都没发现。
+ *
+ * 这里用 Playwright 拦截请求冒充 Supabase：真去起一个后端太重，而要测的东西
+ * 其实只有一件——**没登录的访客，看不看得到数据库返回的内容**。
+ * ------------------------------------------------------------------ */
+await run('共享模式：朋友不登录也看得到', async () => {
+  const HEADLINE = '来自数据库的一条真新闻'
+  const rows = {
+    news: [{
+      id: 'n1', slug: 'from-db', headline: HEADLINE,
+      summary: '这一条只存在于数据库，种子数据里没有它。',
+      bullets: [], regions: ['cn'], topics: ['violence'], links: [],
+      status: 'live', origin: 'editor', featured: true, demo: false,
+      published_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z',
+    }],
+    studies: [],
+    site: { id: 'site', copy: {}, appearance: {}, offline: false },
+  }
+
+  expect401 = true
+  await page.route('https://test.supabase.co/**', (route) => {
+    const path = new URL(route.request().url()).pathname
+    const json = (body) => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify(body),
+    })
+    if (path.startsWith('/rest/v1/news')) return json(rows.news)
+    if (path.startsWith('/rest/v1/studies')) return json(rows.studies)
+    if (path.startsWith('/rest/v1/site')) return json(rows.site)
+    // 名单和编辑日志对没登录的人是锁着的——数据库会拒绝，这里照样模拟。
+    if (path.startsWith('/rest/v1/members') || path.startsWith('/rest/v1/changes')) {
+      return route.fulfill({
+        status: 401, contentType: 'application/json',
+        body: JSON.stringify({ message: 'permission denied' }),
+      })
+    }
+    return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
+
+  configOverride = JSON.stringify({
+    url: 'https://test.supabase.co',
+    anonKey: `sb_publishable_${'x'.repeat(30)}`,
+  })
+
+  await page.goto('about:blank')
+  await page.context().clearCookies()
+  await page.goto(`${base}/`, { waitUntil: 'load' })
+
+  const seen = await page.locator(`text=${HEADLINE}`)
+    .waitFor({ state: 'visible', timeout: 12000 }).then(() => true).catch(() => false)
+  check(seen, '没登录的访客看得到数据库里的内容（不是演示数据）')
+
+  const body = await page.locator('body').innerText()
+  check(!body.includes('演示数据'), '连上数据库之后就不该再显示演示数据了')
+  check(!(await crashed()), '名单和日志被数据库拒绝，不该把整个网站带下水')
+
+  configOverride = null
+  expect401 = false
+  await page.unroute('https://test.supabase.co/**')
+})
+
 } catch (e) {
   if (!(e instanceof Error) || e.message !== '__stop__') throw e
 }
