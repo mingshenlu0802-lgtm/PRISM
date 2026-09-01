@@ -78,17 +78,37 @@ if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
  * 抓
  * ------------------------------------------------------------------ */
 
-async function fetchFeed(feed) {
+/**
+ * 我们是谁。
+ *
+ * 原本报的是 `PRISM-collector/1.0`。诚实，但**过不去 CDN**：Cloudflare
+ * 和 Akamai 后面的站点默认挡掉不像浏览器的 UA，于是第一次真实抓取里
+ * 联合国妇女署回 403、Mada Masr 回 520（那是 Cloudflare 自己的错误码），
+ * 而且**要写的稿子里只有 15/25 取到了正文**——取不到正文，模型就只能
+ * 拿着两三百字的 RSS 摘要去写一千五百字，那正是站长一直不满意的那件事。
+ *
+ * 现在用的是 RSS 阅读器通行的写法：以 Mozilla/5.0 (compatible; …) 开头，
+ * 里面照旧写清楚我们是谁、以及一个可以找到人的网址。不是伪装成浏览器——
+ * 名字和联系方式都在里面，站点要挡随时挡得掉；只是不再因为报了个陌生的
+ * 名字就被当场拒之门外。
+ */
+const UA = 'Mozilla/5.0 (compatible; PRISM/1.0; +https://prism-daily.github.io/PRISM/)'
+
+/** 有些服务器要看 accept 才肯给 XML，给了 HTML 就当成不是 feed。 */
+const FEED_ACCEPT = 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.8'
+
+async function fetchOne(url, outlet) {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 20000)
   try {
-    const res = await fetch(feed.url, {
+    const res = await fetch(url, {
       signal: ctl.signal,
-      headers: { 'user-agent': 'PRISM-collector/1.0 (+https://prism-daily.github.io/PRISM/)' },
+      redirect: 'follow',
+      headers: { 'user-agent': UA, accept: FEED_ACCEPT },
     })
     if (!res.ok) return { ok: false, why: `HTTP ${res.status}` }
     const xml = await res.text()
-    const entries = parseFeed(xml, feed.outlet)
+    const entries = parseFeed(xml, outlet)
     if (entries.length === 0) return { ok: false, why: '解析不出条目（可能不是 RSS/Atom）' }
     return { ok: true, entries }
   } catch (e) {
@@ -96,6 +116,31 @@ async function fetchFeed(feed) {
   } finally {
     clearTimeout(t)
   }
+}
+
+/**
+ * 一个源可以写好几个地址，挨个试。
+ *
+ * 第一次真实抓取里 58 个源死了 14 个，大半是「站还在，feed 挪了地方」：
+ * /feed 变成 /rss，gaytimes.co.uk 变成 .com，m.thewire.in 那个 m. 没了。
+ * 这类失败没法在本地验证——我这边没有出网——而一次一次改一个地址、
+ * 跑一轮、再改，要好几轮。
+ *
+ * 所以地址可以是一个数组：常见的几种写法一起写上，谁通用谁。
+ * 报告里会说用的是第几个，改回单个地址就有依据了。
+ *
+ * 这也让清单**耐得住以后的搬家**：网站换 CMS 时 /feed 和 /rss 往往会
+ * 互相顶替一阵，多写一个就不会有一天突然静悄悄地少收一批稿子。
+ */
+async function fetchFeed(feed) {
+  const urls = Array.isArray(feed.url) ? feed.url : [feed.url]
+  let last = { ok: false, why: '没有地址' }
+  for (let i = 0; i < urls.length; i++) {
+    const got = await fetchOne(urls[i], feed.outlet ?? feed.publisher)
+    if (got.ok) return urls.length > 1 && i > 0 ? { ...got, via: i + 1 } : got
+    last = got
+  }
+  return urls.length > 1 ? { ...last, why: `${last.why}（试过 ${urls.length} 个地址）` } : last
 }
 
 /* ------------------------------------------------------------------ *
@@ -166,7 +211,7 @@ const fetched = await inBatches(FEEDS, 8, async (feed) => ({ feed, r: await fetc
  * 会得到不同的结果，出了问题也没法复现。所以按 FEEDS 的原始顺序处理。
  */
 for (const { feed, r } of fetched) {
-  if (!r.ok) { report.push([feed, 0, 0, r.why]); continue }
+  if (!r.ok) { report.push([feed, 0, 0, r.why, 0]); continue }
 
   let kept = 0
   for (const e of r.entries) {
@@ -193,7 +238,7 @@ for (const { feed, r } of fetched) {
       at: Number.isFinite(when) ? new Date(when).toISOString() : new Date().toISOString(),
     })
   }
-  report.push([feed, r.entries.length, kept, ''])
+  report.push([feed, r.entries.length, kept, '', r.via ?? 0])
 }
 
 /*
@@ -236,8 +281,8 @@ for (const tier of [...byTier.keys()].sort()) {
 
 console.log('PRISM 新闻收集')
 console.log('—'.repeat(76))
-for (const [feed, total, kept, why] of report) {
-  const status = why ? `✗ ${why}` : `${String(kept).padStart(2)} 条 / 共 ${total}`
+for (const [feed, total, kept, why, via] of report) {
+  const status = why ? `✗ ${why}` : `${String(kept).padStart(2)} 条 / 共 ${total}${via ? `（第 ${via} 个地址）` : ''}`
   console.log(`  ${feed.outlet.padEnd(26, '·')} ${status}`)
 }
 console.log('—'.repeat(76))
@@ -372,8 +417,9 @@ async function pageInfo(url, outlet) {
       signal: ctl.signal,
       redirect: 'follow',
       headers: {
-        'user-agent': 'PRISM-collector/1.0 (+https://prism-daily.github.io/PRISM/)',
-        accept: 'text/html,application/xhtml+xml',
+        'user-agent': UA,
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
       },
     })
     if (!res.ok) return null
