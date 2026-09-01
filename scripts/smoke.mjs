@@ -1034,14 +1034,21 @@ await test('正文里的小标题和来源角标要变成真的结构', async ()
   ok(html.includes('最早的投诉'), '小标题的文字要留下')
   ok(!html.includes('## '), '井号本身不该出现在页面上')
 
-  ok(html.includes('href="#src-1"'), '[1] 要变成跳到第一个来源的链接')
-  ok(html.includes('href="#src-2"'), '[2] 要跳到第二个来源')
+  /*
+   * 角标必须是按钮，不能是 <a href="#src-1">。
+   *
+   * 这个站用 HashRouter：地址栏的 `#/news/xxx` 就是路由。一个 #src-1 的链接
+   * 会把 hash 整个换掉，路由匹配不到，兜底规则把人送回首页——
+   * 读者点一下出处，正在读的文章就没了。实测过，hash 从 #/news/… 变成 #/。
+   */
+  ok(html.includes('<button'), '角标要用按钮，不能用 hash 链接')
+  ok(!html.includes('href="#src-'), 'href="#…" 在 HashRouter 下会把人踢回首页')
   ok(html.includes('卫报'), '角标要带上是哪家媒体，给读屏用')
 
   // 编号对不上的不做成链接——点了没反应比没有链接更糟；但也不能删掉，
   // 那句话确实有出处，只是编号错了，读者有权看见。
   ok(html.includes('prose__cite--dead'), '对不上的角标要标成失效，而不是变成死链接')
-  ok(!html.includes('href="#src-9"'), '不存在的来源不能生成锚点')
+  ok(!html.includes('src-9'), '不存在的来源不能生成跳转目标')
 
   ok(html.includes('<strong>加粗</strong>'), '**加粗** 要变成 strong')
   ok(!html.includes('**'), '星号不该留在页面上')

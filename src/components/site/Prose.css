@@ -19,5 +19,19 @@
   border-radius: 3px; background: var(--bg-sunken); color: var(--fg-muted);
   text-decoration: none; font-variant-numeric: tabular-nums;
 }
-a.prose__cite:hover { background: var(--accent); color: var(--bg); }
+button.prose__cite { border: 0; cursor: pointer; font-family: inherit; }
+button.prose__cite:hover { background: var(--accent); color: var(--bg); }
 .prose__cite--dead { opacity: .55; }
+
+/* 跳过去之后闪一下，读者才知道落在哪一条上。 */
+.lnk__item--flash {
+  animation: prose-flash 1.6s ease-out;
+  border-radius: var(--r-sm);
+}
+@keyframes prose-flash {
+  0%, 30% { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lnk__item--flash { animation: none; outline: 2px solid var(--accent); }
+}

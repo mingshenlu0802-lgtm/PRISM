@@ -47,11 +47,34 @@ function inline(text: string, links: MediaLink[], keyBase: string): (string | JS
       // 没有对应来源的角标不做成链接——那会给出一个点了没反应的东西。
       // 但也不删掉：模型标了它，说明那句话有出处，只是编号对不上，
       // 读者有权知道这里本该有一个来源。
+      /*
+       * 角标是**按钮**，不是 <a href="#src-1">。
+       *
+       * 这个站用的是 HashRouter：地址栏里的 `#/news/xxx` 就是路由。
+       * 一个 href="#src-1" 会把 hash 整个换掉，路由匹配不到 `src-1`，
+       * 兜底规则把人送回首页——读者点一下出处，文章就没了。
+       * 实测过：hash 从 `#/news/…` 变成 `#/`。
+       *
+       * 所以自己滚过去，不碰地址栏。
+       */
       out.push(link
         ? (
-          <a key={key} className="prose__cite" href={`#src-${n}`} aria-label={`来源 ${n}：${link.outlet}`}>
+          <button
+            key={key}
+            type="button"
+            className="prose__cite"
+            aria-label={`跳到来源 ${n}：${link.outlet}`}
+            onClick={() => {
+              const el = document.getElementById(`src-${n}`)
+              if (!el) return
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              // 滚过去还不够——要让读者一眼看到是哪一条。
+              el.classList.add('lnk__item--flash')
+              window.setTimeout(() => el.classList.remove('lnk__item--flash'), 1600)
+            }}
+          >
             {n}
-          </a>
+          </button>
         )
         : <sup key={key} className="prose__cite prose__cite--dead">{n}</sup>)
     }
