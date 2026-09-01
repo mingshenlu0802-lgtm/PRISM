@@ -146,8 +146,26 @@ const report = []
 let picked = []
 const seenUrl = new Set()
 
-for (const feed of FEEDS) {
-  const r = await fetchFeed(feed)
+/*
+ * 并发抓。
+ *
+ * 源从 27 涨到 58 之后，串行抓就撑不住了：单个源的超时是 20 秒，
+ * 而死链、慢站每一轮都有几个——最坏情况光抓取就要十几分钟，
+ * 每天两场就是半小时花在等待上。
+ *
+ * 八个一批。再多对方会开始限流，而且这些请求本来就不是瓶颈——
+ * 真正花时间的是后面写稿那一步。
+ */
+const fetched = await inBatches(FEEDS, 8, async (feed) => ({ feed, r: await fetchFeed(feed) }))
+
+/*
+ * 但**入选顺序要保持确定**。
+ *
+ * 并发回来的顺序是随机的，而下面靠 seenUrl 去重——同一条新闻被两个源
+ * 同时收录时，谁先到谁留下。让这件事随网络快慢变化，等于同一天跑两次
+ * 会得到不同的结果，出了问题也没法复现。所以按 FEEDS 的原始顺序处理。
+ */
+for (const { feed, r } of fetched) {
   if (!r.ok) { report.push([feed, 0, 0, r.why]); continue }
 
   let kept = 0
@@ -536,8 +554,11 @@ async function collectStudies() {
   const seen = new Set()
   const rep = []
 
-  for (const feed of STUDY_FEEDS) {
-    const r = await fetchFeed({ ...feed, outlet: feed.publisher })
+  // 并发抓，理由和新闻那边一样：串行等超时太贵。顺序仍按清单来。
+  const fetchedStudies = await inBatches(STUDY_FEEDS, 8,
+    async (feed) => ({ feed, r: await fetchFeed({ ...feed, outlet: feed.publisher }) }))
+
+  for (const { feed, r } of fetchedStudies) {
     if (!r.ok) { rep.push([feed, 0, 0, r.why]); continue }
     let kept = 0
     for (const e of r.entries) {
