@@ -1730,6 +1730,42 @@ await test('取到原文的先写，但不能越过议题的优先级', () => {
   ok(tier(list[list.length - 1]) === 2, '最后一条仍然是优先级最低的那一层')
 })
 
+await test('两场定时收集：时间对得上，研究只在早上收', () => {
+  /*
+   * 站长要的是北京时间早上六点和下午两点，一天两场，研究只在早上那一场收。
+   *
+   * 这里有两个容易错、而且错了**完全没有征兆**的地方：
+   *   一、cron 是 UTC。北京时间要减八小时，早上六点会落到前一天的 22 点，
+   *       跨了一天——写成 22:00 却以为是早上，是最常见的错法。
+   *   二、下面用 `github.event.schedule == '…'` 来分辨是哪一场。
+   *       改了 cron 的分钟数却忘了同步这一句，判断永远为假，
+   *       于是**两场都收研究**——重复的研究会被去重掉，看起来一切正常，
+   *       只是白花一次钱。这一条就是为了钉住那两处必须一起改。
+   */
+  const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
+  const crons = [...yml.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)].map((m) => ({ min: +m[1], hour: +m[2] }))
+  eq(crons.length, 2, '应当有两场')
+
+  // UTC + 8 = 北京时间
+  const beijing = crons.map((c) => (c.hour + 8) % 24).sort((a, b) => a - b)
+  eq(beijing[0], 6, `早上那场应当是北京时间 6 点，实际 ${beijing[0]} 点`)
+  eq(beijing[1], 14, `下午那场应当是北京时间 14 点，实际 ${beijing[1]} 点`)
+
+  /*
+   * 不许用整点。定时任务在 GitHub 上是尽力而为的，整点是最挤的一格，
+   * 会延迟也会整场丢掉——这个仓库的定时触发一次都没跑起来过。
+   */
+  for (const c of crons) ok(c.min !== 0, '别用整点：那一格最挤，会被丢掉')
+  eq(crons[0].min, crons[1].min, '两场用同一个分钟数，好记也好对')
+
+  // 判断「是不是下午那场」的那句话，要和真的 cron 对得上。
+  const m = /github\.event\.schedule == '([^']+)'/.exec(yml)
+  ok(m, '找不到那句用来分辨场次的判断')
+  const afternoon = crons.find((c) => (c.hour + 8) % 24 === 14)
+  eq(m[1], `${afternoon.min} ${afternoon.hour} * * *`,
+    `分辨场次的那句话对不上真的 cron：写的是「${m[1]}」`)
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
