@@ -22,6 +22,10 @@ on:
         description: '全部先下架等审核（默认自动上线）'
         type: boolean
         default: false
+      purge:
+        description: '先清空网站所有新闻与研究（不碰成员名单）'
+        type: boolean
+        default: false
 
 # 同时只跑一个，免得两次收集互相写重复条目。
 concurrency:
@@ -54,6 +58,13 @@ jobs:
           else
             echo "dry=" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: 清空内容
+        if: inputs.purge
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/purge-news.mjs
 
       - name: 抓取
         env:
