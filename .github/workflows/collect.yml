@@ -14,6 +14,10 @@ on:
     - cron: '0 22 * * *'
   workflow_dispatch:
     inputs:
+      max:
+        description: '这次最多处理多少条（默认 30，越少越省）'
+        type: string
+        default: '30'
       dry:
         description: '只看抓到什么，不写数据库'
         type: boolean
@@ -76,4 +80,5 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          MAX_ITEMS: ${{ inputs.max || '30' }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}

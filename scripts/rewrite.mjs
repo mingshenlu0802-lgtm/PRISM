@@ -112,5 +112,21 @@ export async function rewriteAll(picked, ownerNote = '') {
   }
 
   console.log(`  收 ${out.length} 条 · 按方针丢弃 ${dropped} 条${failed ? ` · ${failed} 条因调用失败没处理` : ''}`)
+
+  /*
+   * 全军覆没要喊出来。
+   *
+   * 免费额度用完、key 填错、模型名不存在——这几种都会让每一批都失败，
+   * 而如果只是静静地写 0 条，站长看到的是「今天没有新闻」，
+   * 完全想不到是额度的问题。这类沉默的失败，这个项目已经踩过太多次。
+   */
+  if (out.length === 0 && failed > 0) {
+    console.log('')
+    console.log('!! 每一批都失败了。常见原因，按可能性排：')
+    console.log('   1 免费额度用完或需要绑定付款方式（错误信息里通常有 quota / credit / billing）')
+    console.log('   2 LLM_MODEL 名字不对——供应商的型号名会变，去它的控制台核对一次')
+    console.log('   3 LLM_API_KEY 不对，或者 LLM_BASE_URL 少了 /v1')
+    console.log('   上面每一批的错误原文就是答案，照着看。')
+  }
   return out
 }

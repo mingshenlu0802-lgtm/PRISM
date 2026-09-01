@@ -40,6 +40,17 @@ const DAYS = Number(process.env.WITHIN_DAYS ?? 7)
  * 它不影响任何一条是否发布。AUTO_PUBLISH=0 可以整个关掉自动上线。
  */
 const AUTO = process.env.AUTO_PUBLISH !== '0'
+/*
+ * 每天最多交给模型多少条。
+ *
+ * 这是**花钱的那个旋钮**。系统提示词（整份编辑方针）每批都要重发一次，
+ * 所以成本几乎与「批数」成正比，而不是与抓到多少条成正比。
+ * 抓 200 条全喂进去，账单是抓 30 条的七倍，而多出来的多半是勉强及格的。
+ *
+ * 排序已经把性犯罪与司法案件放在最前，所以砍掉的是尾巴，不是重点。
+ * 站长在控制端写「今天要 20 条」时，改的就是这个。
+ */
+const MAX_ITEMS = Number(process.env.MAX_ITEMS ?? 30)
 
 if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
   console.error('缺 SUPABASE_URL 或 SUPABASE_SERVICE_KEY。只想看抓到什么就加 --dry。')
@@ -195,6 +206,11 @@ async function ownerNote() {
     const rows = await res.json()
     return String(rows?.[0]?.copy?.collectNote ?? '').trim()
   } catch { return '' }
+}
+
+if (picked.length > MAX_ITEMS) {
+  console.log(`按优先级取前 ${MAX_ITEMS} 条交给模型（共 ${picked.length} 条候选）`)
+  picked = picked.slice(0, MAX_ITEMS)
 }
 
 if (llmConfigured()) {
