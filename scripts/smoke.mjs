@@ -645,6 +645,7 @@ await test('发信失败和额度用完不能混为一谈', () => {
 /* --------------------- 真实新闻收集：解析与归类 --------------------- */
 
 const feedparse = await import('./feedparse.mjs')
+const ed = await import('./editorial.mjs')
 
 await test('RSS 和 Atom 都要认得出来', () => {
   const rss = `<rss><channel>
@@ -764,6 +765,47 @@ await test('涉及性暴力的条目要带内容提示，别的不要', () => {
   ok(n('Producer sentenced for sexual assault', ['violence']).includes('尚未经本站核实'),
     '涉及具体案件时要说清楚摘要没经过本站核实')
   ok(!n('Report on gender pay gap', ['equality']), '不相关的条目不该加提示——提示满天飞就没人看了')
+})
+
+await test('用媒体自己配的图，并且署上它的名字', () => {
+  // 站长：「你没有给我高质量的标图。」feed 里本来就带图，之前整个丢掉了。
+  const rss = '<rss><channel><item><title>A ruling</title><link>https://x.org/a</link>'
+    + '<media:content url="https://x.org/p.jpg" medium="image"/>'
+    + '<media:credit>Jane Doe/Reuters</media:credit>'
+    + '<media:description>Protesters outside the court</media:description>'
+    + '</item></channel></rss>'
+  const [e] = feedparse.parseFeed(rss, 'The Guardian')
+  eq(e.image.url, 'https://x.org/p.jpg', '要取到图片地址')
+  eq(e.image.credit, 'Jane Doe/Reuters', '媒体给了署名就用它的，不要写成来源媒体')
+  eq(e.image.alt, 'Protesters outside the court', '媒体给了图说就用作替代文字')
+})
+
+await test('没有图说时不编造图里有什么', () => {
+  /*
+   * 给一张没看过的照片编一段描述，是在骗用读屏软件的人。
+   * 只说明出处是诚实的，也仍然告诉对方「这里有一张来自某媒体的图」。
+   */
+  const rss = '<rss><channel><item><title>B</title><link>https://x.org/b</link>'
+    + '<enclosure url="https://x.org/q.jpg" type="image/jpeg"/></item></channel></rss>'
+  const [e] = feedparse.parseFeed(rss, 'Ms. Magazine')
+  ok(e.image.alt.includes('Ms. Magazine'), '替代文字要说明出处')
+  ok(!/protest|court|woman|man/i.test(e.image.alt), '不能凭空描述图片内容')
+})
+
+await test('没有图就是没有图，不要塞一个空对象进去', () => {
+  const rss = '<rss><channel><item><title>C</title><link>https://x.org/c</link></item></channel></rss>'
+  eq(feedparse.parseFeed(rss, 'X')[0].image, null, '没有图时应当是 null')
+})
+
+await test('编辑方针要完整传给模型', () => {
+  // 方针是站长写的，散在聊天记录里没用，必须进代码并且被真的用上。
+  const p = ed.systemPrompt('今天多找台湾的司法进展')
+  ok(p.includes('真实伤害、权力失衡、制度责任'), '要带上站长对这个站的定义')
+  ok(p.includes('十一、值得追踪的反常案件'), '十一条优先级要完整')
+  ok(p.includes('刑事定罪'), '证据分级要在')
+  ok(p.includes('主语回到施害者身上'), '语气要求要在')
+  ok(p.includes('证据等级不可以模糊'), '「语气可以激进、证据不可以模糊」这条红线必须在')
+  ok(p.includes('台湾的司法进展'), '站长当次的额外指示要接得上')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

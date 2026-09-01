@@ -36,13 +36,42 @@ function linkOf(block) {
   return alt ? strip(alt[1]) : ''
 }
 
-export function parseFeed(xml) {
+const attr = (block, re) => { const m = re.exec(block); return m ? strip(m[1]) : '' }
+
+/**
+ * 媒体自己配的图。
+ *
+ * feed 里本来就带图——`media:content`、`media:thumbnail`、`enclosure`——之前
+ * 只取了标题摘要链接，把图整个丢掉了，所以站上全是系统画的抽象封面。
+ *
+ * 只用媒体自己发出来的图，并且署上它的名字。**不去猜图里有什么**：
+ * feed 给了说明就用它当替代文字，没给就只说明出处。给一张没看过的照片编一段
+ * 描述，是在骗用读屏软件的人。
+ */
+export function imageOf(block, outlet) {
+  const url = attr(block, /<media:content[^>]*\burl=["']([^"']+)["']/i)
+    || attr(block, /<media:thumbnail[^>]*\burl=["']([^"']+)["']/i)
+    || attr(block, /<enclosure[^>]*\btype=["']image\/[^"']*["'][^>]*\burl=["']([^"']+)["']/i)
+    || attr(block, /<enclosure[^>]*\burl=["']([^"']+\.(?:jpe?g|png|webp))["']/i)
+  if (!url || !/^https?:\/\//.test(url)) return null
+
+  const caption = tag(block, 'media:description') || tag(block, 'media:title')
+  const credit = tag(block, 'media:credit') || outlet
+  return {
+    url,
+    alt: caption || `${outlet} 为这条报道配发的图片`,
+    credit,
+  }
+}
+
+export function parseFeed(xml, outlet = '来源媒体') {
   const blocks = xml.match(/<(item|entry)(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi) ?? []
   return blocks.map((b) => ({
     title: tag(b, 'title'),
     link: linkOf(b),
     summary: tag(b, 'description') || tag(b, 'summary') || tag(b, 'content'),
     date: tag(b, 'pubDate') || tag(b, 'published') || tag(b, 'updated') || tag(b, 'dc:date'),
+    image: imageOf(b, outlet),
   })).filter((e) => e.title && e.link)
 }
 

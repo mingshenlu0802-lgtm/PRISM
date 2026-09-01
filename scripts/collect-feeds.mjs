@@ -58,7 +58,7 @@ async function fetchFeed(feed) {
     })
     if (!res.ok) return { ok: false, why: `HTTP ${res.status}` }
     const xml = await res.text()
-    const entries = parseFeed(xml)
+    const entries = parseFeed(xml, feed.outlet)
     if (entries.length === 0) return { ok: false, why: '解析不出条目（可能不是 RSS/Atom）' }
     return { ok: true, entries }
   } catch (e) {
@@ -140,6 +140,7 @@ for (const feed of FEEDS) {
       link: e.link,
       summary: summaryOf(e),
       topics: topics.length ? topics : ['rights'],
+      image: e.image,
       regions: regionsOf(e, feed),
       at: Number.isFinite(when) ? new Date(when).toISOString() : new Date().toISOString(),
     })
@@ -232,7 +233,7 @@ groups.forEach((g, i) => {
     regions: g.regions,
     topics: g.topics,
     links,
-    image: null,
+    image: g.image ?? null,
     status: AUTO ? 'live' : 'hidden',
     origin: 'auto',
     featured: false,
