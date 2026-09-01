@@ -1,0 +1,44 @@
+# 合并之前先检查。
+#
+# 发布流程（pages.yml）只在推到发布分支之后才跑检查——那时候东西已经进了主线，
+# 坏了只能回滚。这个 workflow 在 PR 上跑同一批检查，把问题挡在合并之前。
+#
+# 特意多跑了浏览器那两项。站长报的「给 publishable key 输入任何东西都出错」
+# 是打字把整个控制端打崩，而 check 只测纯逻辑、ui-check 只把路由打开看渲染，
+# 两者都不打字，所以谁都没看见它。console-check 就是补这一段的，
+# 不在 CI 里跑，它就只是一个没人按的按钮。
+name: 检查
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # 类型 + 数据 + 行为测试
+      - run: npm run check
+
+      - run: npm run build
+
+      # 发布出去的文件里不能有邮箱地址
+      - run: npm run privacy
+
+      # 浏览器检查要真的有个浏览器
+      - run: npx playwright install --with-deps chromium
+
+      # 每条路由 × 三个视口：渲染、溢出、地标、无障碍
+      - run: npm run ui-check
+
+      # 在控制端里真的点和打字
+      - run: npm run console-check
