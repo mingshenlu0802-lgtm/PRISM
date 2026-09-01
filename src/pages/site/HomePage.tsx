@@ -18,7 +18,7 @@ import './HomePage.css'
  * 「香港的全部」，把一条不属于这个筛选的新闻架在最上面只会碍事。
  */
 export default function HomePage(): JSX.Element {
-  const { state } = usePrism()
+  const { state, canEdit } = usePrism()
   const [regions, setRegions] = useState<RegionKey[]>([])
   const [topics, setTopics] = useState<TopicKey[]>([])
 
@@ -83,11 +83,27 @@ export default function HomePage(): JSX.Element {
       </p>
 
       {shown.length === 0 && (
-        <EmptyState
-          title="这个筛选下暂时没有内容"
-          hint="换一组地区或议题试试，或者清除筛选看全部。"
-          icon="search"
-        />
+        /*
+         * 分两种情况说。
+         *
+         * 刚接上共享数据库的站是空的，而这时候站长一条筛选都没设——
+         * 跟他说「换一组地区试试」是句假话，还会让他以为内容在某个筛选后面藏着。
+         */
+        filtering ? (
+          <EmptyState
+            title="这个筛选下暂时没有内容"
+            hint="换一组地区或议题试试，或者清除筛选看全部。"
+            icon="search"
+          />
+        ) : (
+          <EmptyState
+            title="还没有内容"
+            hint={canEdit
+              ? '去「控制端 → 编辑 → 内容」，按「＋ 自己写一条」写第一条。写好按「重新上线」才会出现在这里。'
+              : '站长还没有发布内容。过些时候再来看看。'}
+            icon="layers"
+          />
+        )
       )}
 
       {/* 只有一条时它已经在头条位上了，下面不再开一个空列表。 */}

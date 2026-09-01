@@ -1,5 +1,5 @@
 {
-  "_readme": "把 Supabase 的两串值填进下面两行，网站就从「只存在你自己浏览器」变成「你和朋友共用一份」。两串值都是公开的，可以放心提交——权限来自登录身份和数据库规则，不来自它们。步骤见 docs/SHARING.md。",
-  "url": "",
-  "anonKey": ""
+  "_readme": "这两串值是公开的，权限来自登录身份和数据库规则，不来自它们。",
+  "url": "https://lutztcjcgrqjbpzzbzmw.supabase.co",
+  "anonKey": "sb_publishable_8lTcxYb69vTQKJvdicEVLg_AkxRNqnN"
 }
