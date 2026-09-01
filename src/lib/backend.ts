@@ -204,7 +204,28 @@ export function getClient(): Promise<SupabaseClient | null> {
 export function friendly(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e ?? '')
   if (/Invalid login credentials|Email not confirmed/i.test(msg)) return '这个邮箱还没通过验证，请点邮件里的链接。'
-  if (/rate limit|too many/i.test(msg)) return '发得太频繁了，等一分钟再试。'
+  /*
+   * 发信被限流。
+   *
+   * 这里分两种，因为它们的等待时间差了两个数量级，说错了就是把人支去白等：
+   *
+   * - **短冷却**：Supabase 对同一个地址的连续请求有几十秒的间隔，报错里会
+   *   明说等多少秒。照它说的等就行。
+   * - **发信配额**：Supabase 自带的邮件服务是给开发和试用的，**按小时**计数，
+   *   额度很小。等一分钟没有任何用——得等配额刷新，或者干脆换成自己的 SMTP。
+   *   站长的朋友们以后也要收这些信，所以自己的 SMTP 迟早要配。
+   *
+   * 原来这两种都回一句「等一分钟再试」，于是配额用完的人会一分钟试一次，
+   * 每次都失败，而且每次失败都以为是自己哪里做错了。
+   */
+  const seconds = /after (\d+) seconds?/i.exec(msg)?.[1]
+  if (seconds) return `发得太快了，等 ${seconds} 秒再按一次。`
+  if (/rate.?limit|too many|over_email_send|over_request_rate/i.test(msg)) {
+    return '这个项目今天的发信额度用完了。Supabase 自带的邮件服务是给试用的，'
+      + '按小时算、额度很小——再等一分钟没用，要么等额度刷新，'
+      + '要么在 Supabase 里配置自己的 SMTP（Authentication → Emails / SMTP Settings）。'
+      + '当前额度在 Authentication → Rate Limits 里看得到。'
+  }
   if (/row-level security|violates row-level/i.test(msg)) return '你的账号没有这项权限。要改内容，请让站长把你设成编辑。'
   if (/JWT|not authenticated|session/i.test(msg)) return '登录状态过期了，请重新登录。'
   if (/Failed to fetch|NetworkError/i.test(msg)) return '连不上服务器，检查一下网络。'

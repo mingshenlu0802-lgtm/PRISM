@@ -166,7 +166,7 @@ Supabase 是按需加载的，本地模式下读者不会下载它。
 ```bash
 npm run dev           # 开发服务器
 npm run build         # 类型检查 + 构建到 dist/
-npm run check         # 类型检查 + 数据检查 + 59 项行为测试
+npm run check         # 类型检查 + 数据检查 + 60 项行为测试
 npm run privacy       # 扫一遍构建产物，出现邮箱地址就不给发布
 npm run ui-check      # 用真实浏览器走 10 条路由 × 3 个视口（要先 build）
 npm run console-check # 用真实浏览器在控制端里点和打字（要先 build）
