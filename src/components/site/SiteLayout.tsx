@@ -5,7 +5,7 @@ import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
 import { takeAuthLinkError } from '../../lib/authlink'
-import { Icon, PrismMark, ToastHost, toast } from '../common'
+import { Icon, PrismMark, SkipLink, ToastHost, toast } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
 import { AccountMenu } from './AccountMenu'
 import { SignInGate } from './SignInGate'
@@ -52,7 +52,7 @@ export default function SiteLayout(): JSX.Element {
 
   return (
     <div className="slyt">
-      <a className="u-skip" href="#main">跳到正文</a>
+      <SkipLink to="main" />
 
       <header className="slyt__bar">
         <div className="u-shell slyt__barin">
@@ -185,7 +185,7 @@ export default function SiteLayout(): JSX.Element {
         * 挡住误导的是那一层，不是这条横幅。
         */}
 
-      <main id="main" className="slyt__main">
+      <main id="main" className="slyt__main" tabIndex={-1}>
         <Outlet />
       </main>
 

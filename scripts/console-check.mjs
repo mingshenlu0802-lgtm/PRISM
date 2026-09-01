@@ -72,8 +72,18 @@ const base = `http://127.0.0.1:${server.address().port}/#`
 const browser = await chromium.launch(launchOptions())
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 
-// 外部字体在沙箱里连不上，那是渐进增强，不算缺陷。
+/*
+ * 沙箱里连不上的东西，不算这个网站的缺陷。
+ *
+ * - 外部字体：渐进增强，字体不到位版式照样成立。
+ * - test.supabase.co 的 realtime WebSocket：第 6 节用请求拦截伪造了一个
+ *   Supabase，但拦截只管 HTTP。客户端还会去开一条 WebSocket 长连接，
+ *   而那个域名根本不存在，代理必然拒绝。这条连不上不影响任何被测行为
+ *   ——实时推送本来就是「有更好，没有也行」的那一层。
+ *   只放行这个测试用的假域名，真实域名的 WebSocket 报错照样要算。
+ */
 const external = (t) => /fonts\.(googleapis|gstatic)\.com|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED/.test(t)
+  || /test\.supabase\.co\/realtime/.test(t)
 const errors = []
 /* 第 6 节会故意让数据库拒绝 members / changes，那几条 401 是预期内的。 */
 let expect401 = false
@@ -405,6 +415,28 @@ await run('共享模式：朋友不登录也看得到', async () => {
 } catch (e) {
   if (!(e instanceof Error) || e.message !== '__stop__') throw e
 }
+
+await run('键盘跳转不能把人踢出正在读的文章', async () => {
+  /*
+   * 这个站用 HashRouter，地址栏里的 #/news/xxx 就是路由。
+   * 任何 href="#某个id" 都会把路由整个换掉——兜底规则再把人送回首页。
+   *
+   * 「跳到正文」恰恰是给键盘和读屏用户的那条链接，坏在这里格外糟：
+   * 想跳过导航，结果丢了正在读的那一篇。这个 bug 真的存在过。
+   */
+  await page.goto(`${base}/news/cn-workplace-harassment-guideline`, { waitUntil: 'load' })
+  await page.waitForTimeout(400)
+  const before = await page.evaluate(() => location.hash)
+  await page.evaluate(() => { const a = document.querySelector('a.u-skip'); if (a) a.click() })
+  await page.waitForTimeout(350)
+  const after = await page.evaluate(() => location.hash)
+
+  check(before === after, '按「跳到正文」之后还在同一篇文章上', `hash 从 ${before} 变成了 ${after}`)
+  check(after.includes('/news/'), '不能被送回首页', `现在是 ${after}`)
+  // 焦点也要真的落到正文上，否则这条链接只是「看起来能用」。
+  const focused = await page.evaluate(() => document.activeElement?.id ?? '')
+  check(focused === 'main', '焦点要落在 <main> 上', `实际落在 "${focused}"`)
+})
 
 await browser.close()
 server.close()
