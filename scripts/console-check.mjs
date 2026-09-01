@@ -271,31 +271,39 @@ await run('账号与同步：按下「连起来」', async () => {
  * 站长点了链接、回到网站、一切正常——只是没登录，也没有任何解释。
  * ------------------------------------------------------------------ */
 await run('登录回调', async () => {
+  /*
+   * 每次都先经过 about:blank。
+   *
+   * 只有 hash 不同的两个地址之间跳转，浏览器当作同文档跳转，**不会重新加载**——
+   * 于是 main.tsx 不再执行，takeAuthFromHash() 根本没机会跑，测出来的就是假的。
+   * （这正是这个 PR 在修的那一类问题，写测试时自己也踩了一次。）
+   */
+  const land = async (hash) => {
+    await page.goto('about:blank')
+    await page.goto(`${base.slice(0, -1)}${hash}`, { waitUntil: 'load' })
+  }
+
   // 过期的链接必须说出来。这条路径是看得见的，所以拿它验「抢在路由前面」这件事：
   // 能显示这句话，就证明 hash 在被路由抹掉之前已经被读走了。
-  await page.goto(
-    `${base.slice(0, -1)}#error=access_denied&error_code=otp_expired`
-    + '&error_description=Email+link+is+invalid+or+has+expired',
-    { waitUntil: 'load' },
-  )
-  await page.waitForTimeout(1200)
-  const said = await page.locator('text=登录链接已经过期').isVisible().catch(() => false)
+  await land('#error=access_denied&error_code=otp_expired'
+    + '&error_description=Email+link+is+invalid+or+has+expired')
+  // 用 waitFor 而不是睡一段固定时间再看一眼——提示是会自己消失的 toast，
+  // 定点采样等于把结果交给机器快慢。
+  const said = await page.locator('text=登录链接已经过期')
+    .waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)
   check(said, '过期的登录链接会说明原因，而不是默默回到首页')
   check(!(await page.evaluate(() => window.location.hash)).includes('error='),
     '说完之后把地址清干净，不把回调参数留在地址栏和历史里')
 
   // 带令牌回来时，地址栏不能留着令牌——那会进浏览器历史，也会被分享出去。
-  await page.goto(
-    `${base.slice(0, -1)}#access_token=FAKE_A&refresh_token=FAKE_R&token_type=bearer&type=magiclink`,
-    { waitUntil: 'load' },
-  )
+  await land('#access_token=FAKE_A&refresh_token=FAKE_R&token_type=bearer&type=magiclink')
   await page.waitForTimeout(1200)
-  const hash = await page.evaluate(() => window.location.hash)
-  check(!hash.includes('access_token'), '令牌不会留在地址栏里')
+  check(!(await page.evaluate(() => window.location.hash)).includes('access_token'),
+    '令牌不会留在地址栏里')
   check(!(await crashed()), '带着登录回调进来不会把网站打崩')
 
   // 普通路由的 hash 一个字都不能动。
-  await page.goto(`${base}/console/manage`, { waitUntil: 'load' })
+  await land('#/console/manage')
   await page.waitForTimeout(800)
   check((await page.evaluate(() => window.location.hash)) === '#/console/manage',
     '普通地址不受影响，该去哪还去哪')
