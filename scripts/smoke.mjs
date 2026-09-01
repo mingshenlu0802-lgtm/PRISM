@@ -1146,6 +1146,52 @@ await test('要把报道正文抠出来交给模型，而不是只给 RSS 摘要
   ok(huge.length <= 1000, `要截断到上限，实际 ${huge.length}`)
 })
 
+await test('一家媒体不该霸占首页', () => {
+  /*
+   * 每个源最多收 8 条，一天目标 15 条——两家媒体就能把首页填满。
+   * 真实抓取里 The Guardian Australia 一家交了 8 条，一个号称覆盖
+   * 14 个地区的站，首页可能一半来自澳大利亚。
+   *
+   * 这里复制收集脚本里那段轮转逻辑，验证它的两个性质：
+   * 层内按来源轮转，且一条都不丢。
+   */
+  const rotate = (items) => {
+    const byTier = new Map()
+    for (const p of items) {
+      const tier = p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2
+      if (!byTier.has(tier)) byTier.set(tier, new Map())
+      const feeds = byTier.get(tier)
+      if (!feeds.has(p.feed)) feeds.set(p.feed, [])
+      feeds.get(p.feed).push(p)
+    }
+    const out = []
+    for (const tier of [...byTier.keys()].sort()) {
+      const queues = [...byTier.get(tier).values()]
+      for (let r = 0; queues.some((q) => q.length > r); r += 1) {
+        for (const q of queues) if (q[r]) out.push(q[r])
+      }
+    }
+    return out
+  }
+
+  const items = []
+  for (const feed of ['guardian', 'reuters', 'bbc']) {
+    for (let i = 0; i < 4; i += 1) items.push({ feed, topics: ['violence'], n: i })
+  }
+  const out = rotate(items)
+  eq(out.slice(0, 3).map((p) => p.feed).join(), 'guardian,reuters,bbc', '前三条要来自三家')
+  eq(out.length, items.length, '轮转不能丢条目')
+
+  // 优先级分层必须保住：性犯罪仍然排在其他题材前面。
+  const mixed = rotate([
+    { feed: 'a', topics: ['equality'] },
+    { feed: 'b', topics: ['violence'] },
+    { feed: 'c', topics: ['children'] },
+  ])
+  eq(mixed.map((p) => p.topics[0]).join(), 'violence,children,equality',
+    '轮转不能把性犯罪优先挤掉')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

@@ -189,6 +189,33 @@ picked.sort((a, b) => {
   return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
 })
 
+/*
+ * 同一家媒体不要霸占版面。
+ *
+ * 每个源最多收 8 条，而一天的目标是 15 条——所以理论上两家媒体就能把整个
+ * 首页填满。真实抓取里 The Guardian Australia 一家就交了 8 条，
+ * 一个号称覆盖 14 个地区的站，首页可能一半来自澳大利亚。
+ *
+ * 所以在**保持上面那个优先级分层的前提下**，层内按来源轮转：
+ * 先每家取第一条，再每家取第二条。性犯罪仍然排在最前面，
+ * 只是同一层里不再让一家连着占位。
+ */
+const byTier = new Map()
+for (const p of picked) {
+  const tier = p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2
+  if (!byTier.has(tier)) byTier.set(tier, new Map())
+  const feeds = byTier.get(tier)
+  if (!feeds.has(p.feed.id)) feeds.set(p.feed.id, [])
+  feeds.get(p.feed.id).push(p)
+}
+picked = []
+for (const tier of [...byTier.keys()].sort()) {
+  const queues = [...byTier.get(tier).values()]
+  for (let round = 0; queues.some((q) => q.length > round); round += 1) {
+    for (const q of queues) if (q[round]) picked.push(q[round])
+  }
+}
+
 console.log('PRISM 新闻收集')
 console.log('—'.repeat(76))
 for (const [feed, total, kept, why] of report) {
