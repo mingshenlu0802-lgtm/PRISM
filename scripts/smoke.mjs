@@ -546,6 +546,7 @@ const feedparse = await import('./feedparse.mjs')
 const ed = await import('./editorial.mjs')
 const llm = await import('./llm.mjs')
 const rw = await import('./rewrite.mjs')
+const blk = await import('./blocks.mjs')
 const feeds = await import('./feeds.mjs')
 
 await test('RSS 和 Atom 都要认得出来', () => {
@@ -880,6 +881,58 @@ await test('议题清单要以性暴力开头，并且真的有儿童这一项',
   eq(ui.join(','), collector.join(','), '界面议题和抓取议题必须对得上')
 })
 
+await test('长稿不能装在 JSON 里——一个换行就毁掉整批', () => {
+  /*
+   * 这是实测出来的：十批里四批报「模型返回的不是 JSON」。
+   * 原因不是模型偷懒，是 JSON 装不下带换行的长文——
+   * 字符串里出现一个真实换行就是 Bad control character，整个文档作废。
+   * 而这个站要的恰恰是分段的一两千字。
+   */
+  let jsonBroke = false
+  try { JSON.parse('{"s":"第一段\n\n第二段"}') } catch { jsonBroke = true }
+  ok(jsonBroke, '前提：JSON 字符串里的真实换行确实非法')
+
+  // 分隔符格式对同样的内容毫无问题。
+  const text = [
+    '===ITEM 0===',
+    'KEEP: yes',
+    'HEADLINE: 一个标题',
+    'SUBHEAD: 一句副标题',
+    'TOPICS: violence, children, 不存在的',
+    'REGIONS: us, 火星',
+    'BULLETS:',
+    '- 要点一',
+    '- 要点二',
+    'SUMMARY:',
+    '第一段。',
+    '',
+    '## 小标题',
+    '',
+    '第二段，带来源 [1]。',
+    '===END 0===',
+    '===ITEM 1===',
+    'KEEP: no',
+    '===END 1===',
+  ].join('\n')
+
+  const blocks = blk.splitBlocks(text)
+  eq(blocks.length, 2, '两个块都要认出来')
+  const f = blk.parseBlock(blocks[0].body, ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY'])
+  ok(f.SUMMARY.includes('\n\n'), '空行分段要原样保留')
+  ok(f.SUMMARY.includes('## 小标题'), '小标题要留在正文里')
+  ok(!f.SUMMARY.includes('===END'), '结束标记不能混进正文')
+  eq(blk.parseYes(f.KEEP), true, 'KEEP: yes 要读成真')
+  eq(blk.parseYes(blk.parseBlock(blocks[1].body, ['KEEP']).KEEP), false, 'KEEP: no 要读成假')
+  eq(blk.parseList(f.BULLETS).join(), '要点一,要点二', '列表要去掉短横线')
+  eq(blk.parseEnum(f.TOPICS, new Set(['violence', 'children'])).join(), 'violence,children',
+    '不存在的议题要过滤掉')
+  eq(blk.parseEnum(f.REGIONS, new Set(['us'])).join(), 'us', '不存在的地区要过滤掉')
+
+  // 模型漏写 ===END 是常事，不该让已经写好的稿子作废。
+  const noEnd = blk.splitBlocks('===ITEM 0===\nKEEP: yes\nSUMMARY:\n正文\n===ITEM 1===\nKEEP: no')
+  eq(noEnd.length, 2, '漏写结束标记也要能切开')
+})
+
 await test('研究里的数字不能是模型编的', () => {
   // 研究页把数字印得很大。一个没有出处、没有边界说明的数字，
   // 比不放这个数字糟糕得多。
@@ -888,17 +941,16 @@ await test('研究里的数字不能是模型编的', () => {
     summary: '原摘要', topics: ['equality'], regions: ['global'],
   }
   const got = rw.cleanStudy({
-    title: '中文标题',
-    kind: '瞎编的类型',
-    summary: '这是一段足够长的中文总结'.repeat(6),
-    limitation: '',
-    figures: [
-      { label: '有说明的', value: '38%', note: '只统计了报案的案件' },
-      { label: '没说明的', value: '99%', note: '' },
-      { label: '没数字的', value: '', note: '有说明但没有数字' },
-    ],
-    topics: ['violence', '不存在的议题'],
-    regions: ['us', '火星'],
+    KEEP: 'yes',
+    TITLE: '中文标题',
+    KIND: '瞎编的类型',
+    SUMMARY: '这是一段足够长的中文总结'.repeat(40),
+    LIMITATION: '',
+    FIGURES: ['- 有说明的 | 38% | 只统计了报案的案件',
+      '- 没说明的 | 99% |',
+      '- 没数字的 | | 有说明但没有数字'].join('\n'),
+    TOPICS: 'violence, 不存在的议题',
+    REGIONS: 'us, 火星',
   }, fallback)
 
   eq(got.figures.length, 1, '没有边界说明、或者没有数字的都要丢掉')
@@ -909,7 +961,7 @@ await test('研究里的数字不能是模型编的', () => {
   ok(got.limitation.length > 0, '局限不能空着——空着等于默许读者过度解读')
 
   // 太短的总结退回原文，而不是把一句话当成「详细总结」发出去。
-  const short = rw.cleanStudy({ summary: '很短' }, fallback)
+  const short = rw.cleanStudy({ KEEP: 'yes', SUMMARY: '很短' }, fallback)
   eq(short.summary, '原摘要', '一句话不算总结')
 })
 

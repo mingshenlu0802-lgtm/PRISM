@@ -13,7 +13,8 @@
  * 一批一批发。批太大模型会开始偷懒——后面几条越写越短；批太小则调用次数翻倍，
  * 免费额度撑不住。六条是个折中。
  */
-import { ask, llmName } from './llm.mjs'
+import { ask, askText, llmName } from './llm.mjs'
+import { splitBlocks, parseBlock, parseList, parseEnum, parseYes } from './blocks.mjs'
 import { systemPrompt, triagePrompt } from './editorial.mjs'
 
 /*
@@ -27,23 +28,34 @@ import { systemPrompt, triagePrompt } from './editorial.mjs'
 const BATCH = Number(process.env.LLM_BATCH ?? 2)
 
 const SHAPE = `
-只返回 JSON，形如：
-{"items":[{
-  "keep": true,
-  "headline": "主标题",
-  "subhead": "副标题，一句话，给范围/证据变化/制度意义",
-  "summary": "中文新闻稿，1500-3000 字，用「## 小标题」分节，段间用 \\n\\n 断开，来源用 [1] [2] 角标",
-  "bullets": ["要点一", "要点二"],
-  "topics": ["violence"],
-  "regions": ["us"],
-  "notice": "内容提示，没有就给空字符串"
-}]}
+每一条候选写成一个块，**不要用 JSON**，照下面的格式：
 
-items 的长度和顺序必须跟输入的候选**完全一致**，不符合方针的那条把 keep 设成 false
-（其余字段可以留空）。不要增删条目，不要改顺序。
+===ITEM 0===
+KEEP: yes
+HEADLINE: 主标题
+SUBHEAD: 副标题，一句话
+TOPICS: violence, children
+REGIONS: us
+NOTICE: 内容提示，没有就留空
+BULLETS:
+- 要点一
+- 要点二
+SUMMARY:
+正文第一段。
 
-topics 只能从这些里选：violence children rights repro trans hate equality displacement movement
-regions 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
+正文第二段。可以直接换行、直接空行，不需要转义。
+
+## 小标题
+
+正文继续。句子后面用 [1] [2] 标出处。
+===END 0===
+
+规则：
+- 每一条候选都要有一个块，编号就是输入里的 i，顺序不变，不要增删。
+- 不符合方针的写 KEEP: no，其余字段可以留空。
+- SUMMARY 从冒号后**换行开始**，一直写到 ===END 为止。
+- TOPICS 只能从这些里选：violence children rights repro trans hate equality displacement movement
+- REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
 async function runBatch(batch, ownerNote) {
@@ -61,20 +73,24 @@ async function runBatch(batch, ownerNote) {
     sources: [{ n: 1, outlet: p.feed.outlet, lang: p.feed.lang, url: p.link },
       ...(p.also ?? []).map((o, k) => ({ n: k + 2, outlet: o.feed.outlet, lang: o.feed.lang, url: o.link }))],
   }))
-  const out = await ask(
+  const text = await askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
     `候选新闻 ${input.length} 条：\n\n${JSON.stringify(input, null, 1)}`,
-    // 两条 × 2000 字，加上标题、要点和 JSON 结构本身。给够余量：
-    // 写到一半被截断等于这一批全丢，而现在每一批都很贵。
-    // 编辑方针有缓存，批次变多不会把输入成本按批数翻倍。
     { maxTokens: 24000 },
   )
-  const items = Array.isArray(out?.items) ? out.items : []
-  if (items.length !== batch.length) {
-    throw new Error(`模型返回 ${items.length} 条，应当是 ${batch.length} 条`)
+  const blocks = splitBlocks(text)
+  if (blocks.length === 0) {
+    throw new Error(`没找到 ===ITEM=== 块：${text.slice(0, 200)}`)
   }
+  // 按编号对回去，而不是按出现顺序——模型偶尔会漏掉一整块（那一条就当没留下）。
+  const items = batch.map((_, i) => {
+    const b = blocks.find((x) => x.i === i)
+    return b ? parseBlock(b.body, FIELDS) : null
+  })
   return items
 }
+
+const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'NOTICE', 'BULLETS', 'SUMMARY']
 
 const TOPICS = new Set(['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'])
 const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
@@ -86,21 +102,21 @@ const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sa
  * 前者会让筛选页出现一个点不开的标签，后者就是站长说的「总结不够详细」。
  */
 export function clean(raw, fallback) {
-  if (!raw || raw.keep === false) return null
-  const headline = String(raw.headline ?? '').trim()
-  const summary = String(raw.summary ?? '').trim()
+  if (!raw || !parseYes(raw.KEEP)) return null
+  const headline = String(raw.HEADLINE ?? '').trim()
+  const summary = String(raw.SUMMARY ?? '').trim()
   if (!headline || summary.length < 400) return null // 太短就是没写，宁可不要
 
-  const topics = (Array.isArray(raw.topics) ? raw.topics : []).filter((t) => TOPICS.has(t))
-  const regions = (Array.isArray(raw.regions) ? raw.regions : []).filter((r) => REGIONS.has(r))
+  const topics = parseEnum(raw.TOPICS, TOPICS)
+  const regions = parseEnum(raw.REGIONS, REGIONS)
   return {
     headline,
-    subhead: String(raw.subhead ?? '').trim() || null,
+    subhead: String(raw.SUBHEAD ?? '').trim() || null,
     summary,
-    bullets: (Array.isArray(raw.bullets) ? raw.bullets : []).map((b) => String(b).trim()).filter(Boolean).slice(0, 6),
+    bullets: parseList(raw.BULLETS).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
-    notice: String(raw.notice ?? '').trim() || null,
+    notice: String(raw.NOTICE ?? '').trim() || null,
   }
 }
 
@@ -248,53 +264,65 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity) 
  * ------------------------------------------------------------------ */
 
 const STUDY_SHAPE = `
-只返回 JSON，形如：
-{"items":[{
-  "keep": true,
-  "title": "中文标题",
-  "publisher": "中文机构名",
-  "kind": "official-statistics",
-  "summary": "中文新闻稿，1000-1500 字，按「怎么写这一篇」的结构写，分段用 \\n\\n 断开",
-  "limitation": "这份研究撑不起什么结论，一到两句",
-  "figures": [{"label":"指标名","value":"数字带单位","note":"这个数字没有说什么"}],
-  "topics": ["violence"],
-  "regions": ["global"]
-}]}
+每一项写成一个块，**不要用 JSON**：
 
-items 的长度和顺序必须跟输入**完全一致**，不属于本站题目的把 keep 设成 false。
+===ITEM 0===
+KEEP: yes
+TITLE: 中文标题
+PUBLISHER: 中文机构名
+KIND: official-statistics
+TOPICS: violence, children
+REGIONS: global
+FIGURES:
+- 指标名 | 数字带单位 | 这个数字没有说什么
+- 指标名 | 数字带单位 | 这个数字没有说什么
+LIMITATION:
+这份研究撑不起什么结论，一到两句。
+SUMMARY:
+按新闻的写法写，1000–1500 字，分段。可以直接换行。
+===END 0===
 
-kind 只能从这些里选：peer-reviewed systematic-review official-statistics dataset ngo-report preprint
-topics 只能从这些里选：violence children rights repro trans hate equality displacement movement
-regions 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global
+规则：
+- 每一项都要有一个块，编号是输入里的 i，顺序不变。不属于本站题目的写 KEEP: no。
+- KIND 只能是：peer-reviewed systematic-review official-statistics dataset ngo-report preprint
+- TOPICS 只能从这些里选：violence children rights repro trans hate equality displacement movement
+- REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global
+- FIGURES 里只放**原文里真的出现过的数字**，一行一个，三段用 | 隔开。
+  原文没给数字就整个留空——编一个数字比没有数字糟糕得多。
+  第三段（它没说什么）不能空着：每个数字都要说清它的边界。
+- LIMITATION 同理，宁可写「原报告未说明抽样方法」，也不要编一个方法出来。`.trim()
 
-figures 里只放**原文里真的出现过的数字**。原文没给数字就返回空数组——
-编一个数字比没有数字糟糕得多。note 不能空着：每个数字都要说清它的边界。
-limitation 同理，宁可写「原文未说明抽样方法」，也不要编一个方法出来。`.trim()
+const STUDY_FIELDS = ['KEEP', 'TITLE', 'PUBLISHER', 'KIND', 'TOPICS', 'REGIONS', 'FIGURES', 'LIMITATION', 'SUMMARY']
 
 const KINDS = new Set(['peer-reviewed', 'systematic-review', 'official-statistics', 'dataset', 'ngo-report', 'preprint'])
 
 /** 校验一项研究。和新闻一样：模型编出来的字段不该悄悄进站。 */
 export function cleanStudy(raw, fallback) {
-  const topics = (Array.isArray(raw?.topics) ? raw.topics : []).filter((t) => TOPICS.has(t))
-  const regions = (Array.isArray(raw?.regions) ? raw.regions : []).filter((r) => REGIONS.has(r))
-  const figures = (Array.isArray(raw?.figures) ? raw.figures : [])
-    .filter((f) => f && String(f.value ?? '').trim() && String(f.note ?? '').trim())
+  const topics = parseEnum(raw?.TOPICS, TOPICS)
+  const regions = parseEnum(raw?.REGIONS, REGIONS)
+  const kind = String(raw?.KIND ?? '').trim()
+
+  /*
+   * 数字一行一个：指标 | 数值 | 它没说什么。
+   * 三段缺任何一段就丢掉——研究页把数字印得很大，一个没有边界说明的数字
+   * 比不放这个数字糟糕得多。
+   */
+  const figures = parseList(raw?.FIGURES)
+    .map((line) => line.split('|').map((x) => x.trim()))
+    .filter((p) => p.length >= 3 && p[1] && p[2])
     .slice(0, 3)
-    .map((f) => ({
-      label: String(f.label ?? '').trim(),
-      value: String(f.value ?? '').trim(),
-      note: String(f.note ?? '').trim(),
-    }))
-  const summary = String(raw?.summary ?? '').trim()
+    .map((p) => ({ label: p[0], value: p[1], note: p.slice(2).join(' | ') }))
+
+  const summary = String(raw?.SUMMARY ?? '').trim()
   return {
     ...fallback,
-    title: String(raw?.title ?? '').trim() || fallback.title,
-    publisher: String(raw?.publisher ?? '').trim() || fallback.publisher,
-    // 模型没给或给了个不存在的类型，就退回这个源的默认类型，不要让研究页
+    title: String(raw?.TITLE ?? '').trim() || fallback.title,
+    publisher: String(raw?.PUBLISHER ?? '').trim() || fallback.publisher,
+    // 模型给了个不存在的类型，就退回这个源的默认类型，不要让研究页
     // 出现一个显示不出可信度提示的空类别。
-    kind: KINDS.has(raw?.kind) ? raw.kind : fallback.kind,
+    kind: KINDS.has(kind) ? kind : fallback.kind,
     summary: summary.length >= 400 ? summary : fallback.summary,
-    limitation: String(raw?.limitation ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
+    limitation: String(raw?.LIMITATION ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
     figures,
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
@@ -315,19 +343,20 @@ export async function rewriteStudies(cands, ownerNote) {
   }))
   console.log(`交给模型处理 ${cands.length} 项候选研究（${llmName()}）`)
   try {
-    const out = await ask(
+    const text = await askText(
       `${systemPrompt(ownerNote)}\n\n${STUDY_SHAPE}`,
       `候选研究 ${input.length} 项：\n\n${JSON.stringify(input, null, 1)}`,
       { maxTokens: 24000 },
     )
-    const items = Array.isArray(out?.items) ? out.items : []
-    if (items.length !== cands.length) {
-      throw new Error(`模型返回 ${items.length} 项，应当是 ${cands.length} 项`)
-    }
+    const blocks = splitBlocks(text)
+    if (blocks.length === 0) throw new Error(`没找到 ===ITEM=== 块：${text.slice(0, 200)}`)
     const kept = []
     cands.forEach((c, i) => {
-      if (items[i]?.keep === false) return
-      kept.push(cleanStudy(items[i], c))
+      const b = blocks.find((x) => x.i === i)
+      if (!b) return
+      const f = parseBlock(b.body, STUDY_FIELDS)
+      if (!parseYes(f.KEEP)) return
+      kept.push(cleanStudy(f, c))
     })
     console.log(`模型留下 ${kept.length} 项，丢掉 ${cands.length - kept.length} 项`)
     return kept

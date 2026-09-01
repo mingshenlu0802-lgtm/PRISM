@@ -112,7 +112,23 @@ export function llmName() {
  * 不用流式：这是批处理，没人在等着看字一个个蹦出来，而一次拿到完整结果
  * 才好校验。超时给得长，因为一批几十条的长总结确实要跑一会儿。
  */
-export async function ask(system, user, { timeoutMs = 180000, maxTokens = 8000 } = {}) {
+/**
+ * 要一段纯文本回来。
+ *
+ * 长稿不走 JSON。理由在 scripts/blocks.mjs 的开头写着：一个真实换行就能
+ * 让整批作废，而这个站要的正是分段的长文。所以让模型写带分隔符的纯文本，
+ * 解析交给 blocks.mjs。
+ */
+export async function askText(system, user, opts = {}) {
+  return raw(system, user, opts)
+}
+
+/** 要一段 JSON 回来。短结构（初筛）仍然用它——那种输出不会有换行问题。 */
+export async function ask(system, user, opts = {}) {
+  return parseJson(await raw(system, user, opts))
+}
+
+async function raw(system, user, { timeoutMs = 180000, maxTokens = 8000 } = {}) {
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
   const ctl = new AbortController()
@@ -147,7 +163,11 @@ export async function ask(system, user, { timeoutMs = 180000, maxTokens = 8000 }
         : '模型没有返回内容'
       throw new Error(why)
     }
-    return parseJson(text)
+    // 被截断的长稿要说出来：半篇稿子看起来像成功，其实结尾是断的。
+    if ((data?.stop_reason ?? data?.choices?.[0]?.finish_reason) === 'max_tokens') {
+      throw new Error(`写到 max_tokens（${maxTokens}）被截断，这一批不完整。把批次调小或把 max_tokens 调大。`)
+    }
+    return text
   } finally {
     clearTimeout(timer)
   }
