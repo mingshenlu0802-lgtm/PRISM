@@ -128,7 +128,25 @@ export async function ask(system, user, opts = {}) {
   return parseJson(await raw(system, user, opts))
 }
 
-async function raw(system, user, { timeoutMs = 180000, maxTokens = 8000 } = {}) {
+/**
+ * 超时要跟着 maxTokens 走，不能是一个定数。
+ *
+ * 这里原本写死 180 秒。那是 maxTokens 还是 8000 的时候定的，够用。
+ * 后来站长要求正文写到三千字，于是写稿这一路把 maxTokens 提到 24000——
+ * 一批两条、每条三千汉字，光输出就六千到九千个 token。生成这么多字
+ * **本来就要好几分钟**，可上限还停在三分钟。
+ *
+ * 这种失败最难查，因为它长得像成功：fetch 被 abort，rewrite.mjs 捕获
+ * 异常、打一行「第 N 批失败」、继续下一批。没有报错、没有退出码，
+ * 只是当天少了两条新闻——而且是**写得最长最好**的那两条最容易中招。
+ *
+ * 所以按要多少字给多少时间：每个 token 30 毫秒（约合每秒 33 个 token，
+ * 比实际慢，留足余量），并且不低于原来的三分钟。24000 token 就是 12 分钟。
+ * 这是上限不是等待时间——正常几十秒就回来了。
+ */
+const timeoutFor = (maxTokens) => Math.max(180000, maxTokens * 30)
+
+async function raw(system, user, { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens) } = {}) {
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
   const ctl = new AbortController()
@@ -168,6 +186,16 @@ async function raw(system, user, { timeoutMs = 180000, maxTokens = 8000 } = {}) 
       throw new Error(`写到 max_tokens（${maxTokens}）被截断，这一批不完整。把批次调小或把 max_tokens 调大。`)
     }
     return text
+  } catch (e) {
+    /*
+     * abort 抛出来的是「The operation was aborted」——在批次日志里
+     * 只会显示成这一句，看不出是超时，更看不出该调哪个数。
+     * 换成一句说得清的。
+     */
+    if (e?.name === 'AbortError') {
+      throw new Error(`等模型超过 ${Math.round(timeoutMs / 1000)} 秒还没写完（max_tokens ${maxTokens}），这一批放弃。`)
+    }
+    throw e
   } finally {
     clearTimeout(timer)
   }

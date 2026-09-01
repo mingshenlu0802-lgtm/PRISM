@@ -10,7 +10,7 @@
  *   node scripts/smoke.mjs
  */
 import { build } from 'esbuild'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -1275,6 +1275,344 @@ await test('英文的复数要认得出来', () => {
   const nm = feedparse.regionsOf({ title: 'Assault at a New Mexico middle school', summary: '' }, { regions: ['global'] })
   ok(nm.includes('us'), 'New Mexico 要算美国')
   ok(!nm.includes('latam'), 'New Mexico 不能算拉丁美洲')
+})
+
+await test('「关于」页上的来源数字不能自己变旧', () => {
+  /*
+   * 站长两次说了同一件事：「关于界面的这些内容也不准确」「有很多内容界面
+   * 内容都是outdated的」。
+   *
+   * 「关于」页写着订阅了多少个源、其中多少家是专做性别报道的、多少家是中文。
+   * 那几个数字是手写的，而源清单在 feeds.mjs 里，随时会加。加了源、忘了改
+   * 页面，页面就开始撒谎——而且不会有任何报错，正是**上一次**变旧的方式。
+   *
+   * 所以在这里对一次。这条测试挂了，不是代码坏了，是那一页该改数字了。
+   */
+  const src = readFileSync(join(process.cwd(), 'src/pages/site/AboutPage.tsx'), 'utf8')
+
+  const claimed = (re, what) => {
+    const m = re.exec(src)
+    ok(m, `「关于」页上找不到${what}的数字——句子改写过了就把这条测试一起改`)
+    return Number(m[1])
+  }
+
+  eq(claimed(/订阅\s*(\d+)\s*个来源/, '来源总数'), feeds.FEEDS.length, '「关于」页写的来源总数')
+  eq(claimed(/(\d+)\s*家专做性别与\s*LGBTQIA\+\s*报道/, '性别媒体数'),
+     feeds.FEEDS.filter((f) => f.topical).length, '「关于」页写的性别媒体家数')
+  eq(claimed(/中文来源\s*(\d+)\s*家/, '中文来源数'),
+     feeds.FEEDS.filter((f) => String(f.lang).startsWith('zh')).length, '「关于」页写的中文来源家数')
+
+  // 页面点名的那几家必须真的在清单里，否则就是在吹。
+  for (const outlet of ['BBC News', 'The Guardian', 'AP', 'The New York Times']) {
+    ok(feeds.FEEDS.some((f) => f.outlet === outlet), `「关于」页点名了 ${outlet}，清单里却没有`)
+  }
+  for (const outlet of ['报导者', '端传媒', '法庭線', '婦女救援基金會']) {
+    ok(feeds.FEEDS.some((f) => f.outlet === outlet), `「关于」页点名了 ${outlet}，清单里却没有`)
+  }
+})
+
+await test('等模型的时间要跟着要写的字数走', async () => {
+  /*
+   * 上限一度写死三分钟。那是 maxTokens 还是 8000 时定的。
+   * 站长后来要求正文写到三千字，写稿这一路把 maxTokens 提到 24000——
+   * 一批两条、每条三千汉字，六千到九千个输出 token，生成本来就要好几分钟，
+   * 上限却没动。
+   *
+   * 这种失败长得像成功：fetch 被 abort，写稿那边捕获异常、记一行
+   * 「第 N 批失败」、接着写下一批。没有报错、没有非零退出码，当天只是
+   * 少了两条——而且**写得最长的那两条最容易中招**。
+   *
+   * 所以这里盯住两件事：上限确实跟着 maxTokens 走，以及超时说的是人话。
+   */
+  const src = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
+  ok(/timeoutFor\s*=\s*\(maxTokens\)/.test(src), '超时应当由 maxTokens 算出来，不是一个定数')
+  ok(!/timeoutMs = 180000, maxTokens/.test(src), '不该再把 180 秒写死在参数默认值上')
+
+  // 真的发一次请求，对着一台永不回话的服务器，确认它会中断并说清楚。
+  const { createServer } = await import('node:http')
+  const server = createServer(() => {})
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  const port = server.address().port
+  const saved = { base: process.env.LLM_BASE_URL, key: process.env.LLM_API_KEY,
+                  model: process.env.LLM_MODEL, ant: process.env.ANTHROPIC_API_KEY }
+  process.env.LLM_BASE_URL = `http://127.0.0.1:${port}`
+  process.env.LLM_API_KEY = 'x'
+  process.env.LLM_MODEL = 'x'
+  delete process.env.ANTHROPIC_API_KEY
+  try {
+    const llm = await import('./llm.mjs')
+    let msg = ''
+    try { await llm.askText('s', 'u', { maxTokens: 2000, timeoutMs: 900 }) }
+    catch (e) { msg = e.message }
+    ok(/超过 \d+ 秒/.test(msg), `超时要说是超时，实际说的是「${msg}」`)
+    ok(/max_tokens/.test(msg), '超时还要带上 max_tokens，否则不知道该调哪个数')
+  } finally {
+    server.close()
+    for (const [k, v] of [['LLM_BASE_URL', saved.base], ['LLM_API_KEY', saved.key],
+                          ['LLM_MODEL', saved.model], ['ANTHROPIC_API_KEY', saved.ant]]) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v
+    }
+  }
+})
+
+await test('地图上每个地区占一块，不重叠也不漏', () => {
+  /*
+   * 上一版地图是一张扁平的格子表，一个地区占好几格，名字只写在第一格——
+   * 屏幕上于是有一半格子是没有字的彩色方块。现在改成每个地区用 grid-area
+   * 占一个矩形。
+   *
+   * grid-area 是四个数字的字符串，写错了 CSS 不会报错：两块重叠就是后面那块
+   * 盖住前面那块，少一块就是那个地区从地图上消失，读者永远点不到。所以在这里
+   * 把版面摊开来数一遍。
+   */
+  const src = readFileSync(join(process.cwd(), 'src/components/site/RegionMap.tsx'), 'utf8')
+  const places = [...src.matchAll(/key:\s*'([a-z]+)',\s*area:\s*'(\d+) \/ (\d+) \/ (\d+) \/ (\d+)'/g)]
+    .map((m) => ({ key: m[1], r0: +m[2], c0: +m[3], r1: +m[4], c1: +m[5] }))
+  ok(places.length > 0, '没能从 RegionMap.tsx 里读出版面')
+
+  // 每个地区一条，不重复。
+  eq(new Set(places.map((p) => p.key)).size, places.length, '同一个地区不能摆两次')
+
+  // 除了「跨区域·国际机构」（它没有地理位置，单独一行文字），全部要在图上。
+  const onMap = new Set(places.map((p) => p.key))
+  const regionKeys = [...readFileSync(join(process.cwd(), 'src/lib/regions.ts'), 'utf8')
+    .matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1])
+  for (const k of regionKeys) {
+    if (k === 'global') { ok(!onMap.has(k), '「跨区域」不该塞进格子里假装它在某处'); continue }
+    ok(onMap.has(k), `地区「${k}」在地图上找不到——读者点不到它`)
+  }
+
+  // 摊成格子：任何一格不能被两个地区占。
+  const cells = new Map()
+  for (const p of places) {
+    ok(p.r1 > p.r0 && p.c1 > p.c0, `${p.key} 的 grid-area 是空的（止要大于起）`)
+    for (let r = p.r0; r < p.r1; r++) {
+      for (let c = p.c0; c < p.c1; c++) {
+        const at = `${r},${c}`
+        ok(!cells.has(at), `第 ${r} 行第 ${c} 列被 ${cells.get(at)} 和 ${p.key} 同时占用`)
+        cells.set(at, p.key)
+      }
+    }
+  }
+
+  /*
+   * 空间直觉要还在，否则这就不是地图只是一张彩色表格。
+   * 抽查几组不该颠倒的：欧洲在美国右边、拉美在下面、澳新在最下、日韩在最右。
+   */
+  const at = (k) => places.find((p) => p.key === k)
+  ok(at('eu').c0 > at('us').c0, '欧洲要在美国右边')
+  ok(at('latam').r0 > at('us').r0, '拉美要在美国下面')
+  ok(at('anz').r0 >= at('sea').r0, '澳新要在东南亚下面（或同排）')
+  ok(at('jpkr').c1 >= at('cn').c1, '日韩要在中国右边')
+  ok(at('africa').r0 > at('eu').r0, '非洲要在欧洲下面')
+})
+
+await test('繁体不能靠手写——九个中文源是繁体的', () => {
+  /*
+   * 词表原本两种写法并排手写：'性骚扰', '性騷擾'。手写就会漏，而漏了
+   * 没有任何征兆：繁体源那一侧安静地少收一批稿子。上一轮真实抓取里，
+   * '猥亵' 有简体没繁体，'拐卖妇女' 有简体没繁体，'人口贩运' 也只有简体——
+   * 而订的十二个中文源里九个是台湾香港的繁体源。
+   *
+   * 现在词表只写简体，繁体由字表推出来。这条测试盯的是那条路真的通。
+   */
+  const t = (w) => feeds.zhVariants(w)[1]
+  eq(t('性骚扰'), '性騷擾', '简体要能推出繁体')
+  eq(t('人口贩运'), '人口販運', '上一轮真的漏掉的那个词')
+  eq(t('猥亵'), '猥褻', '同上')
+  eq(feeds.zhVariants('rape').length, 1, '英文不该被动')
+  eq(feeds.zhVariants('性侵').length, 1, '简繁同形的词不该重复一遍')
+
+  // 每一栏里，凡是有繁体写法的中文词，两种写法都要在最终词表里。
+  for (const [topic, words] of Object.entries(feeds.TOPIC_WORDS)) {
+    for (const w of words) {
+      const pair = feeds.zhVariants(w)
+      if (pair.length === 2) ok(words.includes(pair[1]), `${topic} 少了「${w}」的繁体「${pair[1]}」`)
+    }
+  }
+})
+
+await test('中文的真实标题：该收的收得到，不该收的收不到', () => {
+  /*
+   * 上面那条测的是字，这条测的是**词表够不够**。
+   *
+   * 第一次跑真实抓取时，报导者 0/10、BBC 中文 0/42、德国之声中文 0/63、
+   * 自由亚洲电台 0/30——四个中文源一条都没收到。一查词表：「轮奸」根本
+   * 不在里面，N 号房、深伪、跟踪骚扰、慰安妇、网路霸凌、起底也都没有。
+   * 一个报道性暴力的站，词表里没有轮奸。
+   */
+  const want = [
+    ['印度一名女子在公交车上遭轮奸　警方逮捕四人', 'sexual'],
+    ['印度一名女子在公車上遭輪姦　警方逮捕四人', 'sexual'],
+    ['韩国N号房事件：主犯被判入狱40年', 'sexual'],
+    ['南韓數位性犯罪：深偽影像受害者多為未成年', 'sexual'],
+    ['未經同意散布私密影像　男子被訴', 'sexual'],
+    ['台灣通過跟蹤騷擾防制法　三讀後六個月上路', 'domestic'],
+    ['香港法院裁定人口販運案　三名被告罪成', 'displacement'],
+    ['慰安婦問題：南韓與日本再度交涉', 'displacement'],
+    ['網路霸凌致死　家屬要求平台交出資料', 'hate'],
+    ['起底個人資料　法院首次引用新例判刑', 'hate'],
+    ['婦女權益促進會發表職場性騷擾調查', 'rights'],
+    ['一名男子被控強制猥褻　法官引導陪審團', 'sexual'],
+  ]
+  for (const [title, topic] of want) {
+    ok(feedparse.topicsOf({ title, summary: '' }).includes(topic), `「${title}」应当归到 ${topic}`)
+  }
+
+  /*
+   * 反过来。加词很容易加过头，而滥收的代价落在站长身上——他要一条条删。
+   * 下面这几条是我第一次加完词之后**真的被误收的**：「边境」把中印对峙
+   * 和边境墙预算收了进来，「恐吓」收了普通刑案，「未经同意」收了肖像权
+   * 官司，「号房」收了酒店失火，「深度伪造」收了电影特效。
+   */
+  for (const title of [
+    '中印边境对峙持续　两国举行军长级会谈',
+    '美墨边境墙工程预算遭国会否决',
+    '男子恐吓邻居被判刑六个月',
+    '未经同意使用肖像　摄影师起诉广告公司',
+    '酒店五号房发生火警　无人受伤',
+    '深度伪造技术用于电影特效引发讨论',
+    '英超：曼联主场击败利物浦',
+  ]) {
+    const got = feedparse.topicsOf({ title, summary: '' })
+    eq(got.length, 0, `「${title}」不该命中任何议题（收到了 ${JSON.stringify(got)}）`)
+  }
+})
+
+await test('日常词做关键词——这一类错已经犯了三次', () => {
+  /*
+   * 三次了，每一次都是同一个形状：一个词在这个题材里有专门含义，
+   * 在普通新闻里却是家常话。
+   *
+   *   settlement   → 以色列定居点贸易      （司法「和解」）
+   *   coming out   → 美联社秋季新片上映指南 （出柜）
+   *   trafficking  → 鹿特丹毒品走私网络     （人口贩运）
+   *   grooming     → 宠物美容店开业        （诱哄儿童）
+   *   stalking     → stalking horse 探路人选（跟踪骚扰）
+   *
+   * 每一条都是从真实抓取里捞回来的。所以这里立一份**噪声样本**：
+   * 全部必须是零议题。以后往词表里加词，先在这里过一遍——
+   * 加一个短词很省事，代价却是站长一条条删。
+   */
+  const noise = [
+    // 真的被误收过的那几条
+    'Irish minister calls for EU action in banning Israeli settlement trade',
+    'Fall Movie Guide: Here are the films coming out this fall, from September to December',
+    'Police smash drug trafficking ring in Rotterdam',
+    'Tupac murder trial: Ex-gang leader found guilty',
+    'Football hooligan gang chief arrested over ecstasy ring',
+    '中印边境对峙持续　两国举行军长级会谈',
+    '男子恐吓邻居被判刑六个月',
+    '酒店五号房发生火警　无人受伤',
+    // 同一类的其他说法
+    'Arms trafficking network dismantled across the Sahel',
+    'Wildlife trafficking of pangolins hits record levels',
+    'A new album coming out in October',
+    'Dog grooming salon opens downtown',
+    'The stalking horse candidate withdrew before the vote',
+    '深度伪造技术用于电影特效引发讨论',
+    '未经同意使用肖像　摄影师起诉广告公司',
+    // 纯粹无关的
+    '英超：曼联主场击败利物浦',
+    '苹果发布新款手机　股价上涨',
+    'Central bank holds interest rates steady',
+    'Fall harvest festival draws record crowds',
+  ]
+  for (const title of noise) {
+    const got = feedparse.topicsOf({ title, summary: '' })
+    eq(got.length, 0, `「${title}」不该命中任何议题（收到 ${JSON.stringify(got)}）`)
+  }
+
+  /*
+   * 反过来：绑上宾语之后，真正的报道还要收得到。
+   * 不然「不滥」就变成了「什么都不收」。
+   */
+  const real = [
+    ['Sex trafficking ring broken up in Atlanta', 'sexual'],
+    ['Human trafficking of women from Nigeria to Italy', 'sexual'],
+    ['Man convicted of stalking his ex-partner', 'sexual'],
+    ['Woman killed by her stalker in Manchester', 'sexual'],
+    ['Actor came out as bisexual in a magazine interview', 'lgbtq'],
+    ['Grooming gang convictions in Rochdale', 'children'],
+    ['Online grooming reports rise 40% in a year', 'children'],
+  ]
+  for (const [title, topic] of real) {
+    ok(feedparse.topicsOf({ title, summary: '' }).includes(topic), `「${title}」应当归到 ${topic}`)
+  }
+})
+
+await test('抠正文：要取最长的那个 article，还要认得 JSON-LD', () => {
+  /*
+   * 真实一轮里 23 条只有 13 条拿到正文，而拿到正文的平均 1672 字、
+   * 没拿到的平均 855 字——差了一倍。**取不到正文就是写不长**，
+   * 所以这一步的命中率直接就是稿子的质量。
+   *
+   * 查下去有两类：
+   *
+   * 一、**取到的是「相关报道」卡片。** 很多新闻页在正文前先排几张推荐卡，
+   *    每张自己就是一个 <article>。非贪婪的正则停在第一个 </article>，
+   *    抠出来是一句话的卡片摘要，不足 400 字，于是判成「没有正文」。
+   *
+   * 二、**人家不用 <p> 排版。** 但几乎所有新闻站都会为搜索引擎塞一段
+   *    schema.org 的 NewsArticle，正文原文就在 articleBody 里。
+   */
+  const para = (t, i) => `<p>${t} 第${i}段：检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪，涉及二〇一九年至二〇二二年间的行为。</p>`
+  const long = (n, t) => Array.from({ length: n }, (_, i) => para(t, i)).join('')
+
+  // 一、卡片在前，正文在后
+  const teasers = '<article><p>相关报道：另一宗案件的简短摘要，只有这么一句。</p></article>'.repeat(3)
+  const withTeasers = `<html><body>${teasers}<article>${long(12, '正文')}</article></body></html>`
+  const got = feedparse.articleText(withTeasers)
+  ok(got.length > 400, `推荐卡在前时要抠到正文，只拿到 ${got.length} 字`)
+  ok(!got.includes('相关报道'), '抠出来的不能是推荐卡')
+  ok(got.startsWith('正文'), '要取最长的那个 article，不是第一个')
+
+  // 二、没有 <p>，只有 JSON-LD
+  const body = '检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪。'.repeat(20)
+  const ld = (obj) => `<script type="application/ld+json">${JSON.stringify(obj)}</script>`
+  const divOnly = `<html><head>${ld({ '@type': 'NewsArticle', articleBody: body })}</head><body><div>${body}</div></body></html>`
+  ok(feedparse.articleText(divOnly).length > 400, '没有 <p> 时要退回 JSON-LD')
+
+  const graph = `<html><head>${ld({ '@graph': [{ '@type': 'WebPage' }, { '@type': 'Article', articleBody: body }] })}</head><body></body></html>`
+  ok(feedparse.articleText(graph).length > 400, '@graph 的写法也要认')
+
+  // 三、有 <p> 就用 <p>——那条路保住了段落结构，不能被 JSON-LD 顶掉
+  const both = `<html><head>${ld({ '@type': 'NewsArticle', articleBody: '短的' })}</head><body><article>${long(12, '乙')}</article></body></html>`
+  eq(feedparse.articleText(both).split('\n\n').length, 12, '有段落时要保住段落')
+
+  // 四、坏 JSON 不能把整轮抓取炸掉
+  const broken = `<html><head><script type="application/ld+json">{ 这不是 JSON }</script></head><body><p>短</p></body></html>`
+  eq(feedparse.articleText(broken), '', '坏 JSON 要安静地跳过')
+})
+
+await test('取到原文的先写，但不能越过议题的优先级', () => {
+  /*
+   * 写到目标条数就停，所以**先写谁就决定了当天上线的是哪一批**。
+   * 实测读过原文的稿子平均 1672 字、只有摘要的 855 字，那就让写得成的先上。
+   *
+   * 但只在同一个议题层内调换：性犯罪是站长定的重心，不能因为某篇取不到
+   * 正文，就把一篇家暴报道顶到性侵案前面去。
+   */
+  const src = readFileSync(join(process.cwd(), 'scripts/rewrite.mjs'), 'utf8')
+  ok(/picked\.sort\(\(a, b\) => tier\(a\) - tier\(b\)/.test(src), '排序必须以议题层为第一关键字')
+
+  // 用同一条规则跑一遍，确认三件事：层次递增、层内有正文的在前、稳定。
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  const list = [
+    { n: 'sexual-无', topics: ['sexual'] },
+    { n: 'sexual-有', topics: ['sexual'], bodies: [1] },
+    { n: 'domestic-有', topics: ['domestic'], bodies: [1] },
+    { n: 'sexual-无2', topics: ['sexual'] },
+    { n: 'children-有', topics: ['children'], bodies: [1] },
+  ]
+  list.sort((a, b) => tier(a) - tier(b) || (a.bodies?.length ? 0 : 1) - (b.bodies?.length ? 0 : 1))
+
+  eq(list[0].n, 'sexual-有', '有正文的性侵报道排第一')
+  const tiers = list.map(tier)
+  ok(tiers.every((v, i) => i === 0 || v >= tiers[i - 1]), '议题层次仍然递增——有正文不能越层')
+  eq(list[1].n, 'sexual-无', '层内同类保持原顺序（稳定排序）')
+  eq(list[2].n, 'sexual-无2', '同上')
+  ok(tier(list[list.length - 1]) === 2, '最后一条仍然是优先级最低的那一层')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

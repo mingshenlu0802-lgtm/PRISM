@@ -43,7 +43,7 @@ export const FEEDS = [
     note: '联合国负责性别平等的机构，发布的是决议、报告与官方声明。' },
   { id: 'unnews-women', outlet: '联合国新闻 · 妇女', url: 'https://news.un.org/feed/subscribe/en/news/topic/women/feed/rss.xml', regions: ['global'], topical: true, kind: 'official', lang: 'en',
     note: '联合国新闻中心的妇女专题。' },
-  { id: 'ohchr', outlet: '联合国人权高专办', url: 'https://www.ohchr.org/en/news-feed.xml', regions: ['global'], kind: 'official', lang: 'en',
+  { id: 'ohchr', outlet: '联合国人权高专办', url: ['https://news.un.org/feed/subscribe/en/news/topic/human-rights/feed/rss.xml', 'https://www.ohchr.org/en/news-feed.xml'], regions: ['global'], kind: 'official', lang: 'en',
     note: '人权理事会与特别报告员的文件。综合源，要过关键词。' },
   { id: 'hrw', outlet: '人权观察', url: 'https://www.hrw.org/rss/news', regions: ['global'], lang: 'en',
     note: '独立调查，方法与取证公开，出错会发更正。综合源。' },
@@ -82,19 +82,15 @@ export const FEEDS = [
    */
   { id: 'rewire', outlet: 'Rewire News Group', url: 'https://rewirenewsgroup.com/feed/', regions: ['us'], topical: true, lang: 'en',
     note: '生育权与司法报道，长期跟踪美国各州法案与法院。' },
-  { id: 'openly', outlet: 'Openly（汤森路透）', url: 'https://www.openlynews.com/rss', regions: ['global'], topical: true, lang: 'en',
-    note: '路透基金会的 LGBTQIA+ 全球报道。' },
   { id: 'advocate', outlet: 'The Advocate', url: 'https://www.advocate.com/feeds/feed.rss', regions: ['us'], topical: true, lang: 'en',
     note: '美国历史最久的 LGBTQIA+ 刊物。' },
   { id: 'pinknews', outlet: 'PinkNews', url: 'https://www.thepinknews.com/feed/', regions: ['eu'], topical: true, lang: 'en',
     note: '英国为主的 LGBTQIA+ 新闻。' },
   { id: 'erin-in-the-morning', outlet: 'Erin in the Morning', url: 'https://www.erininthemorning.com/feed', regions: ['us'], topical: true, lang: 'en',
     note: '美国跨性别立法的逐州追踪，更新比大报快。' },
-  { id: 'lily-wapo', outlet: 'The Lily', url: 'https://www.thelily.com/feed/', regions: ['us'], topical: true, lang: 'en',
-    note: '华盛顿邮报的女性报道线。' },
   { id: 'fuller-project', outlet: 'The Fuller Project', url: 'https://fullerproject.org/feed/', regions: ['global'], topical: true, lang: 'en',
     note: '专做女性议题的国际调查报道机构，常与主流大报合作发表。' },
-  { id: 'womens-media-center', outlet: "Women's Media Center", url: 'https://womensmediacenter.com/rss', regions: ['us', 'global'], topical: true, lang: 'en',
+  { id: 'womens-media-center', outlet: "Women's Media Center", url: ['https://womensmediacenter.com/news-features/feed', 'https://womensmediacenter.com/rss', 'https://www.womensmediacenter.com/feed'], regions: ['us', 'global'], topical: true, lang: 'en',
     note: '媒体中的性别再现与暴力报道。' },
   { id: 'feminist-majority', outlet: 'Feminist Majority Foundation', url: 'https://feminist.org/news/feed/', regions: ['us', 'global'], topical: true, lang: 'en',
     note: '倡议机构的每日简报，立场公开。' },
@@ -102,13 +98,13 @@ export const FEEDS = [
     note: '数字权利与性别，网络暴力与平台治理的一手研究。' },
   { id: 'feminism-in-india', outlet: 'Feminism in India', url: 'https://feminisminindia.com/feed/', regions: ['sasia'], topical: true, lang: 'en',
     note: '南亚视角，印度本地的性别报道与评论。' },
-  { id: 'kohl-journal', outlet: 'Kohl（西亚北非）', url: 'https://kohljournal.press/feed', regions: ['mena'], topical: true, lang: 'en',
+  { id: 'kohl-journal', outlet: 'Kohl（西亚北非）', url: ['https://kohljournal.press/feed', 'https://kohljournal.press/rss.xml', 'https://kohljournal.press/feed/rss'], regions: ['mena'], topical: true, lang: 'en',
     note: '西亚北非的女性主义研究与报道。' },
   { id: 'african-feminism', outlet: 'African Feminism', url: 'https://africanfeminism.com/feed/', regions: ['africa'], topical: true, lang: 'en',
     note: '非洲各国的女性主义写作与个案记录。' },
   { id: 'latfem', outlet: 'LATFEM（拉美）', url: 'https://latfem.org/feed/', regions: ['latam'], topical: true, lang: 'es',
     note: '拉美女性主义媒体，西语。翻译交给模型。' },
-  { id: 'gaytimes', outlet: 'GAY TIMES', url: 'https://www.gaytimes.co.uk/feed/', regions: ['eu'], topical: true, lang: 'en',
+  { id: 'gaytimes', outlet: 'GAY TIMES', url: ['https://www.gaytimes.com/feed/', 'https://www.gaytimes.co.uk/feed/'], regions: ['eu'], topical: true, lang: 'en',
     note: '英国 LGBTQIA+ 刊物。' },
   { id: 'autostraddle', outlet: 'Autostraddle', url: 'https://www.autostraddle.com/feed/', regions: ['us'], topical: true, lang: 'en',
     note: '女同志与酷儿女性的独立媒体。' },
@@ -124,7 +120,7 @@ export const FEEDS = [
     note: 'Condé Nast 旗下 LGBTQIA+ 报道。' },
   { id: 'xtra', outlet: 'Xtra Magazine', url: 'https://xtramagazine.com/feed', regions: ['global'], topical: true, lang: 'en',
     note: '加拿大 LGBTQIA+ 媒体，报道范围跨国。' },
-  { id: 'context', outlet: 'Context（汤森路透基金会）', url: 'https://www.context.news/feed', regions: ['global'], topical: true, lang: 'en',
+  { id: 'context', outlet: 'Context（汤森路透基金会）', url: ['https://www.context.news/rss', 'https://www.context.news/feed', 'https://www.context.news/rss.xml'], regions: ['global'], topical: true, lang: 'en',
     note: '原 Openly / Thomson Reuters Foundation，专做人权与性别。' },
 
   /* ---- 中文世界 ---- */
@@ -142,13 +138,13 @@ export const FEEDS = [
    * 「法庭线」单列出来说一句：它做的是香港法庭的逐日旁听报道，
    * 正好对上这个站最看重的「司法过程」。
    */
-  { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: 'https://hotline.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: ['https://hotline.org.tw/feed', 'https://hotline.org.tw/rss', 'https://hotline.org.tw/news/feed', 'https://hotline.org.tw/blog/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '台湾历史最久的同志权益组织，法案与个案协助的一手记录。' },
-  { id: 'awakening-tw', outlet: '婦女新知基金會', url: 'https://www.awakening.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'awakening-tw', outlet: '婦女新知基金會', url: ['https://www.awakening.org.tw/feed', 'https://www.awakening.org.tw/rss', 'https://www.awakening.org.tw/news/feed', 'https://www.awakening.org.tw/feed/rss'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '台湾妇运的老牌团体，长期做修法倡议，法条讨论写得细。' },
-  { id: 'twrf', outlet: '婦女救援基金會', url: 'https://www.twrf.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'twrf', outlet: '婦女救援基金會', url: ['https://www.twrf.org.tw/feed', 'https://www.twrf.org.tw/rss', 'https://www.twrf.org.tw/news/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '性暴力与人口贩运的服务机构，个案与统计都出自实务。' },
-  { id: 'mwf-tw', outlet: '現代婦女基金會', url: 'https://www.38.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'mwf-tw', outlet: '現代婦女基金會', url: ['https://www.38.org.tw/feed', 'https://www.38.org.tw/rss', 'https://www.38.org.tw/news/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '家暴与性侵害防治，台湾相关立法的主要推动者之一。' },
   { id: 'tgeea', outlet: '台灣性別平等教育協會', url: 'https://www.tgeea.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
     note: '性别平等教育，校园性侵与性骚扰的处理机制。对应「儿童」议题。' },
@@ -169,10 +165,10 @@ export const FEEDS = [
     note: '美国国会拨款。对中国内地的报道常是唯一来源，但资金来源必须让读者看到。' },
 
   /* ---- 地域铺开：只订英美会让世界其他地方消失 ---- */
-  { id: 'thewire-in', outlet: 'The Wire（印度）', url: 'https://m.thewire.in/rss/all', regions: ['sasia'], lang: 'en', note: '印度独立媒体。综合源。' },
+  { id: 'thewire-in', outlet: 'The Wire（印度）', url: ['https://thewire.in/rss/all', 'https://m.thewire.in/rss/all', 'https://thewire.in/feed'], regions: ['sasia'], lang: 'en', note: '印度独立媒体。综合源。' },
   { id: 'scroll-in', outlet: 'Scroll.in（印度）', url: 'https://feeds.feedburner.com/ScrollinArticles.rss', regions: ['sasia'], lang: 'en', note: '同上。' },
   { id: 'rappler', outlet: 'Rappler（菲律宾）', url: 'https://www.rappler.com/feed/', regions: ['sea'], lang: 'en', note: '菲律宾独立媒体，长期报道性别暴力。' },
-  { id: 'madamasr', outlet: 'Mada Masr（埃及）', url: 'https://www.madamasr.com/feed/', regions: ['mena'], lang: 'en', note: '埃及独立媒体，在高压下坚持署名报道。' },
+  { id: 'madamasr', outlet: 'Mada Masr（埃及）', url: ['https://www.madamasr.com/en/feed/', 'https://www.madamasr.com/feed/'], regions: ['mena'], lang: 'en', note: '埃及独立媒体，在高压下坚持署名报道。' },
   { id: 'dailymaverick', outlet: 'Daily Maverick（南非）', url: 'https://www.dailymaverick.co.za/dmrss/', regions: ['africa'], lang: 'en', note: '南非调查报道。' },
   { id: 'meduza', outlet: 'Meduza（俄语，流亡）', url: 'https://meduza.io/rss/en/all', regions: ['ru'], lang: 'en', note: '被俄罗斯定为「外国代理人」后在境外继续运作。' },
   { id: 'guardian-au', outlet: 'The Guardian Australia', url: 'https://www.theguardian.com/au/rss', regions: ['anz'], lang: 'en', note: '澳新覆盖。综合源。' },
@@ -182,29 +178,88 @@ export const FEEDS = [
 ]
 
 /**
+ * 简体 → 繁体的字表。
+ *
+ * **为什么需要它。** 这个站订的十二个中文源里，九个是繁体（台湾、香港）。
+ * 词表原本两种写法都靠手写：'性骚扰', '性騷擾' 并排放着。手写就会漏，
+ * 而漏了没有任何征兆——繁体源那一侧安安静静地少收一批稿子。
+ * 上一轮真实抓取里，'猥亵' 有简体没繁体，'拐卖妇女' 有简体没繁体，
+ * 'displacement' 里的 '人口贩运' 也只有简体，而繁体源正是它的主要来源。
+ *
+ * 现在词表只写**简体**一种，繁体由这张表推出来。写一次，两边都认。
+ *
+ * 表里只收本文件真正用到的字。汉字里有几个简体对应多个繁体的
+ * （发→發/髮，干→乾/幹，里→裡/里，复→復/複），这里只收在**这个题材下
+ * 没有歧义**的：'复' 在这些词里一律是「再一次／报复」的意思（报复、复仇），
+ * 不会是「複杂」。加新词时如果碰上有歧义的字，把两种写法都写进词表，
+ * 不要往这张表里加。
+ */
+const S2T = {
+  亲: '親', 侣: '侶', 护: '護', 内: '內', 强: '強', 奸: '姦', 荣: '榮', 誉: '譽',
+  处: '處', 决: '決', 妆: '妝', 骚: '騷', 扰: '擾', 亵: '褻', 杀: '殺', 卖: '賣',
+  妇: '婦', 剥: '剝', 诱: '誘', 权: '權', 势: '勢', 怀: '懷', 儿: '兒', 园: '園',
+  师: '師', 恋: '戀', 监: '監', 养: '養', 礼: '禮', 义: '義', 别: '別', 视: '視',
+  堕: '墮', 产: '產', 绝: '絕', 经: '經', 职: '職', 场: '場', 业: '業', 参: '參',
+  离: '離', 静: '靜', 财: '財', 继: '繼', 数: '數', 认: '認', 柜: '櫃', 倾: '傾',
+  变: '變', 转: '轉', 疗: '療', 双: '雙', 网: '網', 络: '絡', 胁: '脅', 难: '難',
+  贩: '販', 运: '運', 无: '無', 国: '國', 战: '戰', 时: '時', 动: '動', 线: '線',
+  争: '爭', 厌: '厭', 对: '對', 气: '氣', 红: '紅', 药: '藥', 会: '會', 话: '話',
+  术: '術', 关: '關', 边: '邊', 论: '論', 伪: '偽', 复: '復', 踪: '蹤', 猪: '豬',
+  咸: '鹹', 轮: '輪', 号: '號', 吓: '嚇', 尔: '爾', 营: '營', 寻: '尋', 体: '體',
+  婴: '嬰', 贫: '貧', 穷: '窮', 岁: '歲', 报: '報', 导: '導', 独: '獨', 众: '眾',
+  应: '應', 击: '擊', 弃: '棄', 队: '隊', 罚: '罰', 严: '嚴', 断: '斷', 举: '舉',
+}
+
+/**
+ * 一个词的两种写法。英文原样返回；中文没有可换的字时也只返回一个。
+ */
+export function zhVariants(word) {
+  if (!/[一-鿿]/.test(word)) return [word]
+  const t = [...word].map((c) => S2T[c] ?? c).join('')
+  return t === word ? [word] : [word, t]
+}
+
+const both = (words) => [...new Set(words.flatMap(zhVariants))]
+
+/*
  * 综合性来源用这些词筛。
  *
  * 宁可漏，不可滥：这是一个报道性别暴力的站点，把不相干的条目混进来，
  * 站长要一条条删，而删漏了就会出现在读者面前。
+ *
+ * 中文只写简体，繁体自动生成（见上面的 S2T）。**用词**不同的地方要
+ * 两条都写——「网络霸凌」和「网路霸凌」是两个说法，不是两种字体，
+ * 换字换不出来。
  */
-export const TOPIC_WORDS = {
-  /*
-   * 性犯罪是这个站的报道重心（站长指定），所以词表比别的议题厚：
-   * 除了行为本身，还要覆盖**司法程序**——起诉、开庭、判决、和解、上诉。
-   * 一件性侵案在新闻里出现，往往不是以「性侵」为标题，而是以
-   * 「某某被判刑」「检方起诉某某」的形式出现。只认行为词会漏掉一大半。
-   */
+const RAW = {
   /* 家庭暴力单独一栏（站长后来把它从性犯罪里拆了出来）。 */
   domestic: ['domestic violence', 'domestic abuse', 'intimate partner violence',
     'coercive control', 'restraining order', 'protection order', 'family violence',
     'honour killing', 'honor killing', 'dowry death', 'marital rape',
-    '家暴', '家庭暴力', '亲密伴侣暴力', '親密伴侶暴力', '人身保护令', '人身保護令',
-    '婚内强奸', '婚內強姦', '荣誉处决', '嫁妆致死', '控制型暴力'],
+    '家暴', '家庭暴力', '亲密伴侣暴力', '亲密关系暴力', '人身保护令', '保护令',
+    '婚内强奸', '荣誉处决', '嫁妆致死', '控制型暴力',
+    // 上一轮漏掉的：分手与跟踪这一类，台湾的《跟蹤騷擾防制法》就是这个词。
+    '跟踪骚扰', '跟踪狂', '恐怖情人', '分手暴力', '杀妻', '目睹儿少'],
 
   sexual: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
-    'rape', 'raped', 'femicide', 'sexual harassment',
-    'honour killing', 'honor killing', 'groping', 'stalking', 'revenge porn', 'image-based abuse',
-    'trafficking',
+    'rape', 'raped', 'gang rape', 'femicide', 'sexual harassment',
+    'honour killing', 'honor killing', 'groping', 'revenge porn', 'image-based abuse',
+    'deepfake porn', 'sexual exploitation',
+    /*
+     * **裸的 trafficking 和 stalking 收不得。**
+     *
+     * 一次真实抓取里，'trafficking' 一个词就把 drug trafficking、
+     * arms trafficking、wildlife trafficking 全收成了性犯罪；
+     * 'stalking' 撞上 stalking horse（政治里的「探路人选」）。
+     * 跟当初 'settlement' 撞上以色列定居点是同一类错：
+     * 一个词在这个题材里有专门含义，在新闻里却是日常词。
+     * 所以都绑上宾语。
+     */
+    'human trafficking', 'sex trafficking', 'sexual trafficking',
+    'trafficking of women', 'trafficking in women', 'trafficking in persons',
+    'trafficked women', 'trafficking victims',
+    'stalker', 'cyberstalking', 'stalking and harassment',
+    'convicted of stalking', 'accused of stalking', 'stalking offence', 'stalking offense',
     /*
      * 这里原本还有一整段司法词：charged with / convicted / sentenced /
      * guilty / arrested / settlement / on trial……
@@ -225,11 +280,19 @@ export const TOPIC_WORDS = {
      * 不再是「这条属于哪个议题」的依据。
      * 判定议题要靠行为本身：强奸、性侵、家暴、性骚扰。
      */
-    '性暴力', '性侵', '性侵犯', '性虐待', '性骚扰', '性騷擾', '强奸', '強姦', '猥亵',
-    '杀害女性', '拐卖妇女', '迷奸', '偷拍', '性剥削', '诱奸', '权势性侵',
+    '性暴力', '性侵', '性侵害', '性侵犯', '性虐待', '性骚扰', '性犯罪', '性别暴力',
+    '强奸', '轮奸', '猥亵', '强制猥亵', '妨害性自主', '强制性交',
+    '杀害女性', '拐卖妇女', '迷奸', '偷拍', '性剥削', '诱奸', '权势性侵', '职权骚扰',
+    // 数位性暴力：N 号房、深伪、私密影像外流。这几年最主要的一类，之前一个词都没有。
+    '数字性犯罪', '数位性犯罪', '数位性暴力', 'N号房',
+    // 「深伪」「未经同意」单独放会捞回电影特效和肖像权官司，
+    // 「号房」会撞上「酒店五号房失火」。一次真实的误收测试逼出来的，
+    // 全部改成绑住行为的完整说法。
+    '深伪色情', '深度伪造色情', '深伪影像',
+    '私密影像', '性影像', '未经同意散布', '未经同意拍摄', '咸猪手', '灌醉',
     // 中文的司法词同理搬走了。「和解」「上诉」「逮捕」放在这里，
     // 会把所有刑案都收成性犯罪。
-    '性侵案', '性騷擾案', '强奸案', '強姦案', '猥亵案'],
+    '性侵案', '性骚扰案', '强奸案', '猥亵案'],
 
   /*
    * 儿童。词表刻意**不收裸的 child / 儿童**——综合源要命中关键词才会被收进来，
@@ -238,16 +301,18 @@ export const TOPIC_WORDS = {
    */
   children: ['child abuse', 'child sexual', 'sexual abuse of children', 'child marriage',
     'child bride', 'child trafficking', 'child protection', 'child labour', 'child labor',
-    "children's rights", 'underage', 'schoolgirl', 'grooming', 'paedophile', 'pedophile',
+    "children's rights", 'underage', 'schoolgirl', 'paedophile', 'pedophile',
+    // 裸的 grooming 会收「宠物美容店开业」。同 trafficking，绑上宾语。
+    'grooming gang', 'online grooming', 'sexual grooming', 'child grooming',
+    'grooming of children', 'groomed a child', 'grooming offence',
     'csam', 'female genital mutilation', 'fgm', 'girls education', 'teen pregnancy',
     'foster care', 'juvenile detention',
     // 中文这边同理不放裸的「儿童」：儿童医院、儿童节、儿童剧全会中招。
     // CJK 是按子串匹配的（中文没有词边界），词越短误伤越大。
-    '未成年', '幼女', '女童', '童婚', '童工', '少女怀孕', '少女懷孕',
-    '儿童性侵', '兒童性侵', '性侵儿童', '性侵兒童', '侵害儿童', '侵害兒童',
-    '虐待儿童', '虐待兒童', '猥亵儿童', '猥褻兒童', '拐卖儿童', '拐賣兒童',
-    '儿童保护', '兒童保護', '儿童权利', '兒童權利', '校园性侵', '校園性侵',
-    '师生恋', '師生戀', '监护权', '監護權', '寄养', '寄養', '割礼', '割禮'],
+    '未成年', '幼女', '女童', '童婚', '童工', '少女怀孕', '虐童',
+    '儿童性侵', '性侵儿童', '侵害儿童', '虐待儿童', '猥亵儿童', '拐卖儿童',
+    '儿童保护', '儿童权利', '校园性侵', '师生恋', '监护权', '寄养', '割礼',
+    '儿少性剥削', '校园霸凌'],
 
   /* 女性权利。生育权、身体自主、职场与校园的制度性歧视都并进来了。 */
   rights: ['women\'s rights', 'gender equality', 'womens rights', 'feminist', 'feminism',
@@ -255,26 +320,37 @@ export const TOPIC_WORDS = {
     'surrogacy', 'menstrual', 'gender pay gap', 'pay gap', 'workplace discrimination',
     'women in politics', 'gender quota', 'childcare', 'care work', 'maternity leave',
     'guardianship', 'divorce law', 'dowry', 'inheritance law',
-    '女权', '女性主义', '妇女权益', '婦女權益', '性别平等', '性別平等', '性别歧视', '性別歧視',
-    '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主', '月经',
-    '同工同酬', '职场歧视', '就业歧视', '育儿', '照护', '女性参政', '玻璃天花板',
-    '女性就业', '婚育歧视', '监护权', '离婚冷静期', '彩礼', '财产继承'],
+    '女权', '女性主义', '妇女权益', '妇女权利', '女性权益', '性别平等', '性别歧视',
+    '堕胎', '堕胎权', '人工流产', '生育权', '身体自主', '避孕', '绝育', '孕产', '代孕',
+    '产假', '育婴假', '生育自主', '月经', '月经贫穷', '同工同酬', '职场歧视', '就业歧视',
+    '育儿', '照护', '托育', '女性参政', '玻璃天花板',
+    '女性就业', '婚育歧视', '监护权', '离婚冷静期', '彩礼', '财产继承',
+    '性骚扰防治', '职场性骚扰'],
 
   /* LGBTQIA+ 权益。跨性别权利与医疗并进来了。 */
   lgbtq: ['lgbt', 'lgbtq', 'lgbtqia', 'queer', 'gay rights', 'same-sex', 'marriage equality',
     'transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
-    'intersex', 'conversion therapy', 'pride parade', 'coming out',
-    '同性', '同志', '性少数', '性少數', '婚姻平权', '同婚', '性别认同', '性別認同',
-    '彩虹', '出柜', '性倾向', '性傾向', '跨性别', '跨性別', '变性', '性别重置',
-    '性别承认', '非二元', '性別友善', '扭转治疗', '双性人'],
+    'intersex', 'conversion therapy', 'pride parade',
+    // 裸的 'coming out' 收了美联社的「秋季新片上映指南」（films coming out this fall）。
+    'coming out as', 'came out as', 'comes out as', 'coming-out story', 'came out publicly',
+    '同性', '同志', '性少数', '婚姻平权', '同婚', '同性婚姻', '同性伴侣', '性别认同',
+    '彩虹', '出柜', '性倾向', '跨性别', '变性', '性别重置', '性别不安',
+    '性别承认', '非二元', '性别友善', '扭转治疗', '双性人', '荷尔蒙治疗'],
 
   hate: ['hate crime', 'online abuse', 'doxxing', 'anti-lgbt', 'homophobic', 'transphobic',
     'harassment campaign', 'death threats', 'platform moderation',
-    '仇恨犯罪', '网络暴力', '網絡暴力', '网暴', '人肉搜索', '恐同', '恐跨', '死亡威胁'],
+    '仇恨犯罪', '仇恨言论', '网络暴力', '网暴', '人肉搜索', '起底', '恐同', '恐跨',
+    '死亡威胁', '网络霸凌', '网路霸凌', '厌女言论'],
 
   displacement: ['refugee women', 'asylum', 'conflict-related sexual violence', 'statelessness',
     'displaced women', 'migrant women', 'war crimes',
-    '难民', '難民', '庇护', '庇護', '人口贩运', '无国籍', '移工', '战时性暴力', '流离失所'],
+    '难民', '难民营', '庇护', '寻求庇护', '人口贩运', '人口贩卖', '无国籍', '移工',
+    '战时性暴力', '战争性暴力', '流离失所', '慰安妇'],
+
+  movement: ['feminist movement', "women's movement", 'metoo', '#metoo', 'womens march',
+    'trans-exclusionary', 'terf', 'intersectionality debate', 'funding cuts to women',
+    '女权运动', '米兔', 'MeToo', '妇女运动', '女性主义者',
+    '运动内部', '排跨', '路线之争'],
 
   /*
    * Incel 与厌女文化（站长后加）。
@@ -283,19 +359,19 @@ export const TOPIC_WORDS = {
    * 论坛话术、男性导师产业、以及它怎么从线上走到线下。
    * 所以收的是这套亚文化自己的黑话，那是它最好认的特征。
    */
-  movement: ['feminist movement', "women's movement", 'metoo', '#metoo', 'womens march',
-    'trans-exclusionary', 'terf', 'intersectionality debate', 'funding cuts to women',
-    '女权运动', '女權運動', '米兔', 'MeToo', '妇女运动', '婦女運動', '女性主义者',
-    '运动内部', '運動內部', '排跨', '路线之争'],
-
   incel: ['incel', 'manosphere', 'red pill', 'blackpill', 'black pill', 'mgtow',
     'andrew tate', 'pickup artist', 'alpha male', 'toxic masculinity',
     'misogyny', 'misogynist', 'male supremacist', 'looksmaxxing', 'femoid',
     'men going their own way', 'anti-feminist', 'gender war',
-    '厌女', '厭女', '仇女', '男权', '男權', '性别对立', '性別對立',
-    '男性气概', '男德', '普信男', '女拳', '取关女权', '红药丸', '紅藥丸',
+    '厌女', '仇女', '男权', '性别对立',
+    '男性气概', '男德', '普信男', '女拳', '取关女权', '红药丸',
     '兄弟会话术', '田园女权'],
 }
+
+export const TOPIC_WORDS = Object.fromEntries(
+  Object.entries(RAW).map(([k, v]) => [k, both(v)]),
+)
+
 
 /* ------------------------------------------------------------------ *
  * 研究与数据的来源
@@ -321,7 +397,7 @@ export const STUDY_FEEDS = [
     note: '性别统计与各国进展报告，口径随表公布。用的是它主 feed——publications 那个路径 403。' },
   { id: 'unfpa', topical: true, publisher: '联合国人口基金', url: 'https://www.unfpa.org/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
     note: '生育健康与人口数据，《世界人口状况》年报出自这里。' },
-  { id: 'unicef', publisher: '联合国儿童基金会', url: 'https://www.unicef.org/rss/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
+  { id: 'unicef', publisher: '联合国儿童基金会', url: ['https://www.unicef.org/press-releases/rss.xml', 'https://www.unicef.org/rss/rss.xml', 'https://data.unicef.org/feed/'], kind: 'official-statistics', regions: ['global'], lang: 'en',
     note: '童婚、女童失学、儿童保护的跨国统计。前两个路径分别是 403 和 404，这是第三个。' },
   { id: 'who', publisher: '世界卫生组织', url: 'https://www.who.int/rss-feeds/news-english.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
     note: '亲密伴侣暴力患病率、孕产死亡率这类全球估算的原始发布方。' },
@@ -344,13 +420,13 @@ export const STUDY_FEEDS = [
    * 这几家都是 WordPress 站（`/feed/` 几乎一定在），而且**整站都是本站题目**
    * ——童婚、女性割礼、儿童性剥削——正好补上站长新加的「儿童」这一栏。
    */
-  { id: 'girlsnotbrides', topical: true, publisher: 'Girls Not Brides', url: 'https://www.girlsnotbrides.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+  { id: 'girlsnotbrides', topical: true, publisher: 'Girls Not Brides', url: ['https://www.girlsnotbrides.org/feed/', 'https://www.girlsnotbrides.org/articles/feed/', 'https://www.girlsnotbrides.org/learning-resources/feed/'], kind: 'ngo-report', regions: ['global'], lang: 'en',
     note: '全球童婚联盟，逐国的法律与流行率数据。' },
   { id: 'ecpat', topical: true, publisher: 'ECPAT International', url: 'https://ecpat.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
     note: '儿童性剥削与性侵的跨国研究网络。' },
   { id: 'equalitynow', topical: true, publisher: 'Equality Now', url: 'https://equalitynow.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
     note: '性别歧视法律的逐条盘点，法律文本可核对。' },
-  { id: 'plan-intl', topical: true, publisher: 'Plan International', url: 'https://plan-international.org/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+  { id: 'plan-intl', topical: true, publisher: 'Plan International', url: ['https://plan-international.org/feed/', 'https://plan-international.org/rss/', 'https://plan-international.org/news/feed/'], kind: 'ngo-report', regions: ['global'], lang: 'en',
     note: '女童权利的实地调查，样本与方法通常写在报告里。' },
   { id: 'amnesty-research', publisher: '国际特赦组织', url: 'https://www.amnesty.org/en/latest/research/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
     note: '同上：可核对，但选题服务于其倡导目标。' },

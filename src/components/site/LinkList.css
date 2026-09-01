@@ -62,3 +62,30 @@ a.lnk__row:hover .lnk__icon { color: var(--accent); }
   background: var(--warn-soft); color: var(--warn);
   border: var(--bw) solid color-mix(in srgb, var(--warn) 30%, transparent);
 }
+
+/*
+ * 信息流里的一行来源。
+ *
+ * 只有名字，用「·」隔开，跟着正文的行宽走。文章页仍然是上面那一整套。
+ */
+.lnk__strip {
+  list-style: none; display: flex; flex-wrap: wrap;
+  align-items: baseline; gap: 2px 0;
+}
+.lnk__stripitem { display: inline-flex; align-items: baseline; }
+.lnk__stripitem + .lnk__stripitem::before {
+  content: "·"; margin: 0 8px; color: var(--fg-faint);
+}
+.lnk__strplink {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-size: var(--fs-xs); font-weight: 560;
+  color: var(--fg-muted); text-decoration: none;
+}
+.lnk__strplink:hover { color: var(--accent); text-decoration: underline; }
+.lnk__strplink--demo { color: var(--fg-faint); cursor: default; }
+
+/* 触屏上一行名字太窄按不准，把每一项撑到 44px 高，负 margin 抵掉。 */
+@media (pointer: coarse) {
+  .lnk__strplink { padding-block: 11px; }
+  .lnk__strip { margin-block: -11px; }
+}

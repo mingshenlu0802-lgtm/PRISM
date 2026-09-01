@@ -30,6 +30,25 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
   const lead = variant === 'lead'
   const length = textLength(item.summary)
   const clamped = !full && length > CLAMP_AT[lead ? 'lead' : 'feed']
+
+  /*
+   * 要点。
+   *
+   * 位置分两种，因为它在两个地方做的是两件事。
+   *
+   * 在**文章页**上，正文可以有三千字。把要点放在正文底下，等于让读者读完
+   * 全文才看到「这条讲了什么」——那时他已经知道了。所以文章页把它提到
+   * 正文前面，做成一个方框：先给结论，再展开。BBC 中文网的长稿也是这么排的。
+   *
+   * 在**信息流**里正文是折起来的，要点跟在折起的那几行后面，正好补上被
+   * 折掉的信息，是「要不要点进去」的依据。所以那里保持原位。
+   */
+  const bullets = item.bullets.length > 0 ? (
+    <ul className={cx('ncard__bullets', full && 'ncard__bullets--box')} aria-label={full ? '本条要点' : undefined}>
+      {item.bullets.map((b) => <li key={b}>{b}</li>)}
+    </ul>
+  ) : null
+
   return (
     <article className={cx('ncard', full && 'ncard--full', lead && 'ncard--lead')}>
       <header className="ncard__head">
@@ -57,6 +76,8 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
         * 把注意力从新闻本身挪开。读者知道自己点开的是什么——标题就写着。
         */}
 
+      {full && bullets}
+
       <Cover
         image={item.image}
         seed={item.slug}
@@ -76,11 +97,7 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
         </Link>
       )}
 
-      {item.bullets.length > 0 && (
-        <ul className="ncard__bullets">
-          {item.bullets.map((b) => <li key={b}>{b}</li>)}
-        </ul>
-      )}
+      {!full && bullets}
 
       {item.editorNote && (
         <p className="ncard__editornote">

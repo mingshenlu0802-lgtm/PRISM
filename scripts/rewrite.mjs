@@ -224,6 +224,20 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity, 
    */
   if (onPicked) await onPicked(picked)
 
+  /*
+   * 取到原文的排前面。
+   *
+   * 实测：读过报道正文写出来的稿子平均 1672 字，只有 RSS 摘要的平均 855 字。
+   * 而写到目标条数就停——所以**先写谁，直接决定了当天上线的是哪一批**。
+   * 候选备的是目标的四倍，其中十几条会写不到，那就让写得成的先上。
+   *
+   * 只在**同一个议题层内**调换。性犯罪仍然排在最前面（站长定的重心），
+   * 不能因为某篇取不到正文，就把一篇家暴报道顶到性侵案前面去。
+   * sort 是稳定的，所以层内原来的顺序（多来源、主流媒体、时间）也保住了。
+   */
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  picked.sort((a, b) => tier(a) - tier(b) || (a.bodies?.length ? 0 : 1) - (b.bodies?.length ? 0 : 1))
+
   console.log(`  开始写（每批 ${BATCH} 条）`)
   const out = []
   let dropped = 0
@@ -314,7 +328,11 @@ SUMMARY:
 - FIGURES 里只放**原文里真的出现过的数字**，一行一个，三段用 | 隔开。
   原文没给数字就整个留空——编一个数字比没有数字糟糕得多。
   第三段（它没说什么）不能空着：每个数字都要说清它的边界。
-- LIMITATION 同理，宁可写「原报告未说明抽样方法」，也不要编一个方法出来。`.trim()
+- LIMITATION 同理，宁可写「原报告未说明抽样方法」，也不要编一个方法出来。
+- 输入里有 article 字段时，那是**报告页的正文**，以它为准来写：
+  方法、样本量、时间范围、局限通常都写在那里。摘要（excerpt）只是通告。
+  只有 excerpt、没有 article 的，就照它能支撑的长度写，八百字打住——
+  硬凑到一千五只会把同一句话换三种说法。`.trim()
 
 const STUDY_FIELDS = ['KEEP', 'TITLE', 'PUBLISHER', 'KIND', 'TOPICS', 'REGIONS', 'FIGURES', 'LIMITATION', 'SUMMARY']
 
@@ -362,6 +380,9 @@ export async function rewriteStudies(cands, ownerNote) {
     defaultKind: c.feed.kind,
     title: c.title,
     excerpt: c.summary,
+    // 报告页的正文。取到了就以它为准——摘要只有两三百字，
+    // 方法、样本量和局限基本都在正文里，而那正是这一栏要写的东西。
+    ...(c.body ? { article: c.body.slice(0, 6000) } : {}),
     url: c.link,
     date: c.at.slice(0, 10),
   }))

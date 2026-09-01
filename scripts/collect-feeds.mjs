@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
+import { parseFeed, topicsOf, matchedWords, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
@@ -78,17 +78,37 @@ if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
  * 抓
  * ------------------------------------------------------------------ */
 
-async function fetchFeed(feed) {
+/**
+ * 我们是谁。
+ *
+ * 原本报的是 `PRISM-collector/1.0`。诚实，但**过不去 CDN**：Cloudflare
+ * 和 Akamai 后面的站点默认挡掉不像浏览器的 UA，于是第一次真实抓取里
+ * 联合国妇女署回 403、Mada Masr 回 520（那是 Cloudflare 自己的错误码），
+ * 而且**要写的稿子里只有 15/25 取到了正文**——取不到正文，模型就只能
+ * 拿着两三百字的 RSS 摘要去写一千五百字，那正是站长一直不满意的那件事。
+ *
+ * 现在用的是 RSS 阅读器通行的写法：以 Mozilla/5.0 (compatible; …) 开头，
+ * 里面照旧写清楚我们是谁、以及一个可以找到人的网址。不是伪装成浏览器——
+ * 名字和联系方式都在里面，站点要挡随时挡得掉；只是不再因为报了个陌生的
+ * 名字就被当场拒之门外。
+ */
+const UA = 'Mozilla/5.0 (compatible; PRISM/1.0; +https://prism-daily.github.io/PRISM/)'
+
+/** 有些服务器要看 accept 才肯给 XML，给了 HTML 就当成不是 feed。 */
+const FEED_ACCEPT = 'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.8'
+
+async function fetchOne(url, outlet) {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 20000)
   try {
-    const res = await fetch(feed.url, {
+    const res = await fetch(url, {
       signal: ctl.signal,
-      headers: { 'user-agent': 'PRISM-collector/1.0 (+https://prism-daily.github.io/PRISM/)' },
+      redirect: 'follow',
+      headers: { 'user-agent': UA, accept: FEED_ACCEPT },
     })
     if (!res.ok) return { ok: false, why: `HTTP ${res.status}` }
     const xml = await res.text()
-    const entries = parseFeed(xml, feed.outlet)
+    const entries = parseFeed(xml, outlet)
     if (entries.length === 0) return { ok: false, why: '解析不出条目（可能不是 RSS/Atom）' }
     return { ok: true, entries }
   } catch (e) {
@@ -96,6 +116,31 @@ async function fetchFeed(feed) {
   } finally {
     clearTimeout(t)
   }
+}
+
+/**
+ * 一个源可以写好几个地址，挨个试。
+ *
+ * 第一次真实抓取里 58 个源死了 14 个，大半是「站还在，feed 挪了地方」：
+ * /feed 变成 /rss，gaytimes.co.uk 变成 .com，m.thewire.in 那个 m. 没了。
+ * 这类失败没法在本地验证——我这边没有出网——而一次一次改一个地址、
+ * 跑一轮、再改，要好几轮。
+ *
+ * 所以地址可以是一个数组：常见的几种写法一起写上，谁通用谁。
+ * 报告里会说用的是第几个，改回单个地址就有依据了。
+ *
+ * 这也让清单**耐得住以后的搬家**：网站换 CMS 时 /feed 和 /rss 往往会
+ * 互相顶替一阵，多写一个就不会有一天突然静悄悄地少收一批稿子。
+ */
+async function fetchFeed(feed) {
+  const urls = Array.isArray(feed.url) ? feed.url : [feed.url]
+  let last = { ok: false, why: '没有地址' }
+  for (let i = 0; i < urls.length; i++) {
+    const got = await fetchOne(urls[i], feed.outlet ?? feed.publisher)
+    if (got.ok) return urls.length > 1 && i > 0 ? { ...got, via: i + 1 } : got
+    last = got
+  }
+  return urls.length > 1 ? { ...last, why: `${last.why}（试过 ${urls.length} 个地址）` } : last
 }
 
 /* ------------------------------------------------------------------ *
@@ -166,19 +211,32 @@ const fetched = await inBatches(FEEDS, 8, async (feed) => ({ feed, r: await fetc
  * 会得到不同的结果，出了问题也没法复现。所以按 FEEDS 的原始顺序处理。
  */
 for (const { feed, r } of fetched) {
-  if (!r.ok) { report.push([feed, 0, 0, r.why]); continue }
+  if (!r.ok) { report.push([feed, 0, 0, r.why, 0]); continue }
 
   let kept = 0
+  /*
+   * 一个源交回三十条、一条都没留下，日志上只写「0 条 / 共 30」。
+   * 那句话不回答任何问题：是这三十条今天都跟性别无关，还是太旧了，
+   * 还是别家已经收过？第一次真实抓取里 BBC 中文 0/42、德国之声 0/65、
+   * 自由亚洲电台 0/30，我盯着这三行看了半天，没法判断该不该改词表。
+   * 所以把落选的理由分开数。
+   */
+  const dropped = { old: 0, dup: 0, offTopic: 0, full: 0 }
+  const samples = []
   for (const e of r.entries) {
-    if (kept >= MAX_PER_FEED) break
-    if (seenUrl.has(e.link)) continue
+    if (kept >= MAX_PER_FEED) { dropped.full += 1; continue }
+    if (seenUrl.has(e.link)) { dropped.dup += 1; continue }
 
     const when = e.date ? Date.parse(e.date) : NaN
-    if (Number.isFinite(when) && when < since) continue
+    if (Number.isFinite(when) && when < since) { dropped.old += 1; continue }
 
     const topics = topicsOf(e)
     // 专题源整版都是本站题目；综合源必须命中关键词，否则体育财经也会进来。
-    if (!feed.topical && topics.length === 0) continue
+    if (!feed.topical && topics.length === 0) {
+      dropped.offTopic += 1
+      if (samples.length < 3) samples.push(e.title)
+      continue
+    }
 
     seenUrl.add(e.link)
     kept += 1
@@ -193,7 +251,7 @@ for (const { feed, r } of fetched) {
       at: Number.isFinite(when) ? new Date(when).toISOString() : new Date().toISOString(),
     })
   }
-  report.push([feed, r.entries.length, kept, ''])
+  report.push([feed, r.entries.length, kept, '', r.via ?? 0, dropped, samples])
 }
 
 /*
@@ -236,9 +294,19 @@ for (const tier of [...byTier.keys()].sort()) {
 
 console.log('PRISM 新闻收集')
 console.log('—'.repeat(76))
-for (const [feed, total, kept, why] of report) {
-  const status = why ? `✗ ${why}` : `${String(kept).padStart(2)} 条 / 共 ${total}`
+for (const [feed, total, kept, why, via, dropped, samples] of report) {
+  const status = why ? `✗ ${why}` : `${String(kept).padStart(2)} 条 / 共 ${total}${via ? `（第 ${via} 个地址）` : ''}`
   console.log(`  ${feed.outlet.padEnd(26, '·')} ${status}`)
+
+  // 一条都没留下的时候，说清楚是为什么，并且给两个真实标题当样本。
+  if (!why && kept === 0 && total > 0 && dropped) {
+    const bits = []
+    if (dropped.offTopic) bits.push(`${dropped.offTopic} 条不属于任何议题`)
+    if (dropped.old) bits.push(`${dropped.old} 条太旧`)
+    if (dropped.dup) bits.push(`${dropped.dup} 条别家已收`)
+    console.log(`      └ ${bits.join('，') || '没有可用条目'}`)
+    for (const t of (samples ?? []).slice(0, 2)) console.log(`        例：${t.slice(0, 60)}`)
+  }
 }
 console.log('—'.repeat(76))
 const dead = report.filter(([, , , why]) => why)
@@ -250,6 +318,12 @@ if (DRY) {
   for (const p of picked.slice(0, 20)) {
     console.log(`  [${p.regions.join(',')}] ${p.title.slice(0, 70)}`)
     console.log(`     ${p.feed.outlet} · ${p.link.slice(0, 90)}`)
+    // 综合源是靠关键词收进来的，那就说清楚是哪个词——不然发现误收之后
+    // 只能一个一个词去猜。专题源整版都算，没有词可报。
+    if (!p.feed.topical) {
+      const hits = matchedWords({ title: p.title, summary: p.summary })
+      console.log(`     命中：${hits.slice(0, 4).join('、') || '（无）'}`)
+    }
   }
   process.exit(dead.length === FEEDS.length ? 1 : 0)
 }
@@ -364,6 +438,14 @@ picked = picked2
  * 那是给真实事件配一张无关的照片。
  * ------------------------------------------------------------------ */
 
+/*
+ * 取不到正文，是这个站眼下最贵的一个失败。
+ *
+ * 真实一轮：拿到正文的稿子平均 1672 字，只有 RSS 摘要的平均 855 字。
+ * 而 23 条里有 10 条没拿到。想知道该修哪里，就得先知道**卡在哪一步**：
+ * 是请求被挡了（付费墙、403）、回的不是网页、还是抠出来太短。
+ * 三种要改的东西完全不同。所以每一次失败都带一个原因回去。
+ */
 async function pageInfo(url, outlet) {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 12000)
@@ -372,17 +454,19 @@ async function pageInfo(url, outlet) {
       signal: ctl.signal,
       redirect: 'follow',
       headers: {
-        'user-agent': 'PRISM-collector/1.0 (+https://prism-daily.github.io/PRISM/)',
-        accept: 'text/html,application/xhtml+xml',
+        'user-agent': UA,
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8',
       },
     })
-    if (!res.ok) return null
+    if (!res.ok) return { why: `HTTP ${res.status}` }
     const type = res.headers.get('content-type') ?? ''
-    if (!/html/i.test(type)) return null
+    if (!/html/i.test(type)) return { why: '不是网页' }
     const html = (await res.text()).slice(0, 400000)
-    return { image: ogImage(html, outlet), text: articleText(html) }
-  } catch {
-    return null
+    const text = articleText(html)
+    return { image: ogImage(html, outlet), text, why: text.length > 400 ? '' : `抠出来只有 ${text.length} 字` }
+  } catch (e) {
+    return { why: e.name === 'AbortError' ? '超时' : String(e.message ?? e).slice(0, 40) }
   } finally {
     clearTimeout(t)
   }
@@ -455,6 +539,16 @@ async function hydrate(list) {
   const after = list.filter((g) => g.image).length
   console.log(`配图：feed 自带 ${before} 张，报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
   console.log(`原文：${withText}/${list.length} 条拿到正文，共 ${totalSrc} 篇（一条新闻可能读了不止一家）`)
+
+  // 没取到的，按原因归堆——下一步该修哪里全看这几行。
+  const why = new Map()
+  got.forEach((info) => {
+    const w = info?.why
+    if (w) why.set(w.replace(/\d+/g, 'N'), (why.get(w.replace(/\d+/g, 'N')) ?? 0) + 1)
+  })
+  if (why.size) {
+    console.log(`  取不到正文的原因：${[...why].sort((a, b) => b[1] - a[1]).map(([w, n]) => `${w} ${n} 次`).join('，')}`)
+  }
 }
 
 const have = await existingItems()
@@ -475,6 +569,8 @@ const linkOf = (p, i, j) => ({
  */
 const toInsert = []
 const toAppend = []
+/** 哪几条是**读了报道正文**写出来的（其余只有 RSS 摘要）。下面用来对比篇幅。 */
+const hydrated = new Set()
 
 picked.forEach((g, i) => {
   const sources = [g, ...g.also]
@@ -490,6 +586,7 @@ picked.forEach((g, i) => {
   let slug = slugify(g.title) || `item-${i}`
   while (have.slugs.has(slug)) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
   have.slugs.add(slug)
+  if (g.bodies?.length) hydrated.add(slug)
 
   toInsert.push({
     id: `news-${Date.now().toString(36)}-${i}`,
@@ -515,6 +612,33 @@ picked.forEach((g, i) => {
 })
 
 console.log(`本站没提过的 ${toInsert.length} 条；已提过、补上新来源的 ${toAppend.length} 条`)
+
+/*
+ * 这一轮写出来的东西，量一量。
+ *
+ * 站长对质量的要求是具体的、可以数的：「每个新闻最好有两个或以上的引用」、
+ * 「内容 up to 3000 字」。而日志一直只说「已上线 15 条」——那说明不了
+ * 这十五条是长是短、是一家媒体还是三家。要判断改动有没有用，得先能量。
+ *
+ * 还要分开看**有原文**和**只有 RSS 摘要**两组的长度。给模型真正的报道正文
+ * 是这轮最大的一处改动，如果那一组明显更长更实，就说明这条路走对了；
+ * 如果两组差不多，那问题就不在材料上，得往别处找。
+ */
+if (toInsert.length > 0) {
+  const len = (t) => String(t ?? '').replace(/\s+/g, '').length
+  const lens = toInsert.map((n) => len(n.summary)).sort((a, b) => a - b)
+  const mid = lens[Math.floor(lens.length / 2)]
+  const multi = toInsert.filter((n) => n.links.length >= 2).length
+  const withText = toInsert.filter((n) => hydrated.has(n.slug))
+  const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0)
+  console.log(`  篇幅 中位 ${mid} 字（最短 ${lens[0]}，最长 ${lens[lens.length - 1]}）`)
+  console.log(`  两家以上媒体报道的 ${multi}/${toInsert.length} 条`)
+  if (withText.length && withText.length < toInsert.length) {
+    const a = avg(withText.map((n) => len(n.summary)))
+    const b = avg(toInsert.filter((n) => !hydrated.has(n.slug)).map((n) => len(n.summary)))
+    console.log(`  拿到原文的 ${withText.length} 条平均 ${a} 字；只有摘要的 ${toInsert.length - withText.length} 条平均 ${b} 字`)
+  }
+}
 
 for (const { item, links } of toAppend) {
   const res = await db(`news?id=eq.${encodeURIComponent(item.id)}`, {
@@ -648,9 +772,28 @@ async function collectStudies() {
     fresh.push(c)
     // 备到目标的三倍再交给模型——和新闻那边同一个教训：
     // 只备三条，模型按方针丢掉两条，站长就只拿到一条。
-    if (fresh.length >= MAX_STUDIES * 3) break
+    if (fresh.length >= MAX_STUDIES * 4) break
   }
   if (fresh.length === 0) { console.log('候选研究站上都有了。'); return }
+
+  /*
+   * 研究也要读原文。
+   *
+   * 新闻那边早就这么做了，而研究一直只拿 RSS 摘要——两三百字的发布通告，
+   * 却要写成一篇「像新闻一样、可以点进去、有详细总结」的稿子（站长的原话）。
+   * 材料不够，写出来就只能是把标题换个说法。跟新闻那边一模一样的病，
+   * 我在这一侧漏掉了。
+   *
+   * 机构的报告页往往比新闻页更值得读：摘要、方法、样本量、局限，
+   * 常常就写在页面上。而「这项研究不能说明什么」正是这一栏存在的理由，
+   * 没有原文就只能空着或者靠猜。
+   */
+  const bodies = await inBatches(fresh, 6, (c) => pageInfo(c.link, c.feed.publisher))
+  let gotText = 0
+  bodies.forEach((info, i) => {
+    if (info?.text && info.text.length > 400) { fresh[i].body = info.text; gotText += 1 }
+  })
+  console.log(`原文：${gotText}/${fresh.length} 项拿到报告页正文`)
 
   // 和新闻走同一个开关。第一版这里还写着 llmConfigured()，
   // 于是「演练不叫模型」只挡住了新闻——演练照样为研究付了钱，

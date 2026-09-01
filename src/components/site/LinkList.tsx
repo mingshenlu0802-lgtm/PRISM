@@ -29,8 +29,52 @@ export function LinkList({ links, compact, groupPrimary = true }: LinkListProps)
   const primary = groupPrimary ? links.filter((l) => l.primary) : []
   const rest = groupPrimary ? links.filter((l) => !l.primary) : links
 
+  /*
+   * 信息流里只列媒体的名字，一行。
+   *
+   * `compact` 这个参数一直传进来，而样式表里**根本没有 .lnk--compact**——
+   * 于是首页的每张卡片都在渲染文章页那一整套：分组标题、原报道的标题、
+   * 语种、日期、域名，一个来源一个方框。截图上量过，一张卡片有四成五的
+   * 高度是这一块。信息流里读者要判断的是「这条值不值得点进去」，
+   * 那需要知道**是谁报的**，不需要每一家的标题和发布日期。
+   *
+   * 所以这里只给名字，横着排。官方文件和官方媒体的标记留着——那是
+   * 点进去之前就该知道的事，不是细节。完整的清单在文章页上。
+   */
+  if (compact) {
+    return (
+      <ul className="lnk__strip">
+        {[...primary, ...rest].map((l) => {
+          const placeholder = isPlaceholderUrl(l.url)
+          const label = (
+            <>
+              {l.outlet}
+              {l.outletKind === 'official' && <span className="lnk__kind lnk__kind--official">官方文件</span>}
+              {l.outletKind === 'state' && (
+                <span className="lnk__kind lnk__kind--state" title="受国家控制的媒体。可以看它说了什么，但它不是独立信源。">
+                  官方媒体
+                </span>
+              )}
+            </>
+          )
+          return (
+            <li key={l.id} className="lnk__stripitem">
+              {placeholder ? (
+                <span className="lnk__strplink lnk__strplink--demo" title="示例链接：本原型的演示数据位于保留域名 .invalid，不会跳转。">
+                  {label}
+                </span>
+              ) : (
+                <a className="lnk__strplink" href={l.url} target="_blank" rel="noreferrer noopener">{label}</a>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    )
+  }
+
   return (
-    <div className={cx('lnk', compact && 'lnk--compact')}>
+    <div className="lnk">
       {primary.length > 0 && (
         <>
           <p className="lnk__group">原始文件</p>

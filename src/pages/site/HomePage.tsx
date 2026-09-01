@@ -98,19 +98,29 @@ export default function HomePage(): JSX.Element {
         * 数据块和地图只在**没有筛选**的时候出现。
         * 读者点了「香港」，要的是香港的全部内容，不是先滚过一屏全球统计。
         */}
-      {!filtering && (
-        <>
-          <Toll />
-          <section className="home__map" aria-labelledby="home-map">
-            <h2 className="home__sectitle" id="home-map">按地区看</h2>
-            <RegionMap counts={counts.regions} />
-          </section>
-        </>
-      )}
+      {!filtering && <Toll />}
 
       {lead && (
         <section className="home__lead" aria-label="头条">
           <NewsCard item={lead} variant="lead" />
+        </section>
+      )}
+
+      {/*
+        * 地图排在头条**后面**。
+        *
+        * 站长要的是「一开始有一个醒目的图片……下面加一个地图」，两样都在，
+        * 顺序也还是数据在上、地图在下。改的是中间：原来两块叠在一起，
+        * 手机上要划过 1300px 才看得到今天的第一条新闻——一个每天更新的
+        * 新闻站，首页开头一屏半没有新闻。
+        *
+        * 现在数据块之后直接是头条，地图接在头条下面、信息流之前。
+        * 它本来就是「看完头条，再按地区往下找」的那一步。
+        */}
+      {!filtering && (
+        <section className="home__map" aria-labelledby="home-map">
+          <h2 className="home__sectitle" id="home-map">按地区看</h2>
+          <RegionMap counts={counts.regions} />
         </section>
       )}
 
