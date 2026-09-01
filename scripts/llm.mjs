@@ -61,7 +61,17 @@ const PRICES = [
 const SEARCH_PRICE_PER_CALL = 10 / 1000
 
 /** 这一轮累计用掉多少。ask() 每次加上去，跑完由 collect 打印。 */
-const spend = { calls: 0, inTokens: 0, outTokens: 0, cacheWrite: 0, cacheRead: 0, searches: 0 }
+const spend = { calls: 0, inTokens: 0, outTokens: 0, cacheWrite: 0, cacheRead: 0, searches: 0, usd: 0 }
+
+/** 按当次真正用的型号算钱——一轮里初筛和写稿用的不是同一个。 */
+function charge(model, u) {
+  const price = PRICES.find(([re]) => re.test(model))?.[1]
+  if (!price) return
+  spend.usd += ((u.input_tokens ?? 0) * price.in
+    + (u.cache_creation_input_tokens ?? 0) * price.in * 1.25
+    + (u.cache_read_input_tokens ?? 0) * price.in * 0.1
+    + (u.output_tokens ?? 0) * price.out) / 1e6
+}
 
 export function resolveLlm() {
   const model = (process.env.LLM_MODEL ?? '').trim()
@@ -102,13 +112,12 @@ export function spendReport() {
     : ''
   const searched = spend.searches ? `，联网搜索 ${spend.searches} 次` : ''
   const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token${cache}${searched}`
-  if (!price) return line
-  // 缓存写入约为普通输入的 1.25 倍，命中约为十分之一。
-  const usd = (spend.inTokens * price.in
-    + spend.cacheWrite * price.in * 1.25
-    + spend.cacheRead * price.in * 0.1
-    + spend.outTokens * price.out) / 1e6
+  // 一轮里初筛和写稿用的型号不一样，所以钱是每次调用当场按当时的型号算的，
+  // 不能事后拿一个型号的价钱去乘总量。
+  const usd = spend.usd
     + spend.searches * SEARCH_PRICE_PER_CALL
+    || (price ? 0 : NaN)
+  if (!Number.isFinite(usd)) return line
   const daily = usd * 2 // 站长设的是一天两场
   return `${line}\n估算花费 约 US$${usd.toFixed(4)}（一天两场约 US$${daily.toFixed(2)}，一个月约 US$${(daily * 30).toFixed(2)}；价目写在 scripts/llm.mjs，会变）`
 }
@@ -162,12 +171,15 @@ export async function ask(system, user, opts = {}) {
  */
 const timeoutFor = (maxTokens) => Math.max(180000, maxTokens * 30)
 
-async function raw(system, user, { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens), search = false } = {}) {
+async function raw(system, user, opts = {}) {
+  const { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens), search = false, model, effort } = opts
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
 
   // Claude 那条路走官方 SDK；联网搜索是它的服务端工具，只有这条路有。
-  if (cfg.kind === 'anthropic') return anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search })
+  if (cfg.kind === 'anthropic') {
+    return anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, model, effort })
+  }
 
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), timeoutMs)
@@ -251,7 +263,7 @@ const SEARCH_TOOLS = [
   {
     type: 'web_search_20260209',
     name: 'web_search',
-    max_uses: Number(process.env.LLM_MAX_SEARCHES ?? 4),
+    max_uses: Number(process.env.LLM_MAX_SEARCHES ?? 3),
     blocked_domains: [
       'news.google.com', 'msn.com', 'yahoo.com', 'flipboard.com',
       'newsbreak.com', 'headtopics.com', 'newsnow.co.uk', 'pressreader.com',
@@ -260,8 +272,23 @@ const SEARCH_TOOLS = [
   {
     type: 'web_fetch_20260209',
     name: 'web_fetch',
-    max_uses: Number(process.env.LLM_MAX_FETCHES ?? 6),
-    max_content_tokens: 6000,
+    max_uses: Number(process.env.LLM_MAX_FETCHES ?? 3),
+    /*
+     * **每篇只取两千五百 token，不是六千。**
+     *
+     * 这是整条路上最贵的一个数字，而它贵得不显眼。服务端工具的循环发生在
+     * 一次 API 调用**里面**：每抓回一篇，后面每一轮都要把已经抓到的东西
+     * 重新读一遍。所以抓回来的内容不是只付一次钱，是付「轮数」次。
+     *
+     * 两条实测（各两条新闻）：六千 token 一篇时，一轮里缓存写入 66k、
+     * 命中 817k，光这两项就占了账单的一半，折合每条新闻 0.81 美元——
+     * 推到一天三十条就是一个月七百多美元。
+     *
+     * 两千五百 token 是一篇报道的前半段，人物、时间、地点、指控都在里面；
+     * 后半段多半是背景和评论，而背景本来就该由我们自己取回来的那篇全文
+     * （articleText，最多 6000 字，不花模型的钱）来供。
+     */
+    max_content_tokens: Number(process.env.LLM_FETCH_TOKENS ?? 2500),
   },
 ]
 
@@ -272,14 +299,21 @@ const SEARCH_TOOLS = [
  * 带上搜索工具时还要处理 `pause_turn`——服务端工具跑久了会先把回合还给你，
  * 把它原样接回去再发一次就能续上。不接的话稿子就断在半截。
  */
-async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search }) {
+async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, model, effort }) {
   const messages = [{ role: 'user', content: user }]
   const found = []
   let text = ''
 
   for (let round = 0; round < 4; round += 1) {
     const req = {
-      model: cfg.model,
+      /*
+       * 每次调用可以自己指定型号。
+       *
+       * 初筛的输出是一个布尔值加几个字的理由——**用 Opus 做这件事是在
+       * 烧钱也在烧时间**，而它的判断力在这一步派不上用场。写稿那一路
+       * 才需要最好的模型。站长指定了 LLM_MODEL 的话，一切照他的。
+       */
+      model: model ?? cfg.model,
       max_tokens: maxTokens,
       /*
        * 系统提示词开缓存。
@@ -299,7 +333,7 @@ async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search }
        * 就少一处会随供应商变化而失效的地方。
        */
       thinking: { type: 'adaptive' },
-      output_config: { effort: process.env.LLM_EFFORT ?? 'high' },
+      output_config: { effort: effort ?? process.env.LLM_EFFORT ?? 'high' },
     }
     if (search) req.tools = SEARCH_TOOLS
 
@@ -310,6 +344,7 @@ async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search }
     )
 
     const u = res.usage ?? {}
+    charge(req.model, u)
     spend.calls += 1
     spend.inTokens += u.input_tokens ?? 0
     spend.outTokens += u.output_tokens ?? 0

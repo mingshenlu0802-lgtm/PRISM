@@ -221,7 +221,15 @@ async function triage(cands, ownerNote, target) {
           batch.map((c, k) => ({ i: k, source: c.feed.outlet, title: c.title, excerpt: String(c.summary).slice(0, 300) })),
           null, 1,
         )}`,
-        { maxTokens: 2000 },
+        /*
+         * 初筛用便宜的型号，力气也给小的。
+         *
+         * 这一步的输出是一个布尔值加十个字的理由——**让 Opus 来做，
+         * 是在为一件它的判断力派不上用场的事付钱，还慢**。写稿那一路
+         * 才需要最好的模型。站长在 Secrets 里指定过 LLM_MODEL 的话，
+         * 那是他的选择，两边都听他的。
+         */
+        { maxTokens: 2000, model: process.env.LLM_MODEL || 'claude-sonnet-5', effort: 'low' },
       )
       const picks = Array.isArray(out?.picks) ? out.picks : []
       for (const p of picks) {
