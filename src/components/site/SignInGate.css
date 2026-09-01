@@ -82,3 +82,13 @@
   text-decoration: underline; text-underline-offset: 3px;
 }
 .gate__back:hover { text-decoration-thickness: 2px; }
+
+/* 密码登录：站长不经过邮件的那条路，默认收起来。 */
+.gate__pwlink {
+  margin-top: var(--s-3);
+  font-size: var(--fs-2xs);
+  color: var(--fg-subtle);
+  text-decoration: underline;
+}
+.gate__pwlink:hover { color: var(--accent); }
+.gate__pw { margin-top: var(--s-3); display: grid; gap: var(--s-2); }

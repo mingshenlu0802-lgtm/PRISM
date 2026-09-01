@@ -68,6 +68,31 @@ export async function sendLink(email: string): Promise<SendResult> {
 }
 
 /**
+ * 用密码登录。
+ *
+ * 网站给朋友准备的是邮件链接——没有密码要记，也不会有密码泄露。但那条路
+ * **依赖一个会限流的邮件服务**：站长要装上自己的网站，就得先等一封信发出来，
+ * 而额度用完、SMTP 配错，都会把他挡在自己的控制端外面。发生过，挡了两天。
+ *
+ * 所以留一条不经过邮件的路。密码在 Supabase 后台设（Authentication → Users），
+ * 网站这边只是把它交给 Supabase 验。权限一点没变：能读能写仍然由数据库的
+ * 规则按身份判断，密码只是证明「你是谁」的另一种方式。
+ */
+export async function signInWithPassword(email: string, password: string): Promise<SendResult> {
+  const db = await getClient()
+  if (!db) return { ok: false, message: '这个网站还没有连上后端。' }
+  const clean = email.trim().toLowerCase()
+  if (!clean || !password) return { ok: false, message: '邮箱和密码都要填。' }
+  try {
+    const { error } = await db.auth.signInWithPassword({ email: clean, password })
+    if (error) throw error
+    return { ok: true, message: '登录成功。' }
+  } catch (e) {
+    return { ok: false, message: friendly(e) }
+  }
+}
+
+/**
  * 用登录链接带回来的令牌，把登录状态真正建立起来。
  *
  * 令牌是 `authlink` 在路由启动前抢下来的（否则会被 HashRouter 抹掉）。
