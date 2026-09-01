@@ -21,6 +21,8 @@
  */
 import { FEEDS } from './feeds.mjs'
 import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor } from './feedparse.mjs'
+import { llmConfigured, spendReport } from './llm.mjs'
+import { rewriteAll } from './rewrite.mjs'
 
 const DRY = process.argv.includes('--dry')
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '')
@@ -38,6 +40,17 @@ const DAYS = Number(process.env.WITHIN_DAYS ?? 7)
  * 它不影响任何一条是否发布。AUTO_PUBLISH=0 可以整个关掉自动上线。
  */
 const AUTO = process.env.AUTO_PUBLISH !== '0'
+/*
+ * 每天最多交给模型多少条。
+ *
+ * 这是**花钱的那个旋钮**。系统提示词（整份编辑方针）每批都要重发一次，
+ * 所以成本几乎与「批数」成正比，而不是与抓到多少条成正比。
+ * 抓 200 条全喂进去，账单是抓 30 条的七倍，而多出来的多半是勉强及格的。
+ *
+ * 排序已经把性犯罪与司法案件放在最前，所以砍掉的是尾巴，不是重点。
+ * 站长在控制端写「今天要 20 条」时，改的就是这个。
+ */
+const MAX_ITEMS = Number(process.env.MAX_ITEMS ?? 30)
 
 if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
   console.error('缺 SUPABASE_URL 或 SUPABASE_SERVICE_KEY。只想看抓到什么就加 --dry。')
@@ -58,7 +71,7 @@ async function fetchFeed(feed) {
     })
     if (!res.ok) return { ok: false, why: `HTTP ${res.status}` }
     const xml = await res.text()
-    const entries = parseFeed(xml)
+    const entries = parseFeed(xml, feed.outlet)
     if (entries.length === 0) return { ok: false, why: '解析不出条目（可能不是 RSS/Atom）' }
     return { ok: true, entries }
   } catch (e) {
@@ -113,7 +126,7 @@ async function existingItems() {
 
 const since = Date.now() - DAYS * 864e5
 const report = []
-const picked = []
+let picked = []
 const seenUrl = new Set()
 
 for (const feed of FEEDS) {
@@ -140,6 +153,7 @@ for (const feed of FEEDS) {
       link: e.link,
       summary: summaryOf(e),
       topics: topics.length ? topics : ['rights'],
+      image: e.image,
       regions: regionsOf(e, feed),
       at: Number.isFinite(when) ? new Date(when).toISOString() : new Date().toISOString(),
     })
@@ -175,6 +189,38 @@ if (DRY) {
     console.log(`     ${p.feed.outlet} · ${p.link.slice(0, 90)}`)
   }
   process.exit(dead.length === FEEDS.length ? 1 : 0)
+}
+
+/* ------------------------------------------------------------------ *
+ * 交给模型：按方针筛选，改写成中文
+ *
+ * 没配模型就跳过——退回英文摘要 + 关键词筛选。**说出来**，不要让站长
+ * 以为方针生效了其实没有。
+ * ------------------------------------------------------------------ */
+
+/** 站长在控制端写下的本次指示。存在 site.copy.collectNote 里。 */
+async function ownerNote() {
+  try {
+    const res = await db('site?select=copy&id=eq.site')
+    if (!res.ok) return ''
+    const rows = await res.json()
+    return String(rows?.[0]?.copy?.collectNote ?? '').trim()
+  } catch { return '' }
+}
+
+if (picked.length > MAX_ITEMS) {
+  console.log(`按优先级取前 ${MAX_ITEMS} 条交给模型（共 ${picked.length} 条候选）`)
+  picked = picked.slice(0, MAX_ITEMS)
+}
+
+if (llmConfigured()) {
+  const note = await ownerNote()
+  if (note) console.log(`站长本次指示：${note}`)
+  picked = await rewriteAll(picked, note)
+} else {
+  console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
+  console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
+  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译成中文。')
 }
 
 /* ------------------------------------------------------------------ *
@@ -226,20 +272,20 @@ groups.forEach((g, i) => {
   toInsert.push({
     id: `news-${Date.now().toString(36)}-${i}`,
     slug,
-    headline: g.title,
+    headline: g.headline ?? g.title,
     summary: g.summary,
-    bullets: [],
+    bullets: g.bullets ?? [],
     regions: g.regions,
     topics: g.topics,
     links,
-    image: null,
+    image: g.image ?? null,
     status: AUTO ? 'live' : 'hidden',
     origin: 'auto',
     featured: false,
     demo: false,
     edited_by_human: false,
     editor_note: null,
-    content_notice: noticeFor(g, g.topics),
+    content_notice: g.notice ?? noticeFor(g, g.topics),
     published_at: g.at,
     updated_at: new Date().toISOString(),
   })
@@ -268,3 +314,10 @@ const noticed = toInsert.filter((r) => r.content_notice).length
 console.log(AUTO
   ? `已上线 ${toInsert.length} 条${noticed ? `，其中 ${noticed} 条带内容提示` : ''}。`
   : `已写入 ${toInsert.length} 条，全部下架状态等你审核。`)
+
+// 站长是拿自己的余额在跑。跑完报一次账，别让它悄悄花钱。
+const bill = spendReport()
+if (bill) {
+  console.log('')
+  console.log(bill)
+}

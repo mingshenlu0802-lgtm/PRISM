@@ -7,7 +7,7 @@ import { ENGINES, TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import { collect, planSteps } from '../../lib/collect'
 import { cx, fmtDateTime, nowIso, relTime, uid } from '../../lib/util'
-import { Checkbox, Icon, Modal, toast } from '../../components/common'
+import { Checkbox, Icon, Modal, TextArea, toast } from '../../components/common'
 import { Coverage } from '../../components/console/Coverage'
 import './SearchPage.css'
 
@@ -19,6 +19,8 @@ import './SearchPage.css'
  */
 export default function SearchPage(): JSX.Element {
   const { state, dispatch, who, canEdit } = usePrism()
+  // 给搜集程序的常驻指示。存进 site.copy.collectNote，跑在 Actions 上的抓取会读它。
+  const [note, setNote] = useState(state.copy.collectNote ?? '')
   const cfg = state.collect
   const [running, setRunning] = useState(false)
   const [stepIndex, setStepIndex] = useState(-1)
@@ -167,6 +169,53 @@ export default function SearchPage(): JSX.Element {
 
       {/* ------------------------------- settings ------------------------------- */}
       <Coverage />
+
+      {/*
+        * 给收集程序的常驻指示。
+        *
+        * 站长要的是「一个 chatbot 让我指导去搜寻多少新闻」。做成对话框会有两个
+        * 问题：静态站要在浏览器里放模型的 key，而且真正干活的是每天在 GitHub
+        * Actions 上跑的那个程序，不是这个页面。所以做成一段**存下来的指示**——
+        * 写在这里，下一次抓取时模型会读到，并且优先于一般规则。
+        * 关掉页面不会丢，也不需要你守在电脑前。
+        */}
+      <section className="srch__block">
+        <div className="srch__blockhead">
+          <h2 className="srch__blocktitle">给搜集程序的指示</h2>
+        </div>
+        <p className="srch__blocknote">
+          用中文写就行，像跟编辑交代一样。<strong>每天早上那次自动搜集会读这一段</strong>，
+          并且把它排在一般规则前面。写完按「保存指示」。
+        </p>
+        <TextArea
+          rows={4}
+          value={note}
+          placeholder={'例：\n今天重点找台湾和香港的性侵案司法进展，20 条左右。\n少要美国的评论文章，多要有法院文件或独立调查的。'}
+          onChange={(e) => { const v = e.currentTarget.value; setNote(v) }}
+          disabled={!canEdit}
+        />
+        <div className="srch__noterow">
+          <button
+            type="button"
+            className="srch__notesave"
+            disabled={!canEdit || note === (state.copy.collectNote ?? '')}
+            onClick={() => {
+              dispatch({ type: 'copy', patch: { collectNote: note.trim() }, who })
+              toast('指示已保存。下一次搜集会照着做。', 'go')
+            }}
+          >
+            <Icon name="check" size={14} />保存指示
+          </button>
+          {note !== (state.copy.collectNote ?? '') && (
+            <button type="button" className="srch__notereset" onClick={() => setNote(state.copy.collectNote ?? '')}>
+              还原
+            </button>
+          )}
+          <span className="srch__notehint">
+            指示只影响每天自动搜集的那一次，不影响这一页上面那个演示用的按钮。
+          </span>
+        </div>
+      </section>
 
       <section className="srch__block">
         <div className="srch__blockhead">

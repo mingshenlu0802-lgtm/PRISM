@@ -645,6 +645,8 @@ await test('发信失败和额度用完不能混为一谈', () => {
 /* --------------------- 真实新闻收集：解析与归类 --------------------- */
 
 const feedparse = await import('./feedparse.mjs')
+const ed = await import('./editorial.mjs')
+const llm = await import('./llm.mjs')
 
 await test('RSS 和 Atom 都要认得出来', () => {
   const rss = `<rss><channel>
@@ -764,6 +766,177 @@ await test('涉及性暴力的条目要带内容提示，别的不要', () => {
   ok(n('Producer sentenced for sexual assault', ['violence']).includes('尚未经本站核实'),
     '涉及具体案件时要说清楚摘要没经过本站核实')
   ok(!n('Report on gender pay gap', ['equality']), '不相关的条目不该加提示——提示满天飞就没人看了')
+})
+
+await test('用媒体自己配的图，并且署上它的名字', () => {
+  // 站长：「你没有给我高质量的标图。」feed 里本来就带图，之前整个丢掉了。
+  const rss = '<rss><channel><item><title>A ruling</title><link>https://x.org/a</link>'
+    + '<media:content url="https://x.org/p.jpg" medium="image"/>'
+    + '<media:credit>Jane Doe/Reuters</media:credit>'
+    + '<media:description>Protesters outside the court</media:description>'
+    + '</item></channel></rss>'
+  const [e] = feedparse.parseFeed(rss, 'The Guardian')
+  eq(e.image.url, 'https://x.org/p.jpg', '要取到图片地址')
+  eq(e.image.credit, 'Jane Doe/Reuters', '媒体给了署名就用它的，不要写成来源媒体')
+  eq(e.image.alt, 'Protesters outside the court', '媒体给了图说就用作替代文字')
+})
+
+await test('没有图说时不编造图里有什么', () => {
+  /*
+   * 给一张没看过的照片编一段描述，是在骗用读屏软件的人。
+   * 只说明出处是诚实的，也仍然告诉对方「这里有一张来自某媒体的图」。
+   */
+  const rss = '<rss><channel><item><title>B</title><link>https://x.org/b</link>'
+    + '<enclosure url="https://x.org/q.jpg" type="image/jpeg"/></item></channel></rss>'
+  const [e] = feedparse.parseFeed(rss, 'Ms. Magazine')
+  ok(e.image.alt.includes('Ms. Magazine'), '替代文字要说明出处')
+  ok(!/protest|court|woman|man/i.test(e.image.alt), '不能凭空描述图片内容')
+})
+
+await test('没有图就是没有图，不要塞一个空对象进去', () => {
+  const rss = '<rss><channel><item><title>C</title><link>https://x.org/c</link></item></channel></rss>'
+  eq(feedparse.parseFeed(rss, 'X')[0].image, null, '没有图时应当是 null')
+})
+
+await test('编辑方针要完整传给模型', () => {
+  // 方针是站长写的，散在聊天记录里没用，必须进代码并且被真的用上。
+  const p = ed.systemPrompt('今天多找台湾的司法进展')
+  ok(p.includes('真实伤害、权力失衡、制度责任'), '要带上站长对这个站的定义')
+  ok(p.includes('十一、值得追踪的反常案件'), '十一条优先级要完整')
+  ok(p.includes('主语回到施害者身上'), '语气要求要在')
+
+  // 站长：「benefit of the doubt 请给受害者，我们不是在法庭。」
+  ok(p.includes('不用怀疑的语法'), '不能用「据称」「所谓受害者」这类怀疑标记')
+  ok(p.includes('不做虚假平衡'), '一句否认不该和多人指证等量齐观')
+  ok(p.includes('没有定罪不等于没有发生'), '绝大多数案件不会进法庭，这不影响伤害是真的')
+
+  // 只守两条，而且理由是为了受害者。
+  ok(p.includes('不把未经证实的犯罪行为写成已经确立的事实'),
+    '对在世具名个人仍然不能把指控写成定论——那会变成对方律师的武器')
+  ok(p.includes('整条报道'),
+    '要说清楚「不编造」是在保护幸存者的陈述，不是在怀疑她')
+  ok(p.includes('台湾的司法进展'), '站长当次的额外指示要接得上')
+})
+
+await test('有 Claude 的 key 就够了，不用再填型号名', async () => {
+  // 站长：「付费也没关系，我全部用 Claude api 吧。」那就让它只需要一个 Secret。
+  const keep = { ...process.env }
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
+    const c = llm.resolveLlm()
+    ok(c, '有 key 就该能跑')
+    eq(c.kind, 'anthropic', '要走原生协议，不是 OpenAI 兼容层')
+    ok(c.model.startsWith('claude-'), '没填型号也要有一个能用的默认')
+    ok(llm.llmConfigured(), '这就算配好了')
+
+    // 别家的配置不该把 Claude 挤掉——站长说的是「全部用 Claude」。
+    process.env.LLM_BASE_URL = 'https://api.groq.com/openai/v1'
+    process.env.LLM_MODEL = 'qwen/qwen3-32b'
+    process.env.LLM_API_KEY = 'gsk_fake'
+    eq(llm.resolveLlm().kind, 'anthropic', 'Claude 优先')
+    eq(llm.resolveLlm().model, 'qwen/qwen3-32b', 'LLM_MODEL 仍然用来选 Claude 的型号')
+  } finally { process.env = keep }
+})
+
+await test('发给 Claude 的请求必须照它的规矩来', async () => {
+  // 这三处和 OpenAI 那套不一样，每一处填错都是 400 或 401，
+  // 而站长看到的只会是「今天没有新闻」。
+  const keep = { ...process.env }
+  const realFetch = globalThis.fetch
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
+
+    let seen = null
+    globalThis.fetch = async (url, init) => {
+      seen = { url, headers: init.headers, body: JSON.parse(init.body) }
+      return new Response(JSON.stringify({
+        content: [{ type: 'text', text: '{"ok":true}' }],
+        usage: { input_tokens: 120, output_tokens: 30 },
+      }), { status: 200 })
+    }
+
+    const got = await llm.ask('这是编辑方针', '这是这一批新闻')
+    eq(got.ok, true, '要能从 content[] 里取出文字并解析成 JSON')
+    ok(String(seen.url).endsWith('/v1/messages'), `要打 /v1/messages，实际 ${seen.url}`)
+    eq(seen.headers['x-api-key'], 'sk-ant-fake', '认证是 x-api-key，不是 Bearer')
+    ok(!seen.headers.authorization, '不该再带 Authorization 头')
+    eq(seen.headers['anthropic-version'], '2023-06-01', '少了版本号直接 400')
+    eq(seen.body.system, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
+    eq(seen.body.messages.length, 1, 'messages 里只该有用户那一条')
+    ok(!JSON.stringify(seen.body).includes('response_format'),
+      'response_format 是 OpenAI 的字段，发给 Claude 会报错')
+
+    // 记账：站长拿自己的余额在跑，花了多少不该靠猜。
+    const bill = llm.spendReport()
+    ok(bill.includes('120'), '要报出真实的输入 token 数')
+    ok(bill.includes('30'), '要报出真实的输出 token 数')
+    ok(/US\$/.test(bill), '要给一个钱的估算，否则数字对站长没有意义')
+  } finally { process.env = keep; globalThis.fetch = realFetch }
+})
+
+await test('三个配齐才算配好，缺一个就整套退回', async () => {
+  const keep = { ...process.env }
+  try {
+    process.env.LLM_BASE_URL = 'https://api.groq.com/openai/v1/'
+    process.env.LLM_MODEL = 'qwen/qwen3-32b'
+    process.env.LLM_API_KEY = 'gsk_fake'
+    const c = llm.resolveLlm()
+    eq(c.base, 'https://api.groq.com/openai/v1', '结尾的斜杠要洗掉，否则会拼出 //chat')
+    eq(c.model, 'qwen/qwen3-32b', '要用站长指定的型号')
+    ok(llm.llmConfigured(), '三个齐了就该算配好')
+
+    // 缺一个不能半途用这家的 key 去打那家的端点——那只会得到一串 401，
+    // 而日志里看起来像是「模型坏了」，站长会去改一个本来就对的东西。
+    delete process.env.LLM_API_KEY
+    eq(llm.resolveLlm(), null, '缺一个就整套退回，不许混搭')
+    eq(llm.llmConfigured(), false, '不能假装配好了——收集会以为能翻译，结果整批失败')
+  } finally { process.env = keep }
+})
+
+await test('不许再把 GitHub Models 当默认——它已经 410 了', async () => {
+  // 我曾经把它设成默认：仓库自带 token 就能调，看起来正是「真正免费」的答案。
+  // 2026-09-01 让 runner 真打了一次，五个型号全部 HTTP 410，
+  // github_models_retirement_brownout——它在退役。
+  // 一个会静静 410 的默认值，只会让站长看到「今天没有新闻」。
+  const keep = { ...process.env }
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.GITHUB_TOKEN = 'ghs_fake'
+    eq(llm.resolveLlm(), null, '有 GITHUB_TOKEN 也不该自作主张去调一个退役的服务')
+  } finally { process.env = keep }
+
+  const { readFileSync } = await import('node:fs')
+  const y = readFileSync('.github/workflows/collect.yml', 'utf8')
+  ok(!/^\s*models:\s*read\s*$/m.test(y), 'collect.yml 不该再要 models 权限')
+  ok(/^\s*contents:\s*read\s*$/m.test(y), '这个 job 只读代码，权限就该写死到这么大')
+})
+
+await test('探测脚本要说清楚缺的是哪一个', async () => {
+  // 「配了但没生效」和「压根没配」是两回事。第一次真跑就发现 Secrets 里
+  // 根本没有这两个——如果只说一句「没配置模型」，站长会去改 Groq 那边。
+  const { execFileSync } = await import('node:child_process')
+  const run = (env) => {
+    try {
+      return execFileSync(process.execPath, ['scripts/llm-check.mjs'],
+        { env: { ...process.env, LLM_BASE_URL: '', LLM_API_KEY: '', ...env }, encoding: 'utf8' })
+    } catch (e) { return String(e.stdout ?? '') }
+  }
+  ok(run({}).includes('都是空的'), '两个都缺就要说两个都缺')
+  ok(run({ LLM_API_KEY: 'k' }).includes('LLM_BASE_URL 是空的'), '要指名缺的是 BASE_URL')
+  ok(run({ LLM_BASE_URL: 'u' }).includes('LLM_API_KEY 是空的'), '要指名缺的是 API_KEY')
+
+  // 而且要给得出下一步：光说「没配」等于把人扔在原地。
+  const out = run({})
+  ok(out.includes('https://api.groq.com/openai/v1'), '要给出可以直接粘贴的端点')
+  ok(out.includes('410'), '要写明 GitHub Models 已退役，免得又去试一遍')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
