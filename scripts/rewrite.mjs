@@ -34,7 +34,7 @@ const SHAPE = `
 KEEP: yes
 HEADLINE: 主标题
 SUBHEAD: 副标题，一句话
-TOPICS: violence, children
+TOPICS: sexual, children
 REGIONS: us
 BULLETS:
 - 要点一
@@ -53,7 +53,7 @@ SUMMARY:
 - 每一条候选都要有一个块，编号就是输入里的 i，顺序不变，不要增删。
 - 不符合方针的写 KEEP: no，其余字段可以留空。
 - SUMMARY 从冒号后**换行开始**，一直写到 ===END 为止。
-- TOPICS 只能从这些里选：violence children rights repro trans hate equality displacement movement
+- TOPICS 只能从这些里选：domestic sexual children rights lgbtq hate displacement incel movement
 - REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
@@ -61,7 +61,14 @@ async function runBatch(batch, ownerNote) {
   const input = batch.map((p, i) => ({
     i,
     title: p.title,
-    excerpt: p.summary,
+    /*
+     * 原文正文，可能不止一篇——同一件事被两三家报道时，每一家都取回来了。
+     * 这是模型写长稿的**材料**：没有它，1500 字只能靠车轱辘话凑；
+     * 有了好几家，细节还能互相补上（这家有法庭文件，那家采访到了当事人）。
+     * 一篇都没取到才退回 feed 摘要。
+     */
+    articles: p.bodies?.length ? p.bodies : undefined,
+    excerpt: p.bodies?.length ? undefined : p.summary,
     date: p.at.slice(0, 10),
     /*
      * 来源按 [1] [2] 编号交给模型，让它在正文里标角标。
@@ -74,7 +81,13 @@ async function runBatch(batch, ownerNote) {
   }))
   const text = await askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
-    `候选新闻 ${input.length} 条：\n\n${JSON.stringify(input, null, 1)}`,
+    `候选新闻 ${input.length} 条。\n`
+    + `**articles 是原报道的正文**，可能有好几篇——都是同一件事的不同来源。\n`
+    + `全部读完，写成**一篇**稿子：细节该谁补谁补，不要写成「A 媒体说……B 媒体说……」。\n`
+    + `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n`
+    + `**两家以上报道的，出处要在正文里分别点名**（据 X 报道 / Y 查阅的文件显示），\n`
+    + `读者才看得出这件事不止一家在讲。\n\n`
+    + `${JSON.stringify(input, null, 1)}`,
     { maxTokens: 24000 },
   )
   const blocks = splitBlocks(text)
@@ -91,7 +104,7 @@ async function runBatch(batch, ownerNote) {
 
 const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY']
 
-const TOPICS = new Set(['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'])
+const TOPICS = new Set(['domestic', 'sexual', 'children', 'rights', 'lgbtq', 'hate', 'displacement', 'incel', 'movement'])
 const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
 
 /**
@@ -139,7 +152,7 @@ const TRIAGE_SHAPE = `
 picks 必须覆盖输入里的每一个 i，不要增删。why 写十个字以内，只是给日志看的。`.trim()
 
 /** 先挑一遍。返回留下来的候选，顺序不变。 */
-async function triage(cands, ownerNote) {
+async function triage(cands, ownerNote, target) {
   const kept = []
   let looked = 0
   for (let i = 0; i < cands.length; i += TRIAGE_BATCH) {
@@ -148,7 +161,10 @@ async function triage(cands, ownerNote) {
     try {
       const out = await ask(
         `${triagePrompt(ownerNote)}\n\n${TRIAGE_SHAPE}`,
-        `候选 ${batch.length} 条：\n\n${JSON.stringify(
+        `今天要上线 ${target} 条，这是第 ${Math.floor(i / TRIAGE_BATCH) + 1} 批候选（共 ${cands.length} 条）。\n`
+        + `符合方针的都留下——**宁可多留几条**：后面写的时候还会再筛一次，\n`
+        + `而留得太少的话，今天就凑不够 ${target} 条。\n\n`
+        + `候选 ${batch.length} 条：\n\n${JSON.stringify(
           batch.map((c, k) => ({ i: k, source: c.feed.outlet, title: c.title, excerpt: String(c.summary).slice(0, 300) })),
           null, 1,
         )}`,
@@ -184,7 +200,7 @@ async function triage(cands, ownerNote) {
  *
  * 一批失败不拖垮整次收集——报出来，继续下一批。
  */
-export async function rewriteAll(candidates, ownerNote = '', target = Infinity) {
+export async function rewriteAll(candidates, ownerNote = '', target = Infinity, { onPicked } = {}) {
   console.log(`交给模型（${llmName()}），目标 ${target === Infinity ? '全部' : `${target} 条`}`)
 
   /*
@@ -192,12 +208,22 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity) 
    * 只有一批的时候不值得多跑一次调用，直接写。
    */
   const picked = candidates.length > BATCH * 2
-    ? await triage(candidates, ownerNote)
+    ? await triage(candidates, ownerNote, target === Infinity ? candidates.length : target)
     : candidates
   if (picked.length === 0) {
     console.log('  初筛之后一条都不剩。今天的候选里没有符合方针的。')
     return []
   }
+
+  /*
+   * 选完了再去取原文。
+   *
+   * 顺序是关键：取报道页面要发几十个 HTTP 请求，只对**留下来的**做才划算；
+   * 而它必须在写之前做完，否则模型手上只有 RSS 那两三百字的摘要，
+   * 写 1500–3000 字就只能靠注水。
+   */
+  if (onPicked) await onPicked(picked)
+
   console.log(`  开始写（每批 ${BATCH} 条）`)
   const out = []
   let dropped = 0
@@ -269,7 +295,7 @@ KEEP: yes
 TITLE: 中文标题
 PUBLISHER: 中文机构名
 KIND: official-statistics
-TOPICS: violence, children
+TOPICS: sexual, children
 REGIONS: global
 FIGURES:
 - 指标名 | 数字带单位 | 这个数字没有说什么
@@ -283,7 +309,7 @@ SUMMARY:
 规则：
 - 每一项都要有一个块，编号是输入里的 i，顺序不变。不属于本站题目的写 KEEP: no。
 - KIND 只能是：peer-reviewed systematic-review official-statistics dataset ngo-report preprint
-- TOPICS 只能从这些里选：violence children rights repro trans hate equality displacement movement
+- TOPICS 只能从这些里选：domestic sexual children rights lgbtq hate displacement incel movement
 - REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global
 - FIGURES 里只放**原文里真的出现过的数字**，一行一个，三段用 | 隔开。
   原文没给数字就整个留空——编一个数字比没有数字糟糕得多。

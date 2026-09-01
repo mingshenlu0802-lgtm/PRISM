@@ -1,0 +1,68 @@
+/*
+ * 格子地图。
+ *
+ * 六列固定，因为格子的位置是按经纬度排的——列数一变，
+ * 「欧洲在中上、拉美在左下」这层空间关系就散了。
+ * 手机上不改列数，只缩小格子和字号。
+ */
+.rmap { display: grid; gap: var(--s-3); }
+
+.rmap__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rmap__gap { aspect-ratio: 1; }
+
+.rmap__tile {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  aspect-ratio: 1;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  text-align: center;
+  line-height: 1.2;
+  /* 用地区自己的颜色，但压得很淡——地图是导航，不是信息图，
+     颜色只负责把同一个地区的几格连起来。 */
+  background: color-mix(in srgb, var(--tile) 14%, transparent);
+  color: var(--fg-muted);
+  border: var(--bw) solid transparent;
+  transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.rmap__tile:hover, .rmap__tile:focus-visible {
+  background: color-mix(in srgb, var(--tile) 34%, transparent);
+  border-color: var(--tile);
+  color: var(--fg);
+}
+
+.rmap__name { font-size: var(--fs-2xs); font-weight: 600; }
+.rmap__n {
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--fg-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.rmap__global {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs); color: var(--fg-muted);
+}
+.rmap__global:hover { color: var(--fg); }
+.rmap__dot { width: 8px; height: 8px; border-radius: 50%; }
+
+@media (min-width: 700px) {
+  .rmap__grid { gap: 8px; }
+  .rmap__name { font-size: var(--fs-xs); }
+}
+
+/* 触屏上格子本身就够大（最小 44px 由 aspect-ratio 和列宽保证），
+   但小屏幕上六列会把每格压到 40px 出头，所以放宽一点点。 */
+@media (pointer: coarse) and (max-width: 420px) {
+  .rmap__grid { gap: 4px; }
+}
+
+@media (pointer: coarse) {
+  /* 「跨区域」是一行文字链接，21px 高按不准。撑开可点区域，
+     负 margin 抵掉，免得把它和上面的地图推开。 */
+  .rmap__global { padding-block: 12px; margin-block: -12px; }
+}

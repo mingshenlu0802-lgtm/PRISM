@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage } from './feedparse.mjs'
+import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
@@ -146,8 +146,26 @@ const report = []
 let picked = []
 const seenUrl = new Set()
 
-for (const feed of FEEDS) {
-  const r = await fetchFeed(feed)
+/*
+ * 并发抓。
+ *
+ * 源从 27 涨到 58 之后，串行抓就撑不住了：单个源的超时是 20 秒，
+ * 而死链、慢站每一轮都有几个——最坏情况光抓取就要十几分钟，
+ * 每天两场就是半小时花在等待上。
+ *
+ * 八个一批。再多对方会开始限流，而且这些请求本来就不是瓶颈——
+ * 真正花时间的是后面写稿那一步。
+ */
+const fetched = await inBatches(FEEDS, 8, async (feed) => ({ feed, r: await fetchFeed(feed) }))
+
+/*
+ * 但**入选顺序要保持确定**。
+ *
+ * 并发回来的顺序是随机的，而下面靠 seenUrl 去重——同一条新闻被两个源
+ * 同时收录时，谁先到谁留下。让这件事随网络快慢变化，等于同一天跑两次
+ * 会得到不同的结果，出了问题也没法复现。所以按 FEEDS 的原始顺序处理。
+ */
+for (const { feed, r } of fetched) {
   if (!r.ok) { report.push([feed, 0, 0, r.why]); continue }
 
   let kept = 0
@@ -184,10 +202,37 @@ for (const feed of FEEDS) {
  * 站长指定的报道重心。每个源都有条数上限，排在前面就意味着在额度里优先留下。
  */
 picked.sort((a, b) => {
-  // 性犯罪第一，儿童第二——站长定的两个重心，其余按时间。
-  const w = (p) => (p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2)
+  // 性犯罪第一、家暴第二、儿童第三——站长定的重心，其余按时间。
+  const w = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
   return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
 })
+
+/*
+ * 同一家媒体不要霸占版面。
+ *
+ * 每个源最多收 8 条，而一天的目标是 15 条——所以理论上两家媒体就能把整个
+ * 首页填满。真实抓取里 The Guardian Australia 一家就交了 8 条，
+ * 一个号称覆盖 14 个地区的站，首页可能一半来自澳大利亚。
+ *
+ * 所以在**保持上面那个优先级分层的前提下**，层内按来源轮转：
+ * 先每家取第一条，再每家取第二条。性犯罪仍然排在最前面，
+ * 只是同一层里不再让一家连着占位。
+ */
+const byTier = new Map()
+for (const p of picked) {
+  const tier = p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3
+  if (!byTier.has(tier)) byTier.set(tier, new Map())
+  const feeds = byTier.get(tier)
+  if (!feeds.has(p.feed.id)) feeds.set(p.feed.id, [])
+  feeds.get(p.feed.id).push(p)
+}
+picked = []
+for (const tier of [...byTier.keys()].sort()) {
+  const queues = [...byTier.get(tier).values()]
+  for (let round = 0; queues.some((q) => q.length > round); round += 1) {
+    for (const q of queues) if (q[round]) picked.push(q[round])
+  }
+}
 
 console.log('PRISM 新闻收集')
 console.log('—'.repeat(76))
@@ -226,26 +271,17 @@ async function ownerNote() {
   } catch { return '' }
 }
 
-const poolSize = MAX_ITEMS * POOL
-if (picked.length > poolSize) {
-  console.log(`按优先级备 ${poolSize} 条候选，目标上线 ${MAX_ITEMS} 条（共 ${picked.length} 条）`)
-  picked = picked.slice(0, poolSize)
-}
-
-if (llmConfigured()) {
-  const note = await ownerNote()
-  if (note) console.log(`站长本次指示：${note}`)
-  picked = await rewriteAll(picked, note, MAX_ITEMS)
-} else {
-  console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
-  console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
-  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译成中文。')
-}
-
 /* ------------------------------------------------------------------ *
- * 合并
+ * 合并——**在交给模型之前**
  *
- * 先在这一批里把讲同一件事的合成一条（多个来源），再拿去跟数据库里已有的比。
+ * 顺序改过一次，理由是站长的要求：「读完若干个 reference，然后总结就 ok 了。」
+ *
+ * 原来是先写、后合并：模型每次只看到一家的报道，写完之后才把讲同一件事的
+ * 另外两家挂成「来源」。读者看到三个来源，但稿子其实只依据其中一家——
+ * 另外两家补充的细节从来没进过正文。
+ *
+ * 现在先合并，再把这一组的**每一篇原文**都取回来交给模型。
+ * 路透社写了法庭文件，卫报采访到了当事人，两边的细节都能落进同一篇稿子。
  * ------------------------------------------------------------------ */
 
 const groups = []
@@ -257,6 +293,62 @@ for (const p of picked) {
 }
 const merged = groups.reduce((n, g) => n + g.also.length, 0)
 if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲过的事，合并成来源`)
+
+/*
+ * 有两家以上报道的排前面。
+ *
+ * 站长：「每个新闻最好有两个或以上的引用。」这有两层意思，都成立：
+ *   - 对读者：两家独立报道过的事，更好核对。
+ *   - 对写作：两篇原文比一篇多出一倍的细节，稿子才写得实。
+ *
+ * **这一步必须在合并之后。** 第一版写在合并之前，那时候 `also` 还不存在，
+ * 于是「有几个来源」永远算作 1，整个偏好一次都没生效过——
+ * 一个不报错、也不改变任何结果的排序条件。
+ *
+ * 不是把单来源的丢掉：很多重要的调查全世界只有一家做了，尤其是本地媒体
+ * 和独立媒体，那正是这个站要收的东西。
+ */
+groups.sort((a, b) => {
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  const sources = (p) => (p.also.length >= 1 ? 0 : 1)
+  // 主流媒体优先（站长要求），但只在前两个条件之后——
+  // 一篇本地媒体做的性侵调查，仍然要排在主流媒体的一般报道前面。
+  const major = (p) => (p.feed.major || p.also.some((o) => o.feed.major) ? 0 : 1)
+  return tier(a) - tier(b) || sources(a) - sources(b) || major(a) - major(b)
+    || Date.parse(b.at) - Date.parse(a.at)
+})
+
+let picked2 = groups
+const poolSize = MAX_ITEMS * POOL
+if (picked2.length > poolSize) {
+  console.log(`按优先级备 ${poolSize} 条候选，目标上线 ${MAX_ITEMS} 条（共 ${picked2.length} 条）`)
+  picked2 = picked2.slice(0, poolSize)
+}
+
+/*
+ * 演练时不叫模型。
+ *
+ * 演练是用来看「哪些源还活着、抓到了什么」的——写完两千字再全部扔掉，
+ * 是拿站长的余额买一份不会上线的稿子。源清单从 27 涨到 58 之后，
+ * 光验证地址就得跑好几次演练，这笔钱没有必要花。
+ *
+ * 真想在演练里看模型写成什么样，设 LLM_IN_DRY=1。
+ */
+const useModel = llmConfigured() && (!DRY || process.env.LLM_IN_DRY === '1')
+if (DRY && llmConfigured() && !useModel) {
+  console.log('（演练）跳过模型：只看抓到什么。要连模型一起演练，设 LLM_IN_DRY=1。')
+}
+
+if (useModel) {
+  const note = await ownerNote()
+  if (note) console.log(`站长本次指示：${note}`)
+  picked2 = await rewriteAll(picked2, note, MAX_ITEMS, { onPicked: hydrate })
+} else {
+  console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
+  console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
+  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译成中文。')
+}
+picked = picked2
 
 /* ------------------------------------------------------------------ *
  * 配图
@@ -272,7 +364,7 @@ if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲�
  * 那是给真实事件配一张无关的照片。
  * ------------------------------------------------------------------ */
 
-async function pageImage(url, outlet) {
+async function pageInfo(url, outlet) {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 12000)
   try {
@@ -287,9 +379,8 @@ async function pageImage(url, outlet) {
     if (!res.ok) return null
     const type = res.headers.get('content-type') ?? ''
     if (!/html/i.test(type)) return null
-    // og 标签都在 <head> 里，没必要把整篇文章读进内存。
-    const html = (await res.text()).slice(0, 250000)
-    return ogImage(html, outlet)
+    const html = (await res.text()).slice(0, 400000)
+    return { image: ogImage(html, outlet), text: articleText(html) }
   } catch {
     return null
   } finally {
@@ -306,18 +397,64 @@ async function inBatches(items, size, fn) {
   return out
 }
 
-async function upgradeImages(list) {
-  const before = list.filter((g) => g.image).length
-  const got = await inBatches(list, 6, (g) => pageImage(g.link, g.feed.outlet))
+/**
+ * 把候选「补全」：取回报道页面，拿到大图和**正文**。
+ *
+ * 正文这一项是长稿质量的根本。RSS 的摘要通常两三百字，而站长要 1500–3000 字
+ * ——模型手上没有材料，就只能把同一件事换几种说法写满篇幅。稿子空、重复、
+ * 爱讲大道理，根源在这里，不在提示词写得不够严。
+ *
+ * 一次请求同时解决配图和正文，所以这一步比原来只取图并不更贵。
+ */
+async function hydrate(list) {
+  /*
+   * 一组里的**每一篇**都要取。
+   *
+   * 站长：「读完若干个 reference，然后总结就 ok 了。」路透社写了法庭文件，
+   * 卫报采访到了当事人——两边的细节要落进同一篇稿子，就得两边都读过。
+   * 每组最多取三篇：再多的边际收益很小，而请求数是按篇算的。
+   */
+  const jobs = []
+  for (const g of list) {
+    for (const src of [g, ...g.also].slice(0, 3)) {
+      jobs.push({ group: g, src, main: src === g })
+    }
+  }
+
+  const got = await inBatches(jobs, 6, (j) => pageInfo(j.src.link, j.src.feed.outlet))
+
   let better = 0
-  list.forEach((g, i) => {
-    if (!got[i]) return
-    if (!g.image) { g.image = got[i]; better += 1; return }
-    // feed 有图也换掉：og:image 基本总是更大的那张。
-    if (got[i].url !== g.image.url) { g.image = got[i]; better += 1 }
+  const before = list.filter((g) => g.image).length
+  jobs.forEach((j, i) => {
+    const info = got[i]
+    if (!info) return
+    // 配图只用主来源那一篇的：一组里混用不同报道的图，图和标题会对不上。
+    if (j.main && info.image && (!j.group.image || info.image.url !== j.group.image.url)) {
+      j.group.image = info.image
+      better += 1
+    }
+    // 太短就当没取到——一两句话还不如 feed 的摘要，塞进去只会添乱。
+    if (info.text && info.text.length > 400) {
+      /*
+       * 第二、第三家只取开头。
+       *
+       * 全文一篇 6000 字，三家就是 18000 字，两条一批就是三万六——
+       * 光输入就把一轮的账单翻倍，而多出来的多半是重复：同一件事，
+       * 三家的后半段讲的是同样的背景。
+       *
+       * 第一家给全文（它是主来源，配图也用它的），
+       * 其余各取前 2500 字——独家细节基本都在前几段。
+       */
+      const text = j.main ? info.text : info.text.slice(0, 2500)
+      ;(j.group.bodies ??= []).push({ outlet: j.src.feed.outlet, text })
+    }
   })
+
+  const withText = list.filter((g) => g.bodies?.length).length
+  const totalSrc = list.reduce((n, g) => n + (g.bodies?.length ?? 0), 0)
   const after = list.filter((g) => g.image).length
-  console.log(`配图：feed 自带 ${before} 张，去报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
+  console.log(`配图：feed 自带 ${before} 张，报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
+  console.log(`原文：${withText}/${list.length} 条拿到正文，共 ${totalSrc} 篇（一条新闻可能读了不止一家）`)
 }
 
 const have = await existingItems()
@@ -332,17 +469,14 @@ const linkOf = (p, i, j) => ({
   ...(p.feed.kind ? { kind: p.feed.kind } : {}),
 })
 
-// 先算出哪些是真要写进去的，只给它们取大图。
-const fresh = groups.filter((g) => {
-  if (have.items.some((it) => sameStory(it.key, g.key))) return false
-  return [g, ...g.also].some((p) => !have.urls.has(normUrl(p.link)))
-})
-if (fresh.length > 0) await upgradeImages(fresh)
-
+/*
+ * 配图和正文已经在初筛之后取过了（见 hydrate），这里不再重复取一次页面。
+ * 那一步必须早于「写」，因为模型要拿原文当材料。
+ */
 const toInsert = []
 const toAppend = []
 
-groups.forEach((g, i) => {
+picked.forEach((g, i) => {
   const sources = [g, ...g.also]
   const links = sources
     .filter((p) => !have.urls.has(normUrl(p.link)))
@@ -445,8 +579,11 @@ async function collectStudies() {
   const seen = new Set()
   const rep = []
 
-  for (const feed of STUDY_FEEDS) {
-    const r = await fetchFeed({ ...feed, outlet: feed.publisher })
+  // 并发抓，理由和新闻那边一样：串行等超时太贵。顺序仍按清单来。
+  const fetchedStudies = await inBatches(STUDY_FEEDS, 8,
+    async (feed) => ({ feed, r: await fetchFeed({ ...feed, outlet: feed.publisher }) }))
+
+  for (const { feed, r } of fetchedStudies) {
     if (!r.ok) { rep.push([feed, 0, 0, r.why]); continue }
     let kept = 0
     for (const e of r.entries) {
@@ -486,7 +623,7 @@ async function collectStudies() {
 
   // 重心一致：性暴力与儿童优先，其余按新旧。
   cands.sort((a, b) => {
-    const w = (c) => (c.topics.includes('violence') ? 0 : c.topics.includes('children') ? 1 : 2)
+    const w = (c) => (c.topics.includes('sexual') ? 0 : c.topics.includes('domestic') ? 1 : c.topics.includes('children') ? 2 : 3)
     return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
   })
 
@@ -515,7 +652,10 @@ async function collectStudies() {
   }
   if (fresh.length === 0) { console.log('候选研究站上都有了。'); return }
 
-  const all = llmConfigured()
+  // 和新闻走同一个开关。第一版这里还写着 llmConfigured()，
+  // 于是「演练不叫模型」只挡住了新闻——演练照样为研究付了钱，
+  // 而且一等就是好几分钟。
+  const all = useModel
     ? await rewriteStudies(fresh, await ownerNote())
     : fresh.map((c) => ({ ...c, limitation: '原报告未说明方法与抽样，这里不代为推断。', figures: [] }))
   const kept = all.slice(0, MAX_STUDIES)

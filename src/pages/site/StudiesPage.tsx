@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import type { StudyKind, TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
 import { STUDY_KIND } from '../../lib/constants'
@@ -18,10 +19,21 @@ import './StudiesPage.css'
  */
 export default function StudiesPage(): JSX.Element {
   const { state } = usePrism()
-  usePageTitle('研究与公开数据')
   const [regions, setRegions] = useState<RegionKey[]>([])
   const [topics, setTopics] = useState<TopicKey[]>([])
-  const [kind, setKind] = useState<'all' | StudyKind>('all')
+  /*
+   * 类型可以从地址来（/studies/peer-reviewed），导航的下拉就指到这里。
+   * 用地址而不是纯本地状态，是为了让这些分类**可以被转发**——
+   * 「你看这几份官方统计」应该是一条链接，不是「点进去再自己筛一下」。
+   */
+  const { kind: kindParam } = useParams()
+  const [kind, setKind] = useState<'all' | StudyKind>(
+    kindParam && kindParam in STUDY_KIND ? (kindParam as StudyKind) : 'all',
+  )
+  useEffect(() => {
+    setKind(kindParam && kindParam in STUDY_KIND ? (kindParam as StudyKind) : 'all')
+  }, [kindParam])
+  usePageTitle(kind === 'all' ? '研究与公开数据' : `${STUDY_KIND[kind as StudyKind].zh} · 研究与公开数据`)
 
   const live = useMemo(() => byNewest(state.studies.filter((s) => s.status === 'live')), [state.studies])
 

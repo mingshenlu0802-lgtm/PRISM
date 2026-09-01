@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { REGIONS } from '../../lib/regions'
-import { TOPICS } from '../../lib/constants'
+import { TOPICS, STUDY_KIND } from '../../lib/constants'
+
+/** 可信度分档的颜色，跟研究卡片上的徽章同一套。 */
+const KIND_HUE: Record<string, string> = {
+  go: 'var(--go)', info: 'var(--info)', warn: 'var(--warn)', neutral: 'var(--fg-faint)',
+}
 import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
 import { takeAuthLinkError } from '../../lib/authlink'
@@ -20,7 +25,7 @@ import './SiteLayout.css'
  */
 export default function SiteLayout(): JSX.Element {
   const { state, consoleOpen, mode, ready } = usePrism()
-  const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'mobile'>('none')
+  const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'kind' | 'mobile'>('none')
   const loc = useLocation()
 
   useEffect(() => { setMenu('none') }, [loc.pathname])
@@ -116,7 +121,49 @@ export default function SiteLayout(): JSX.Element {
               )}
             </div>
 
-            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/studies">研究与数据</NavLink>
+            {/*
+              * 研究与数据也给一个下拉。
+              *
+              * 站长：「研究与数据也要有各类分类。」它一直有筛选，但那些筛选
+              * 在页面里、要滚下去才看得到；导航上它是一个光秃秃的链接，
+              * 旁边两个都能展开——读者自然会以为这一栏没有分类。
+              *
+              * 分的是**类型**，不是议题：一份同行评审的论文和一份倡议机构的
+              * 报告，可信的程度不一样，而这正是这一页存在的理由。
+              */}
+            <div className="slyt__drop">
+              <button
+                type="button"
+                className={cx('slyt__link', 'slyt__dropbtn', menu === 'kind' && 'slyt__link--on')}
+                aria-expanded={menu === 'kind'}
+                onClick={() => setMenu((m) => (m === 'kind' ? 'none' : 'kind'))}
+              >
+                研究与数据 <Icon name="chevron-down" size={13} />
+              </button>
+              {menu === 'kind' && (
+                <div className="slyt__panel" role="menu">
+                  <div className="slyt__panelgrid slyt__panelgrid--wide">
+                    <Link className="slyt__panelitem" to="/studies" role="menuitem">
+                      <span className="slyt__panelgem" style={{ background: 'var(--fg-faint)' }} aria-hidden="true" />
+                      <span>
+                        <span className="slyt__panelname">全部</span>
+                        <span className="slyt__panelblurb">所有研究、统计与数据集。</span>
+                      </span>
+                    </Link>
+                    {(Object.keys(STUDY_KIND) as (keyof typeof STUDY_KIND)[]).map((k) => (
+                      <Link key={k} className="slyt__panelitem" to={`/studies/${k}`} role="menuitem">
+                        <span className="slyt__panelgem" style={{ background: KIND_HUE[STUDY_KIND[k].tone] }} aria-hidden="true" />
+                        <span>
+                          <span className="slyt__panelname">{STUDY_KIND[k].zh}</span>
+                          <span className="slyt__panelblurb">{STUDY_KIND[k].note}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/about">关于</NavLink>
           </nav>
 

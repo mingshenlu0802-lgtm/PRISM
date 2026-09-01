@@ -27,15 +27,36 @@ export type ISODateTime = string  // 'YYYY-MM-DDTHH:mm:ssZ'
  * 定为这个站的报道重心，儿童受害紧随其后。所以这两项在最前面。
  */
 export type TopicKey =
-  | 'violence'      // 性暴力与性犯罪（本站重心）
-  | 'children'      // 儿童与未成年人受害
-  | 'rights'        // 女性主义与 LGBTQIA+ 权利
-  | 'repro'         // 生育权与身体自主
-  | 'trans'         // 跨性别权利与医疗
+  | 'domestic'      // 家庭暴力
+  | 'sexual'        // 性侵、性骚扰与性犯罪（本站重心）
+  | 'children'      // 儿童权益
+  | 'rights'        // 女性权益（含生育权与身体自主）
+  | 'lgbtq'         // LGBTQIA+ 权益（含跨性别权利与医疗）
   | 'hate'          // 仇恨犯罪与网络暴力
-  | 'equality'      // 教育、职场与制度平等
   | 'displacement'  // 战争、移民与边缘处境
+  | 'incel'         // Incel 与厌女文化
   | 'movement'      // 运动内部的争议
+
+/**
+ * 旧议题名的对照表。
+ *
+ * 分类改过两轮：
+ *   violence（性暴力与性犯罪）拆成 domestic（家庭暴力）和 sexual（性侵与性犯罪）
+ *   repro（生育权）、equality（职场平等）并进 rights（女性权益）
+ *   trans（跨性别）并进 lgbtq
+ *
+ * 数据库里还留着旧名字的条目。不翻译的话，它们的标签会变成一个点不开、
+ * 也显示不出中文的空壳。读进来的时候翻译一次，就不用为了改分类去改历史数据。
+ *
+ * violence 归到 sexual：这个站的旧条目里，绝大多数带 violence 的都是性犯罪
+ * ——家暴那一类以前和它混在一起，现在才分开。
+ */
+export const TOPIC_ALIAS: Record<string, TopicKey> = {
+  violence: 'sexual',
+  repro: 'rights',
+  trans: 'lgbtq',
+  equality: 'rights',
+}
 
 export interface Topic {
   key: TopicKey

@@ -580,11 +580,21 @@ await test('综合来源要靠关键词筛，不能什么都收', () => {
   const sport = { title: 'Local team wins the cup', summary: 'A football final.' }
   eq(feedparse.topicsOf(sport).length, 0, '体育新闻不该命中任何议题')
 
-  const real = { title: 'New law on domestic violence', summary: '' }
-  ok(feedparse.topicsOf(real).includes('violence'), '家暴应当归到暴力')
+  // 家暴现在是独立的一栏（站长把它从性犯罪里拆了出来）。
+  const dv = { title: 'New law on domestic violence', summary: '' }
+  ok(feedparse.topicsOf(dv).includes('domestic'), '家暴应当归到家庭暴力')
+  ok(!feedparse.topicsOf(dv).includes('sexual'), '家暴不该同时算成性犯罪——拆开就是为了分清')
 
+  const sv = { title: 'Man charged with sexual assault of a student', summary: '' }
+  ok(feedparse.topicsOf(sv).includes('sexual'), '性侵要归到性犯罪')
+
+  // Incel 是新加的一栏，认的是这套亚文化自己的黑话。
+  const inc = { title: 'How the manosphere turned red pill talk into a business', summary: '' }
+  ok(feedparse.topicsOf(inc).includes('incel'), 'manosphere 要认得出来')
+
+  // 跨性别并进了 LGBTQIA+ 权益那一栏。
   const zh = { title: '跨性别者就医权益争议', summary: '' }
-  ok(feedparse.topicsOf(zh).includes('trans'), '中文也要认得出来')
+  ok(feedparse.topicsOf(zh).includes('lgbtq'), '中文也要认得出来')
 })
 
 await test('地区认得出来，认不出来就用来源默认的', () => {
@@ -863,9 +873,12 @@ await test('儿童议题要认出侵害，不要把儿科新闻也收进来', ()
 await test('议题清单要以性暴力开头，并且真的有儿童这一项', () => {
   // 顺序不是装饰：它就是筛选栏和「关于」页上的排列顺序，而站长把性犯罪
   // 定成了这个站的重心。
-  eq(TOPICS[0].key, 'violence', '性暴力排第一')
-  eq(TOPICS[1].key, 'children', '儿童排第二')
-  ok(TOPICS.some((t) => t.key === 'children'), '儿童议题必须存在')
+  // 站长两次重排过分类。现在的顺序由他指定：家暴、性犯罪、儿童……
+  eq(TOPICS[0].key, 'domestic', '家庭暴力排第一')
+  eq(TOPICS[1].key, 'sexual', '性犯罪排第二')
+  eq(TOPICS[2].key, 'children', '儿童排第三')
+  ok(TOPICS.some((t) => t.key === 'incel'), 'Incel 与厌女文化必须存在')
+  ok(TOPICS.some((t) => t.key === 'lgbtq'), 'LGBTQIA+ 权益必须存在')
   ok(TOPICS.every((t) => t.zh && t.short && t.hue), '每一项都要有中文名、短名和颜色')
 
   // 界面上的议题和抓取时能识别的议题必须是同一套，否则会出现一个
@@ -943,14 +956,14 @@ await test('研究里的数字不能是模型编的', () => {
     FIGURES: ['- 有说明的 | 38% | 只统计了报案的案件',
       '- 没说明的 | 99% |',
       '- 没数字的 | | 有说明但没有数字'].join('\n'),
-    TOPICS: 'violence, 不存在的议题',
+    TOPICS: 'sexual, 不存在的议题',
     REGIONS: 'us, 火星',
   }, fallback)
 
   eq(got.figures.length, 1, '没有边界说明、或者没有数字的都要丢掉')
   eq(got.figures[0].value, '38%', '留下的必须是两样都齐的那个')
   eq(got.kind, 'ngo-report', '类型不认识就退回这个源的默认，不要留空')
-  eq(got.topics.join(), 'violence', '不存在的议题要过滤掉')
+  eq(got.topics.join(), 'sexual', '不存在的议题要过滤掉')
   eq(got.regions.join(), 'us', '不存在的地区要过滤掉')
   ok(got.limitation.length > 0, '局限不能空着——空着等于默许读者过度解读')
 
@@ -973,6 +986,15 @@ await test('首页日期按北京时间，而且不是写死的', () => {
   const state = fresh()
   ok(state.today !== '2026-08-31' || bj === '2026-08-31', '不能停在演示数据那一天')
   eq(state.today, iso, '初始状态里的今天就是真的今天')
+
+  /*
+   * 缓存里的旧日期不能盖住今天——站长发现的：他的浏览器上写 8 月 31 日，
+   * 换一个浏览器是 9 月 1 日。
+   *
+   * 真正的守卫在 console-check 里（往 localStorage 塞一个旧日期，
+   * 重新打开页面，看首页写的是哪一天）——那才测得到 load() 本身。
+   * 这里只钉住「初始状态用的是真日期」。
+   */
 })
 
 await test('配图优先用报道页面的大图，而不是 feed 的缩略图', () => {
@@ -1103,6 +1125,156 @@ await test('时间按北京时间显示，不是 UTC', () => {
 
   // 坏日期原样返回，不要抛异常把整页带下去。
   eq(fmtDate('不是日期'), '不是日期', '坏日期不能让页面崩掉')
+})
+
+await test('要把报道正文抠出来交给模型，而不是只给 RSS 摘要', () => {
+  /*
+   * 这是长稿质量的根本。RSS 的 description 通常两三百字，而站长要 1500–3000 字
+   * ——模型手上没有材料，只能把同一件事换几种说法写满篇幅。
+   * 稿子空、重复、爱讲大道理，根源在这里，不在提示词写得不够严。
+   */
+  const html = [
+    '<html><head><script>var a=1</script><style>p{color:red}</style></head><body>',
+    '<nav><p>订阅我们的通讯，第一时间把最新消息推送到您的邮箱地址里面去</p></nav>',
+    '<article>',
+    '<p>图说</p>',
+    '<p>检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪，案件涉及数名患者。</p>',
+    '<p>Subscribe to our newsletter for the latest updates from our newsroom team today</p>',
+    '<p>该医生今年五十一岁，自二〇一四年起在该院任职，握有排班与转诊的实际权力。</p>',
+    '</article>',
+    '<footer><p>版权所有，未经许可不得转载，联系我们请发送邮件至编辑部的信箱</p></footer>',
+    '</body></html>',
+  ].join('')
+
+  const t = feedparse.articleText(html)
+  ok(t.includes('检方周一宣布'), '正文段落要留下')
+  ok(t.includes('握有排班与转诊'), '第二段也要留下——细节就在这些地方')
+  ok(t.includes('\n\n'), '段落之间要分开，不要糊成一坨')
+
+  // 下面这些进了正文，模型就会把「订阅我们的通讯」当成事实写进稿子。
+  ok(!t.includes('订阅我们'), '导航要排除')
+  ok(!t.includes('版权所有'), '页脚要排除')
+  ok(!t.includes('Subscribe'), '推广段落要排除')
+  ok(!t.includes('图说'), '太短的碎片（图说、署名）要排除')
+  ok(!t.includes('var a'), '脚本要排除')
+  ok(!t.includes('color:red'), '样式要排除')
+
+  // 没有 <article> 时退回整页，但仍然要能抠出东西来。
+  const plain = feedparse.articleText('<body><p>' + '这是一段足够长的正文内容用来测试没有 article 标签的情况。'.repeat(2) + '</p></body>')
+  ok(plain.length > 40, '没有 article 标签也要能抠出正文')
+
+  // 长度要有上限：整篇塞进提示词会把成本推上去，也会挤掉编辑方针。
+  const huge = feedparse.articleText('<p>' + '很长的正文。'.repeat(5000) + '</p>', 1000)
+  ok(huge.length <= 1000, `要截断到上限，实际 ${huge.length}`)
+})
+
+await test('一家媒体不该霸占首页', () => {
+  /*
+   * 每个源最多收 8 条，一天目标 15 条——两家媒体就能把首页填满。
+   * 真实抓取里 The Guardian Australia 一家交了 8 条，一个号称覆盖
+   * 14 个地区的站，首页可能一半来自澳大利亚。
+   *
+   * 这里复制收集脚本里那段轮转逻辑，验证它的两个性质：
+   * 层内按来源轮转，且一条都不丢。
+   */
+  const rotate = (items) => {
+    const byTier = new Map()
+    for (const p of items) {
+      const tier = p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2
+      if (!byTier.has(tier)) byTier.set(tier, new Map())
+      const feeds = byTier.get(tier)
+      if (!feeds.has(p.feed)) feeds.set(p.feed, [])
+      feeds.get(p.feed).push(p)
+    }
+    const out = []
+    for (const tier of [...byTier.keys()].sort()) {
+      const queues = [...byTier.get(tier).values()]
+      for (let r = 0; queues.some((q) => q.length > r); r += 1) {
+        for (const q of queues) if (q[r]) out.push(q[r])
+      }
+    }
+    return out
+  }
+
+  const items = []
+  for (const feed of ['guardian', 'reuters', 'bbc']) {
+    for (let i = 0; i < 4; i += 1) items.push({ feed, topics: ['violence'], n: i })
+  }
+  const out = rotate(items)
+  eq(out.slice(0, 3).map((p) => p.feed).join(), 'guardian,reuters,bbc', '前三条要来自三家')
+  eq(out.length, items.length, '轮转不能丢条目')
+
+  // 优先级分层必须保住：性犯罪仍然排在其他题材前面。
+  const mixed = rotate([
+    { feed: 'a', topics: ['equality'] },
+    { feed: 'b', topics: ['violence'] },
+    { feed: 'c', topics: ['children'] },
+  ])
+  eq(mixed.map((p) => p.topics[0]).join(), 'violence,children,equality',
+    '轮转不能把性犯罪优先挤掉')
+})
+
+await test('司法词不能单独决定议题——真实抓取里捞回来的全是无关刑案', () => {
+  /*
+   * 加进 8 家综合大报之后的第一次演练，词表里的司法词（guilty / arrested /
+   * settlement / on trial）把这些捞了回来。最后一条最能说明问题：
+   * 法律意义的「和解 settlement」撞上了以色列的「定居点 settlement」。
+   *
+   * 所以司法词只留在 ACCUSATION 里判断「这是不是一桩案子」（排序用），
+   * 不再决定议题。议题要靠行为本身。
+   */
+  const off = feedparse.topicsOf
+  const noise = [
+    'Tupac murder trial: Ex-gang leader found guilty',
+    'Football hooligan gang chief arrested over ecstasy ring from Spain',
+    'Man Arrested in Switzerland After Deadly Shooting at Rave',
+    'Irish minister calls for EU action in banning Israeli settlement trade',
+    'Zambia president inaugurated for second term after disputed vote',
+    'Alleged Charlie Kirk killer faces judgment on standing trial',
+  ]
+  for (const title of noise) {
+    eq(off({ title, summary: '' }).length, 0, `不该收：${title.slice(0, 40)}`)
+  }
+
+  // 但真正的性犯罪报道一条都不能漏——同样是这次演练里的真标题。
+  const keep = [
+    'Ex-prosecutor who accused boss of rape urges reform',
+    'A middle schooler said she was raped. Then she was suspended from class',
+    'Sexual assaults happening almost every day in Ceuta, prosecutors say',
+    '匡智會助理舍監涉強姦女院友　官引導陪審團',
+  ]
+  for (const title of keep) {
+    ok(off({ title, summary: '' }).includes('sexual'), `该收：${title.slice(0, 40)}`)
+  }
+
+  // isCase 仍然认得司法进展——排序要用它把案子排在前面。
+  ok(feedparse.isCase({ title: 'Man convicted of sexual assault', summary: '' }),
+    '司法信号还在，只是不再决定议题')
+})
+
+await test('英文的复数要认得出来', () => {
+  /*
+   * 「Sexual assaults happening almost every day in Ceuta」——词表写的是
+   * 'sexual assault'，词边界卡在 assault 后面，一个复数的 s 就让整条落选。
+   * 一篇讲一个城市几乎天天发生性侵的报道，因为多了一个字母没被收。
+   */
+  ok(feedparse.matches('sexual assaults reported daily', 'sexual assault'), '复数要匹配')
+  ok(feedparse.matches('a sexual assault case', 'sexual assault'), '单数当然要匹配')
+  ok(feedparse.matches('hate crimes rose', 'hate crime'), 'hate crimes 也一样')
+
+  // 但只放开一个 s，不要变成前缀匹配。
+  ok(!feedparse.matches('assaulted her', 'assault'), '不能变成前缀匹配')
+  ok(!feedparse.matches('rapeseed oil prices', 'rape'), '不能匹配到别的词里去')
+  ok(!feedparse.matches('trafficked goods', 'trafficking'), '词形变化不是复数，不该放开')
+
+  /*
+   * 「New Mexico」这类不是靠词边界解决的——mexico 前后都是空格，
+   * 边界拦不住。它由 regionsOf 在匹配前把整个词组改写成 United States，
+   * 见那边的注释。这里只确认这条路仍然有效。
+   */
+  const nm = feedparse.regionsOf({ title: 'Assault at a New Mexico middle school', summary: '' }, { regions: ['global'] })
+  ok(nm.includes('us'), 'New Mexico 要算美国')
+  ok(!nm.includes('latam'), 'New Mexico 不能算拉丁美洲')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

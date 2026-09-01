@@ -24,7 +24,17 @@
  * 报出来，也不要偷偷少收一半新闻。
  */
 
-/** @typedef {{id:string,outlet:string,url:string,regions:string[],topical?:boolean,kind?:'official'|'state',lang:string,note:string}} Feed */
+/**
+ * @typedef {{
+ *   id:string, outlet:string, url:string, regions:string[],
+ *   topical?:boolean, kind?:'official'|'state', major?:boolean,
+ *   lang:string, note:string
+ * }} Feed
+ *
+ * `major` 标的是主流大报和通讯社。站长：「新闻搜寻的时候，可以以主流媒体为主。」
+ * 它有两个作用：排序时优先，以及**制造重复**——同一件事被 BBC 和卫报都报了，
+ * 合并之后这一条就有两个来源，正好对上「每个新闻最好有两个或以上的引用」。
+ */
 
 /** @type {Feed[]} */
 export const FEEDS = [
@@ -41,6 +51,68 @@ export const FEEDS = [
     note: '同上。立场明确但事实核查严格，页面会标成民间机构。' },
 
   /* ---- 专做性别与 LGBTQIA+ 的媒体：整版都是本站题目 ---- */
+  /* ---- 主流大报与国际台：站长要求「以主流媒体为主」 ---- */
+  { id: 'bbc-world', outlet: 'BBC News', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', regions: ['global'], major: true, lang: 'en',
+    note: '综合源，要过关键词。它和下面几家常常报同一件事——合并之后一条新闻就有了多个来源。' },
+  { id: 'guardian-world', outlet: 'The Guardian', url: 'https://www.theguardian.com/world/rss', regions: ['global'], major: true, lang: 'en',
+    note: '综合国际版。它的 Gender 专版另外单列，这一条收的是没进专版的那些。' },
+  { id: 'aljazeera', outlet: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', regions: ['mena', 'global'], major: true, lang: 'en',
+    note: '中东与全球南方的覆盖比欧美大报厚。综合源。' },
+  { id: 'npr', outlet: 'NPR', url: 'https://feeds.npr.org/1001/rss.xml', regions: ['us'], major: true, lang: 'en',
+    note: '美国公共广播，法庭与政策报道扎实。综合源。' },
+  { id: 'nyt-world', outlet: 'The New York Times', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', regions: ['global', 'us'], major: true, lang: 'en',
+    note: '综合国际版。' },
+  { id: 'wapo-world', outlet: 'The Washington Post', url: 'https://feeds.washingtonpost.com/rss/world', regions: ['global', 'us'], major: true, lang: 'en',
+    note: '综合国际版。' },
+  { id: 'france24', outlet: 'France 24', url: 'https://www.france24.com/en/rss', regions: ['eu', 'africa', 'global'], major: true, lang: 'en',
+    note: '法语圈与非洲的覆盖较好。综合源。' },
+  { id: 'apnews-world', outlet: 'AP', url: 'https://feedx.net/rss/ap.xml', regions: ['global'], major: true, lang: 'en',
+    note: '美联社。官方已不提供公开 RSS，这是第三方镜像——跑一次就知道能不能用。' },
+
+  /*
+   * 女性主义与 LGBTQIA+ 媒体，铺开一点。
+   *
+   * 站长：「主流媒体 + 大量女性主义 lgbtqia 团体的媒体。」两边都要，
+   * 而且理由不一样：主流媒体给的是量和重复（同一件事两家报，就有两个来源），
+   * 这些媒体给的是**主流不会报的那部分**——一天里综合大报一条都没有的题目，
+   * 它们整版都是。
+   *
+   * 全部标 topical：整站都是本站题目，不再过关键词。
+   * 地域上刻意不只收英美：只订英美媒体，站点就会变成「英美之外没有新闻」。
+   */
+  { id: 'rewire', outlet: 'Rewire News Group', url: 'https://rewirenewsgroup.com/feed/', regions: ['us'], topical: true, lang: 'en',
+    note: '生育权与司法报道，长期跟踪美国各州法案与法院。' },
+  { id: 'openly', outlet: 'Openly（汤森路透）', url: 'https://www.openlynews.com/rss', regions: ['global'], topical: true, lang: 'en',
+    note: '路透基金会的 LGBTQIA+ 全球报道。' },
+  { id: 'advocate', outlet: 'The Advocate', url: 'https://www.advocate.com/feeds/feed.rss', regions: ['us'], topical: true, lang: 'en',
+    note: '美国历史最久的 LGBTQIA+ 刊物。' },
+  { id: 'pinknews', outlet: 'PinkNews', url: 'https://www.thepinknews.com/feed/', regions: ['eu'], topical: true, lang: 'en',
+    note: '英国为主的 LGBTQIA+ 新闻。' },
+  { id: 'erin-in-the-morning', outlet: 'Erin in the Morning', url: 'https://www.erininthemorning.com/feed', regions: ['us'], topical: true, lang: 'en',
+    note: '美国跨性别立法的逐州追踪，更新比大报快。' },
+  { id: 'lily-wapo', outlet: 'The Lily', url: 'https://www.thelily.com/feed/', regions: ['us'], topical: true, lang: 'en',
+    note: '华盛顿邮报的女性报道线。' },
+  { id: 'fuller-project', outlet: 'The Fuller Project', url: 'https://fullerproject.org/feed/', regions: ['global'], topical: true, lang: 'en',
+    note: '专做女性议题的国际调查报道机构，常与主流大报合作发表。' },
+  { id: 'womens-media-center', outlet: "Women's Media Center", url: 'https://womensmediacenter.com/rss', regions: ['us', 'global'], topical: true, lang: 'en',
+    note: '媒体中的性别再现与暴力报道。' },
+  { id: 'feminist-majority', outlet: 'Feminist Majority Foundation', url: 'https://feminist.org/news/feed/', regions: ['us', 'global'], topical: true, lang: 'en',
+    note: '倡议机构的每日简报，立场公开。' },
+  { id: 'genderit', outlet: 'GenderIT', url: 'https://genderit.org/rss.xml', regions: ['global', 'sasia'], topical: true, lang: 'en',
+    note: '数字权利与性别，网络暴力与平台治理的一手研究。' },
+  { id: 'feminism-in-india', outlet: 'Feminism in India', url: 'https://feminisminindia.com/feed/', regions: ['sasia'], topical: true, lang: 'en',
+    note: '南亚视角，印度本地的性别报道与评论。' },
+  { id: 'kohl-journal', outlet: 'Kohl（西亚北非）', url: 'https://kohljournal.press/feed', regions: ['mena'], topical: true, lang: 'en',
+    note: '西亚北非的女性主义研究与报道。' },
+  { id: 'african-feminism', outlet: 'African Feminism', url: 'https://africanfeminism.com/feed/', regions: ['africa'], topical: true, lang: 'en',
+    note: '非洲各国的女性主义写作与个案记录。' },
+  { id: 'latfem', outlet: 'LATFEM（拉美）', url: 'https://latfem.org/feed/', regions: ['latam'], topical: true, lang: 'es',
+    note: '拉美女性主义媒体，西语。翻译交给模型。' },
+  { id: 'gaytimes', outlet: 'GAY TIMES', url: 'https://www.gaytimes.co.uk/feed/', regions: ['eu'], topical: true, lang: 'en',
+    note: '英国 LGBTQIA+ 刊物。' },
+  { id: 'autostraddle', outlet: 'Autostraddle', url: 'https://www.autostraddle.com/feed/', regions: ['us'], topical: true, lang: 'en',
+    note: '女同志与酷儿女性的独立媒体。' },
+
   { id: 'guardian-gender', outlet: 'The Guardian · Gender', url: 'https://www.theguardian.com/world/gender/rss', regions: ['global'], topical: true, lang: 'en',
     note: '有专职性别记者和公开的更正栏。' },
   { id: 'guardian-lgbt', outlet: 'The Guardian · LGBTQ+', url: 'https://www.theguardian.com/world/lgbt-rights/rss', regions: ['global'], topical: true, lang: 'en', note: '同上。' },
@@ -56,6 +128,35 @@ export const FEEDS = [
     note: '原 Openly / Thomson Reuters Foundation，专做人权与性别。' },
 
   /* ---- 中文世界 ---- */
+  /*
+   * 中文的专题来源。
+   *
+   * 前几轮真实抓取暴露了这个站最大的窟窿：42 个源里只有 5 个中文，
+   * 而且全是综合媒体——BBC 中文 0/42、德国之声 0/64、报导者 0/10。
+   * 一个写给中文读者、重点关注中港台的站，中文条目几乎为零。
+   *
+   * 综合媒体一天可能一条性别新闻都没有。下面这些不一样：**整站都是这个题目**，
+   * 所以标 topical，不再过关键词。台港的倡议团体多用 WordPress，
+   * `/feed/` 基本都在。
+   *
+   * 「法庭线」单列出来说一句：它做的是香港法庭的逐日旁听报道，
+   * 正好对上这个站最看重的「司法过程」。
+   */
+  { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: 'https://hotline.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '台湾历史最久的同志权益组织，法案与个案协助的一手记录。' },
+  { id: 'awakening-tw', outlet: '婦女新知基金會', url: 'https://www.awakening.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '台湾妇运的老牌团体，长期做修法倡议，法条讨论写得细。' },
+  { id: 'twrf', outlet: '婦女救援基金會', url: 'https://www.twrf.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '性暴力与人口贩运的服务机构，个案与统计都出自实务。' },
+  { id: 'mwf-tw', outlet: '現代婦女基金會', url: 'https://www.38.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '家暴与性侵害防治，台湾相关立法的主要推动者之一。' },
+  { id: 'tgeea', outlet: '台灣性別平等教育協會', url: 'https://www.tgeea.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '性别平等教育，校园性侵与性骚扰的处理机制。对应「儿童」议题。' },
+  { id: 'witness-hk', outlet: '法庭線', url: 'https://thewitnesshk.com/feed', regions: ['hk'], lang: 'zh-Hant',
+    note: '香港法庭的逐日旁听报道。综合源要过关键词，但它写的正是司法过程。' },
+  { id: 'inmedia-hk', outlet: '獨立媒體', url: 'https://www.inmediahk.net/rss.xml', regions: ['hk'], lang: 'zh-Hant',
+    note: '香港独立媒体，公民社会与性别议题的长期报道。综合源。' },
+
   { id: 'twreporter', outlet: '报导者', url: 'https://www.twreporter.org/a/rss2.xml', regions: ['tw'], lang: 'zh-Hant',
     note: '台湾非营利调查报道，资金来源公开。综合源。' },
   { id: 'initium', outlet: '端传媒', url: 'https://theinitium.com/feed', regions: ['hk', 'tw', 'cn'], lang: 'zh-Hant',
@@ -87,63 +188,113 @@ export const FEEDS = [
  * 站长要一条条删，而删漏了就会出现在读者面前。
  */
 export const TOPIC_WORDS = {
-  rights: ['lgbt', 'lgbtq', 'queer', 'gay rights', 'same-sex', 'marriage equality', 'gender equality',
-    '同性', '同志', '性少数', '婚姻平权', '同婚', '性别平等', '女权', '女性主义', '性别认同',
-    '彩虹', '出柜', '性倾向', '妇女权益', '性别歧视'],
   /*
    * 性犯罪是这个站的报道重心（站长指定），所以词表比别的议题厚：
    * 除了行为本身，还要覆盖**司法程序**——起诉、开庭、判决、和解、上诉。
    * 一件性侵案在新闻里出现，往往不是以「性侵」为标题，而是以
    * 「某某被判刑」「检方起诉某某」的形式出现。只认行为词会漏掉一大半。
    */
-  violence: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
-    'domestic violence', 'domestic abuse', 'rape', 'raped', 'femicide', 'harassment',
+  /* 家庭暴力单独一栏（站长后来把它从性犯罪里拆了出来）。 */
+  domestic: ['domestic violence', 'domestic abuse', 'intimate partner violence',
+    'coercive control', 'restraining order', 'protection order', 'family violence',
+    'honour killing', 'honor killing', 'dowry death', 'marital rape',
+    '家暴', '家庭暴力', '亲密伴侣暴力', '親密伴侶暴力', '人身保护令', '人身保護令',
+    '婚内强奸', '婚內強姦', '荣誉处决', '嫁妆致死', '控制型暴力'],
+
+  sexual: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
+    'rape', 'raped', 'femicide', 'sexual harassment',
     'honour killing', 'honor killing', 'groping', 'stalking', 'revenge porn', 'image-based abuse',
-    'grooming', 'child abuse', 'trafficking',
-    // 司法程序：案子进到哪一步，往往就是标题本身
-    'charged with', 'indicted', 'convicted', 'sentenced', 'acquitted', 'on trial', 'verdict',
-    'guilty', 'prosecutors', 'lawsuit', 'sues', 'settlement', 'appeal', 'arrested',
-    'accused of', 'allegation', 'accuser', 'testified', 'court heard',
-    '性暴力', '性侵', '性侵犯', '性虐待', '家暴', '家庭暴力', '性骚扰', '强奸', '猥亵',
-    '杀害女性', '拐卖妇女', '荣誉处决', '迷奸', '偷拍', '性剥削', '诱奸', '未成年',
-    // 司法
-    '起诉', '起訴', '被控', '被指控', '判刑', '定罪', '无罪', '無罪', '开庭', '開庭',
-    '检方', '檢方', '一审', '二审', '上诉', '和解', '逮捕', '刑事', '民事诉讼', '出庭作证'],
+    'trafficking',
+    /*
+     * 这里原本还有一整段司法词：charged with / convicted / sentenced /
+     * guilty / arrested / settlement / on trial……
+     *
+     * 加它们的理由是对的：一件性侵案上新闻，标题往往是「某某被判刑」
+     * 而不是「性侵」。但**司法词不能单独成立**——加进 8 家综合大报之后，
+     * 一次演练里它们捞回来的是：
+     *
+     *   Tupac murder trial: Ex-gang leader found guilty        （guilty）
+     *   Football hooligan gang chief arrested over ecstasy ring （arrested）
+     *   Irish minister calls for EU action ... settlement trade （settlement！）
+     *
+     * 最后那条最能说明问题：法律意义的「和解」撞上了以色列的「定居点」。
+     * 一个议题词表，捞回来的全是跟性别无关的刑案和国际政治。
+     *
+     * 所以司法词整段搬去 feedparse 的 ACCUSATION，只用来判断
+     * 「这条讲的是一桩案子吗」——那是排序用的信号（司法进展优先），
+     * 不再是「这条属于哪个议题」的依据。
+     * 判定议题要靠行为本身：强奸、性侵、家暴、性骚扰。
+     */
+    '性暴力', '性侵', '性侵犯', '性虐待', '性骚扰', '性騷擾', '强奸', '強姦', '猥亵',
+    '杀害女性', '拐卖妇女', '迷奸', '偷拍', '性剥削', '诱奸', '权势性侵',
+    // 中文的司法词同理搬走了。「和解」「上诉」「逮捕」放在这里，
+    // 会把所有刑案都收成性犯罪。
+    '性侵案', '性騷擾案', '强奸案', '強姦案', '猥亵案'],
+
   /*
-   * 儿童（站长后加的议题）。
-   *
-   * 词表刻意**不收裸的 child / 儿童**。综合源要命中关键词才会被收进来，
-   * 而「child」什么新闻里都有——学校预算、儿科医院、育儿建议。放它进来，
-   * 站长刚抱怨过的「题材不全是女性主义」会立刻更严重。
-   * 所以每一条都绑着侵害、婚配、失学或监护，也就是这个站真正要盯的部分。
+   * 儿童。词表刻意**不收裸的 child / 儿童**——综合源要命中关键词才会被收进来，
+   * 而「child」什么新闻里都有：学校预算、儿科医院、育儿建议。
+   * 每一条都绑着侵害、婚配、失学或监护，也就是这个站真正要盯的部分。
    */
   children: ['child abuse', 'child sexual', 'sexual abuse of children', 'child marriage',
     'child bride', 'child trafficking', 'child protection', 'child labour', 'child labor',
     "children's rights", 'underage', 'schoolgirl', 'grooming', 'paedophile', 'pedophile',
     'csam', 'female genital mutilation', 'fgm', 'girls education', 'teen pregnancy',
     'foster care', 'juvenile detention',
-    // 中文这边**不放裸的「儿童」**，理由和英文那边一样：「儿童医院」「儿童节」
-    // 「儿童剧」全会中招。CJK 是按子串匹配的（中文没有词边界可依），
-    // 所以词越短，误伤越大。每一条都带上侵害、婚配、失学或监护。
+    // 中文这边同理不放裸的「儿童」：儿童医院、儿童节、儿童剧全会中招。
+    // CJK 是按子串匹配的（中文没有词边界），词越短误伤越大。
     '未成年', '幼女', '女童', '童婚', '童工', '少女怀孕', '少女懷孕',
     '儿童性侵', '兒童性侵', '性侵儿童', '性侵兒童', '侵害儿童', '侵害兒童',
     '虐待儿童', '虐待兒童', '猥亵儿童', '猥褻兒童', '拐卖儿童', '拐賣兒童',
     '儿童保护', '兒童保護', '儿童权利', '兒童權利', '校园性侵', '校園性侵',
     '师生恋', '師生戀', '监护权', '監護權', '寄养', '寄養', '割礼', '割禮'],
-  repro: ['abortion', 'reproductive rights', 'contraception', 'maternal', 'sterilisation', 'sterilization',
-    '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主'],
-  trans: ['transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
-    '跨性别', '变性', '性别重置', '性别承认', '跨性別', '非二元', '性別友善'],
-  hate: ['hate crime', 'online abuse', 'doxxing', 'anti-lgbt', 'homophobic', 'transphobic',
-    '仇恨犯罪', '网络暴力', '网暴', '人肉搜索', '恐同', '恐跨', '厌女', '性别对立'],
-  equality: ['gender pay gap', 'pay gap', 'workplace discrimination', 'women in politics', 'quota',
-    'childcare', 'care work',
+
+  /* 女性权利。生育权、身体自主、职场与校园的制度性歧视都并进来了。 */
+  rights: ['women\'s rights', 'gender equality', 'womens rights', 'feminist', 'feminism',
+    'abortion', 'reproductive rights', 'contraception', 'maternal', 'sterilisation', 'sterilization',
+    'surrogacy', 'menstrual', 'gender pay gap', 'pay gap', 'workplace discrimination',
+    'women in politics', 'gender quota', 'childcare', 'care work', 'maternity leave',
+    'guardianship', 'divorce law', 'dowry', 'inheritance law',
+    '女权', '女性主义', '妇女权益', '婦女權益', '性别平等', '性別平等', '性别歧视', '性別歧視',
+    '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主', '月经',
     '同工同酬', '职场歧视', '就业歧视', '育儿', '照护', '女性参政', '玻璃天花板',
-    '女性就业', '婚育歧视'],
-  displacement: ['refugee women', 'asylum', 'trafficking', 'conflict-related sexual violence', 'statelessness',
-    '难民', '庇护', '人口贩运', '无国籍', '移工', '战时性暴力'],
-  movement: ['feminist movement', 'womens movement', "women's march", 'metoo', '#metoo',
-    '女权运动', '米兔', 'MeToo', '妇女运动', '女性主义者'],
+    '女性就业', '婚育歧视', '监护权', '离婚冷静期', '彩礼', '财产继承'],
+
+  /* LGBTQIA+ 权益。跨性别权利与医疗并进来了。 */
+  lgbtq: ['lgbt', 'lgbtq', 'lgbtqia', 'queer', 'gay rights', 'same-sex', 'marriage equality',
+    'transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
+    'intersex', 'conversion therapy', 'pride parade', 'coming out',
+    '同性', '同志', '性少数', '性少數', '婚姻平权', '同婚', '性别认同', '性別認同',
+    '彩虹', '出柜', '性倾向', '性傾向', '跨性别', '跨性別', '变性', '性别重置',
+    '性别承认', '非二元', '性別友善', '扭转治疗', '双性人'],
+
+  hate: ['hate crime', 'online abuse', 'doxxing', 'anti-lgbt', 'homophobic', 'transphobic',
+    'harassment campaign', 'death threats', 'platform moderation',
+    '仇恨犯罪', '网络暴力', '網絡暴力', '网暴', '人肉搜索', '恐同', '恐跨', '死亡威胁'],
+
+  displacement: ['refugee women', 'asylum', 'conflict-related sexual violence', 'statelessness',
+    'displaced women', 'migrant women', 'war crimes',
+    '难民', '難民', '庇护', '庇護', '人口贩运', '无国籍', '移工', '战时性暴力', '流离失所'],
+
+  /*
+   * Incel 与厌女文化（站长后加）。
+   *
+   * 这一栏不是「针对某个人的仇恨」——那是 hate。这里要的是**有组织的厌女**：
+   * 论坛话术、男性导师产业、以及它怎么从线上走到线下。
+   * 所以收的是这套亚文化自己的黑话，那是它最好认的特征。
+   */
+  movement: ['feminist movement', "women's movement", 'metoo', '#metoo', 'womens march',
+    'trans-exclusionary', 'terf', 'intersectionality debate', 'funding cuts to women',
+    '女权运动', '女權運動', '米兔', 'MeToo', '妇女运动', '婦女運動', '女性主义者',
+    '运动内部', '運動內部', '排跨', '路线之争'],
+
+  incel: ['incel', 'manosphere', 'red pill', 'blackpill', 'black pill', 'mgtow',
+    'andrew tate', 'pickup artist', 'alpha male', 'toxic masculinity',
+    'misogyny', 'misogynist', 'male supremacist', 'looksmaxxing', 'femoid',
+    'men going their own way', 'anti-feminist', 'gender war',
+    '厌女', '厭女', '仇女', '男权', '男權', '性别对立', '性別對立',
+    '男性气概', '男德', '普信男', '女拳', '取关女权', '红药丸', '紅藥丸',
+    '兄弟会话术', '田园女权'],
 }
 
 /* ------------------------------------------------------------------ *

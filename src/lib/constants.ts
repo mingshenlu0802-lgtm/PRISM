@@ -19,14 +19,14 @@ import type { AccentKey, Appearance, StudyKind, ThemeKey, Topic, TopicKey } from
  * 短名要能单独成立：一个人看到它，应该知道点进去会看到什么。
  */
 export const TOPICS: Topic[] = [
-  { key: 'violence', zh: '性暴力与性犯罪', short: '性暴力', en: 'Sexual violence', hue: 'var(--t-violence)', blurb: '性侵、家暴、性骚扰——以及案子从报案到判决，在哪一步被拦下来。' },
-  { key: 'children', zh: '儿童与未成年人', short: '儿童', en: 'Children', hue: 'var(--t-children)', blurb: '针对儿童的侵害、童婚、女童失学，以及本该保护他们的人没有出手的时候。' },
-  { key: 'rights', zh: '女性主义与 LGBTQIA+ 权利', short: '权利', en: 'Rights', hue: 'var(--t-rights)', blurb: '在法律上算不算数：身份承认、结社与表达的空间、以及它们正在收紧还是松动。' },
-  { key: 'repro', zh: '生育权与身体自主', short: '生育权', en: 'Reproductive rights', hue: 'var(--t-repro)', blurb: '谁来决定生不生、什么时候生：避孕、终止妊娠、孕产照护，以及强制绝育。' },
-  { key: 'trans', zh: '跨性别权利与医疗', short: '跨性别', en: 'Trans rights', hue: 'var(--t-trans)', blurb: '改一个性别标记要过几道关，医疗到不到得了本人手上，以及围绕这些的争论。' },
+  { key: 'domestic', zh: '家庭暴力', short: '家暴', en: 'Domestic violence', hue: 'var(--t-domestic)', blurb: '家里发生的事：殴打、控制、经济封锁，以及保护令为什么常常来不及。' },
+  { key: 'sexual', zh: '性侵、性骚扰与性犯罪', short: '性犯罪', en: 'Sexual violence', hue: 'var(--t-sexual)', blurb: '性侵、性骚扰、性剥削——以及案子从报案到判决，在哪一步被拦下来。' },
+  { key: 'children', zh: '儿童权益', short: '儿童', en: "Children's rights", hue: 'var(--t-children)', blurb: '针对儿童的侵害、童婚、女童失学，以及本该保护他们的人没有出手的时候。' },
+  { key: 'rights', zh: '女性权益', short: '女性权益', en: "Women's rights", hue: 'var(--t-rights)', blurb: '从法律地位到身体自主：谁来决定生不生、能不能离、算不算数——以及职场和校园里写进规则的那些不平等。' },
+  { key: 'lgbtq', zh: 'LGBTQIA+ 权益', short: 'LGBTQIA+', en: 'LGBTQIA+ rights', hue: 'var(--t-lgbtq)', blurb: '改一个性别标记要过几道关，医疗到不到得了本人手上，以及围绕这些的争论。' },
   { key: 'hate', zh: '仇恨犯罪与网络暴力', short: '仇恨犯罪', en: 'Hate & abuse', hue: 'var(--t-hate)', blurb: '街上的袭击，网上的围猎，以及平台在其中做了什么、放任了什么。' },
-  { key: 'equality', zh: '教育、职场与制度平等', short: '平等', en: 'Equality', hue: 'var(--t-equality)', blurb: '同工不同酬、升不上去、照护劳动不算数——歧视写进规则里的那一面。' },
   { key: 'displacement', zh: '战争、移民与边缘处境', short: '战争与移民', en: 'Displacement', hue: 'var(--t-displacement)', blurb: '战时性暴力、庇护程序、无国籍身份：制度垮掉时最先掉下去的那些人。' },
+  { key: 'incel', zh: 'Incel 与厌女文化', short: '厌女文化', en: 'Incel & misogyny', hue: 'var(--t-incel)', blurb: '把厌恨组织起来的那部分互联网：兄弟会话术、男性导师产业，以及它如何走到线下。' },
   { key: 'movement', zh: '运动内部的争议', short: '运动争议', en: 'Movement debates', hue: 'var(--t-movement)', blurb: '策略、包容、资金与谁能代表谁——运动内部还没有谈拢的事。' },
 ]
 

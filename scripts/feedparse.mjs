@@ -98,6 +98,54 @@ export function ogImage(html, outlet) {
   }
 }
 
+/**
+ * 从报道页面里抠出正文。
+ *
+ * 这是长稿质量的**根本问题**。RSS 的 description 通常只有两三百字，
+ * 而站长要的是 1500–3000 字的报道——模型手上没有材料，只能把同一件事
+ * 换几种说法写满篇幅。稿子读起来空、重复、爱讲大道理，根源在这里，
+ * 不在提示词。
+ *
+ * 所以把原文正文取回来交给它。取页面这一步本来就要做（配图用 og:image），
+ * 顺手把正文也抠出来，不多一次请求。
+ *
+ * 不引 readability 之类的库：要的只是「把段落文字拿出来」，
+ * 几十行正则够用，而且看得懂。抠得不完美没关系——多给模型两千字真实报道，
+ * 比给它一个完美的空摘要有用得多。
+ */
+export function articleText(html, limit = 6000) {
+  let h = String(html)
+
+  // 先把不可能是正文的整块删掉。导航和页脚里全是链接文字，
+  // 混进去会让模型把「订阅我们的通讯」当成事实写进稿子。
+  h = h.replace(/<(script|style|noscript|svg|form|nav|header|footer|aside|figure)\b[\s\S]*?<\/\1>/gi, ' ')
+
+  // 有 <article> 就只看它——正文几乎总在里面，且能避开推荐位。
+  const article = /<article\b[^>]*>([\s\S]*?)<\/article>/i.exec(h)
+  const body = article ? article[1] : (/<main\b[^>]*>([\s\S]*?)<\/main>/i.exec(h)?.[1] ?? h)
+
+  const paras = []
+  for (const m of body.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/gi)) {
+    const t = strip(m[1])
+    /*
+     * 太短的多半是图说、署名、「分享到」这类碎片——但**长短要分语种看**。
+     *
+     * 一开始这里写死 40 个字符，结果把
+     *   「检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪。」
+     * 这样一段完整的中文丢掉了：它只有 36 个字符。
+     * 中文一个字就是一个词，40 字是一整句话；英文 40 字符只有六七个词，
+     * 那才真的是图说。和关键词匹配那里是同一个教训。
+     */
+    const cjk = (t.match(/[\u4e00-\u9fff]/g) ?? []).length
+    if (t.length < (cjk > t.length / 3 ? 20 : 60)) continue
+    // 常见的非正文段落。
+    if (/^(subscribe|sign up|follow us|advertisement|read more|related|订阅|关注我们|广告)/i.test(t)) continue
+    paras.push(t)
+    if (paras.join('\n\n').length > limit) break
+  }
+  return paras.join('\n\n').slice(0, limit)
+}
+
 export function parseFeed(xml, outlet = '来源媒体') {
   const blocks = xml.match(/<(item|entry)(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi) ?? []
   return blocks.map((b) => ({
@@ -126,7 +174,18 @@ const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 export function matches(h, word) {
   const w = word.toLowerCase()
   if (CJK.test(w)) return h.includes(w)
-  return new RegExp(`(^|[^a-z0-9])${esc(w)}([^a-z0-9]|$)`).test(h)
+  /*
+   * 英文允许一个复数的 s。
+   *
+   * 真实抓取里漏掉过这一条：
+   *   Sexual assaults happening almost every day in Ceuta
+   * 词表写的是 'sexual assault'，词边界卡在 assault 后面，
+   * 复数的 s 让整条新闻落选——一篇讲一个城市几乎天天发生性侵的报道。
+   *
+   * 只放开这一个字母，不做词干还原：那需要一整套规则，
+   * 而这里要解决的就是单复数。中文没有这个问题，所以只动英文这一支。
+   */
+  return new RegExp(`(^|[^a-z0-9])${esc(w)}s?([^a-z0-9]|$)`).test(h)
 }
 
 export const hay = (e) => `${e.title} ${e.summary}`
