@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { byNewest, fmtDate, unique, weightedShuffle } from '../../lib/util'
 import { EmptyState, Icon } from '../../components/common'
 import { NewsCard } from '../../components/site/NewsCard'
@@ -19,6 +20,7 @@ import './HomePage.css'
  */
 export default function HomePage(): JSX.Element {
   const { state, canEdit } = usePrism()
+  usePageTitle(fmtDate(state.today))
   const [regions, setRegions] = useState<RegionKey[]>([])
   const [topics, setTopics] = useState<TopicKey[]>([])
 

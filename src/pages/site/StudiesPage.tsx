@@ -3,6 +3,7 @@ import type { StudyKind, TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
 import { STUDY_KIND } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { byNewest, cx } from '../../lib/util'
 import { EmptyState } from '../../components/common'
 import { StudyCard } from '../../components/site/StudyCard'
@@ -17,6 +18,7 @@ import './StudiesPage.css'
  */
 export default function StudiesPage(): JSX.Element {
   const { state } = usePrism()
+  usePageTitle('研究与公开数据')
   const [regions, setRegions] = useState<RegionKey[]>([])
   const [topics, setTopics] = useState<TopicKey[]>([])
   const [kind, setKind] = useState<'all' | StudyKind>('all')

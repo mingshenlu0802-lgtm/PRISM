@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { sendCode, signInWithPassword, verifyCode } from '../../lib/session'
 import { PrismMark, TextInput, ToastHost, toast } from '../common'
 import './SignInGate.css'
@@ -130,6 +131,7 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
  */
 export function SignInPage(): JSX.Element {
   const { state } = usePrism()
+  usePageTitle('登录')
   return (
     <div className="gate">
       <main className="gate__box">

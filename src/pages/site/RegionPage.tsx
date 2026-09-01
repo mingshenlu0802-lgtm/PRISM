@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { REGION_MAP } from '../../lib/regions'
 import type { RegionKey } from '../../lib/regions'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { byNewest } from '../../lib/util'
 import { EmptyState } from '../../components/common'
 import { NewsCard } from '../../components/site/NewsCard'
@@ -12,6 +13,7 @@ export default function RegionPage(): JSX.Element {
   const { key } = useParams()
   const { state } = usePrism()
   const region = key ? REGION_MAP[key as RegionKey] : undefined
+  usePageTitle(region?.zh)
 
   if (!region) {
     return (

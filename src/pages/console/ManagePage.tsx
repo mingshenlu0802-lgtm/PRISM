@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { downloadSnapshot, syncToGitHub } from '../../lib/github'
 import { signOut } from '../../lib/session'
 import { ACCENTS, FONT_STEPS, THEMES } from '../../lib/constants'
@@ -31,6 +32,7 @@ const ROLE_LABEL: Record<Role, string> = { owner: '站长', editor: '编辑', me
  */
 export default function ManagePage(): JSX.Element {
   const { state, dispatch, reset, who, canEdit, isOwner } = usePrism()
+  usePageTitle('编辑')
   const [tab, setTab] = useState<Tab>('content')
 
   return (

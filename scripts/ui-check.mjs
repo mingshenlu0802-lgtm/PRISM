@@ -193,6 +193,7 @@ for (const [vpName, w, h] of VIEWPORTS) {
         h1: document.querySelectorAll('h1').length,
         iconOnly,
         surface: document.querySelector('.slyt') ? '公众站' : document.querySelector('.clyt') ? '控制端' : '(未知)',
+        title: document.title,
       }
     })
 
@@ -211,6 +212,16 @@ for (const [vpName, w, h] of VIEWPORTS) {
      */
     const min = route === '/signin' ? 120 : 300
     if (info.text < min) problems.push(`[${vpName}] ${route} 页面内容过少（${info.text} 字符），可能未渲染`)
+    /*
+     * 每一页要有自己的标题。
+     *
+     * 这个站靠转发链接传播：一个人可能同时开好几个标签页，也会把某一条加书签。
+     * 所有页面都叫「PRISM 棱镜」的话，五个标签页长得一模一样，
+     * 书签里也看不出存的是哪一条。
+     */
+    if (vpName === 'desktop' && route !== '/' && info.title === 'PRISM 棱镜') {
+      problems.push(`[${vpName}] ${route} 标题还是站名，没有这一页自己的标题`)
+    }
     if (info.tinyN > 0) {
       problems.push(`[${vpName}] ${route} 触屏点击目标过小 ${info.tinyN} 个：${info.tiny.join('、')}`)
     }

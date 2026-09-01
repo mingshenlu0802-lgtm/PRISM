@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { byNewest, fmtDateTime } from '../../lib/util'
 import { EmptyState, Icon } from '../../components/common'
 import { StudyCard } from '../../components/site/StudyCard'
@@ -16,6 +17,7 @@ export default function StudyPage(): JSX.Element {
   const { slug } = useParams()
   const { state } = usePrism()
   const item = state.studies.find((s) => s.slug === slug)
+  usePageTitle(item?.title)
 
   if (!item || item.status !== 'live') {
     return (

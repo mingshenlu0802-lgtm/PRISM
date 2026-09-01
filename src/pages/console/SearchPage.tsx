@@ -4,6 +4,7 @@ import type { RegionKey } from '../../lib/regions'
 import { PRIORITY_REGIONS, REGIONS, sortRegions } from '../../lib/regions'
 import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { cx } from '../../lib/util'
 import { Checkbox, Icon, TextArea, toast } from '../../components/common'
 import { Coverage } from '../../components/console/Coverage'
@@ -17,6 +18,7 @@ import './SearchPage.css'
  */
 export default function SearchPage(): JSX.Element {
   const { state, dispatch, who, canEdit } = usePrism()
+  usePageTitle('找新闻')
   // 给搜集程序的常驻指示。存进 site.copy.collectNote，跑在 Actions 上的抓取会读它。
   const [note, setNote] = useState(state.copy.collectNote ?? '')
   const cfg = state.collect

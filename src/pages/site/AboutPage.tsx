@@ -2,11 +2,13 @@ import { Link } from 'react-router-dom'
 import { REGIONS } from '../../lib/regions'
 import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
+import { usePageTitle } from '../../lib/title'
 import { PrismMark } from '../../components/common'
 import './AboutPage.css'
 
 export default function AboutPage(): JSX.Element {
   const { state } = usePrism()
+  usePageTitle('关于')
   return (
     <div className="about u-shell">
       <header className="about__head">
