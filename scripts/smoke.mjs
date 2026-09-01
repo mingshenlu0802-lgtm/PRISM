@@ -874,6 +874,11 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
     ok(!JSON.stringify(seen.body).includes('response_format'),
       'response_format 是 OpenAI 的字段，发给 Claude 会报错')
 
+    // 第一次真实收集全军覆没就是这个：五批全部 400，
+    // `temperature` is deprecated for this model.
+    // 我照着 OpenAI 的习惯加了它，新一代 Claude 不再接受。
+    ok(!('temperature' in seen.body), 'temperature 不能发给 Claude——它会整批 400')
+
     // 记账：站长拿自己的余额在跑，花了多少不该靠猜。
     const bill = llm.spendReport()
     ok(bill.includes('120'), '要报出真实的输入 token 数')
@@ -1083,6 +1088,27 @@ await test('每次打开顺序都不同，但新的更容易排在前面', () =>
   )
   eq(broken.length, 2, '坏日期不能让整个列表消失')
   ok(recencyWeight('不是日期', now) < recencyWeight(at(0), now), '坏日期的权重要低于正常的')
+})
+
+await test('被截断的回复要说清楚是截断，不是「没有返回内容」', async () => {
+  // 空回复最常见的原因是 max_tokens 太小——会先想一段再写的型号尤其容易。
+  // 报「模型没有返回内容」会让人去查 key 和型号名，那是两个错误的方向。
+  const keep = { ...process.env }
+  const realFetch = globalThis.fetch
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      content: [], stop_reason: 'max_tokens', usage: { input_tokens: 5, output_tokens: 24 },
+    }), { status: 200 })
+
+    let msg = ''
+    try { await llm.ask('s', 'u', { maxTokens: 24 }) } catch (e) { msg = e.message }
+    ok(msg.includes('截断'), `要说是被截断，实际「${msg}」`)
+    ok(msg.includes('24'), '要把那个上限报出来，人才知道调哪个数')
+  } finally { process.env = keep; globalThis.fetch = realFetch }
 })
 
 /* ------------------------------ 结果 ------------------------------ */

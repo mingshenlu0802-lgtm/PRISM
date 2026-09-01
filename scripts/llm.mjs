@@ -129,7 +129,14 @@ export async function ask(system, user, { timeoutMs = 180000, maxTokens = 8000 }
     const text = cfg.kind === 'anthropic'
       ? (data?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('')
       : (data?.choices?.[0]?.message?.content ?? '')
-    if (!text) throw new Error('模型没有返回内容')
+    if (!text) {
+      // 空回复最常见的原因是被 max_tokens 截断——尤其是会先想一段再写的型号。
+      // 说清楚是哪一种，比一句「没有返回内容」有用得多。
+      const why = (data?.stop_reason ?? data?.choices?.[0]?.finish_reason) === 'max_tokens'
+        ? `写到 max_tokens（${maxTokens}）就被截断了，一个字都没落地。把批次调小或者把 max_tokens 调大。`
+        : '模型没有返回内容'
+      throw new Error(why)
+    }
     return parseJson(text)
   } finally {
     clearTimeout(timer)
@@ -152,12 +159,22 @@ function anthropicRequest(cfg, system, user, maxTokens) {
       'x-api-key': cfg.key,
       'anthropic-version': '2023-06-01',
     },
+    /*
+     * **不发 temperature。**
+     *
+     * 第一次真实收集全军覆没就是它：五批全部 HTTP 400，
+     *   `temperature` is deprecated for this model.
+     * 新一代的 Claude 不再接受这个参数，而我照着 OpenAI 那套习惯性地加上了。
+     *
+     * 不改成「按型号判断要不要发」，是因为那需要维护一张会过期的型号表。
+     * 这里本来也不需要它：默认采样对「按方针筛选 + 翻译 + 写总结」完全够用，
+     * 少发一个参数就少一处会随供应商变化而失效的地方。
+     */
     body: JSON.stringify({
       model: cfg.model,
       system,
       messages: [{ role: 'user', content: user }],
       max_tokens: maxTokens,
-      temperature: 0.4,
     }),
   }
 }
