@@ -28,7 +28,7 @@ const m = await import(pathToFileURL(bundle).href)
 const { buildInitialState, reducer, accessOf, collect, planSteps,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
-        parsePasted, friendly, todayISO, TOPICS } = m
+        parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -1042,6 +1042,47 @@ await test('配图优先用报道页面的大图，而不是 feed 的缩略图',
   const noAlt = feedparse.ogImage('<meta property="og:image" content="https://x.org/a.jpg">', '路透社')
   ok(noAlt.alt.includes('路透社'), '替代文字要说明出处')
   ok(!/protest|court|woman|女性|抗议/i.test(noAlt.alt), '不能凭空描述图片内容')
+})
+
+await test('每次打开顺序都不同，但新的更容易排在前面', () => {
+  // 站长要的。严格倒序的代价是第 20 条以后几乎没人看得到，
+  // 而它们和第 3 条一样是挑过、写过的。
+  const now = Date.parse('2026-09-01T12:00:00Z')
+  const at = (days) => new Date(now - days * 864e5).toISOString()
+  const items = [0, 1, 3, 7, 14, 30].map((d) => ({ id: `d${d}`, publishedAt: at(d), age: d }))
+  const run = (seed) => weightedShuffle(items, (i) => i.publishedAt, seed, now)
+
+  // 1 同一个种子必须给出同一个顺序——否则读到一半会重排。
+  eq(run(7).map((i) => i.id).join(), run(7).map((i) => i.id).join(), '同种子同顺序')
+
+  // 2 不同种子要真的不一样，否则「每次打开都随机」是句空话。
+  const orders = new Set()
+  for (let s = 0; s < 60; s += 1) orders.add(run(s).map((i) => i.id).join())
+  ok(orders.size > 5, `顺序要真的会变，实际只有 ${orders.size} 种`)
+
+  // 3 每条都要在，一条不多一条不少。加权抽样最容易错的就是这里。
+  for (let s = 0; s < 40; s += 1) {
+    const out = run(s)
+    eq(out.length, items.length, '不能丢条目')
+    eq(new Set(out.map((i) => i.id)).size, items.length, '不能出现重复')
+  }
+
+  // 4 统计上，新的确实更容易打头——这是站长括号里那半句。
+  const firstAge = []
+  for (let s = 0; s < 3000; s += 1) firstAge.push(run(s)[0].age)
+  const share = (d) => firstAge.filter((a) => a === d).length / firstAge.length
+  ok(share(0) > share(7), '当天的比一周前的更容易排第一')
+  ok(share(7) > share(30), '一周前的比一个月前的更容易排第一')
+  // 但旧的不能是零——「更有概率」不是「只有它」。
+  ok(share(30) > 0, '一个月前的仍然要有机会露面')
+
+  // 5 日期坏掉的不能崩，也不能因此霸占第一。
+  const broken = weightedShuffle(
+    [{ id: 'bad', publishedAt: '不是日期' }, { id: 'ok', publishedAt: at(0) }],
+    (i) => i.publishedAt, 1, now,
+  )
+  eq(broken.length, 2, '坏日期不能让整个列表消失')
+  ok(recencyWeight('不是日期', now) < recencyWeight(at(0), now), '坏日期的权重要低于正常的')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

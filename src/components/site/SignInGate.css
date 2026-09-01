@@ -92,3 +92,13 @@
 }
 .gate__pwlink:hover { color: var(--accent); }
 .gate__pw { margin-top: var(--s-3); display: grid; gap: var(--s-2); }
+
+/*
+ * 「发送验证码」是次要动作——真正让人进站的是右边那颗「进入」。
+ * 两颗一样重会让人不知道该按哪一个。
+ */
+.gate__go--ghost {
+  background: transparent; color: var(--fg-muted);
+  border: var(--bw) solid var(--line);
+}
+.gate__go--ghost:hover:not(:disabled) { color: var(--fg); border-color: var(--fg-faint); }

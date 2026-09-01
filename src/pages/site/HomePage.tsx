@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import type { TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
 import { usePrism } from '../../lib/store'
-import { byNewest, fmtDate, unique } from '../../lib/util'
+import { byNewest, fmtDate, unique, weightedShuffle } from '../../lib/util'
 import { EmptyState, Icon } from '../../components/common'
 import { NewsCard } from '../../components/site/NewsCard'
 import { StudyCard } from '../../components/site/StudyCard'
@@ -22,7 +22,22 @@ export default function HomePage(): JSX.Element {
   const [regions, setRegions] = useState<RegionKey[]>([])
   const [topics, setTopics] = useState<TopicKey[]>([])
 
-  const live = useMemo(() => byNewest(state.news.filter((n) => n.status === 'live')), [state.news])
+  /*
+   * 每次打开，顺序都不一样。
+   *
+   * 站长要的：「每次打开界面对新闻的推送都是随机的（当然，最新的新闻更有
+   * 概率被推送）。」严格倒序的代价是第 20 条以后没人看得到，而它们和第 3 条
+   * 一样是挑过写过的。
+   *
+   * 种子只在**这一次访问**里取一次——放在 useState 的初始化里，重渲染不会重算。
+   * 否则筛一下地区、切一下主题，卡片就会在读者眼皮底下重新洗牌。
+   */
+  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31))
+
+  const live = useMemo(
+    () => weightedShuffle(state.news.filter((n) => n.status === 'live'), (n) => n.publishedAt, seed),
+    [state.news, seed],
+  )
   const liveStudies = useMemo(() => byNewest(state.studies.filter((s) => s.status === 'live')), [state.studies])
 
   const counts = useMemo(() => {
@@ -43,6 +58,10 @@ export default function HomePage(): JSX.Element {
     return okR && okT
   }), [live, regions, topics])
 
+  /*
+   * 头条：站长钉过的永远优先——那是他的编辑判断，不该被随机顺序盖掉。
+   * 没钉过就取加权抽样的第一条，于是每次打开的头条也不一样。
+   */
   const lead = filtering ? undefined : (live.find((n) => n.featured) ?? live[0])
   const rest = lead ? shown.filter((n) => n.id !== lead.id) : shown
 

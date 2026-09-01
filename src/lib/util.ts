@@ -147,3 +147,57 @@ export function paragraphs(text: string): string[] {
     .map((p) => p.trim())
     .filter(Boolean)
 }
+
+/* ------------------------------------------------------------------ *
+ * 每次打开，顺序都不一样
+ *
+ * 站长要的：「每次打开界面对新闻的推送都是随机的（当然，最新的新闻更有概率
+ * 被推送）。」
+ *
+ * 严格按时间倒序有个代价：第 20 条以后的新闻几乎没人会看到，而它们和第 3 条
+ * 一样是认真挑过、认真写过的。加权随机让每条都有机会露面，同时保证今天的
+ * 仍然比上周的更容易排在前面。
+ *
+ * 用的是 Efraimidis–Spirakis：给每条算一个 key = U^(1/w)，按 key 从大到小排，
+ * 就是一次**不放回**的加权抽样。比「按权重随机挑一条、删掉、再挑」快得多，
+ * 也不会挑出重复。
+ * ------------------------------------------------------------------ */
+
+/** 一个种子决定一次排列。同一次访问里顺序必须稳定——读到一半重排是很糟的体验。 */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0
+    let t = Math.imul(a ^ (a >>> 15), 1 | a)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/**
+ * 权重随时间衰减，半衰期三天。
+ *
+ * 三天是按这个站的节奏定的：每天早上进 30 条，三天前的那批还值得再露一次面，
+ * 两周前的就该让位了。权重不会归零——旧新闻仍有小概率上来，这正是要的效果。
+ */
+const HALF_LIFE_DAYS = 3
+
+export function recencyWeight(iso: string, now = Date.now()): number {
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return 0.05 // 日期坏了的排在后面，但别让它彻底消失
+  const days = Math.max(0, (now - t) / 864e5)
+  return Math.max(2 ** (-days / HALF_LIFE_DAYS), 0.01)
+}
+
+export function weightedShuffle<T>(items: T[], dateOf: (t: T) => string, seed: number, now = Date.now()): T[] {
+  const rnd = mulberry32(seed)
+  return items
+    .map((item) => {
+      const w = recencyWeight(dateOf(item), now)
+      // u 不能取到 0：Math.log(0) 是 -Infinity，那条会被永远钉在最前面。
+      const u = Math.max(rnd(), 1e-12)
+      return { item, key: Math.log(u) / w }
+    })
+    .sort((a, b) => b.key - a.key)
+    .map((x) => x.item)
+}
