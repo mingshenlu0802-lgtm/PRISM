@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, namesAnAccused } from './feedparse.mjs'
+import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor } from './feedparse.mjs'
 
 const DRY = process.argv.includes('--dry')
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '')
@@ -30,10 +30,12 @@ const DAYS = Number(process.env.WITHIN_DAYS ?? 7)
 /*
  * 直接上线，不等站长审。
  *
- * 站长的话：「最好省略我的审核部分，前提是新闻质量要高不要有任何重复。」
- * 所以自动上线是默认的——但**针对个人的指控例外**，那一类仍然先下架。
- * 理由见 feedparse.mjs 里 namesAnAccused 上面那段：一条被自动转发的指控，
- * 如果后来撤稿或判无罪，受伤的是一个具体的人。
+ * 站长的话：「最好省略我的审核部分，前提是你的新闻质量要高不要有任何重复。」
+ * 我提过针对个人的指控自动发布的风险，他明确要求去掉那个例外——这是他的网站，
+ * 这个决定是他的。所以**没有例外**：抓到就上线。
+ *
+ * 留下的只是给读者的一句内容提示（见 feedparse.mjs 的 noticeFor），
+ * 它不影响任何一条是否发布。AUTO_PUBLISH=0 可以整个关掉自动上线。
  */
 const AUTO = process.env.AUTO_PUBLISH !== '0'
 
@@ -221,8 +223,6 @@ groups.forEach((g, i) => {
   while (have.slugs.has(slug)) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
   have.slugs.add(slug)
 
-  // 针对个人的指控不自动上线——这一类错了不可逆。
-  const accused = namesAnAccused(g)
   toInsert.push({
     id: `news-${Date.now().toString(36)}-${i}`,
     slug,
@@ -233,13 +233,13 @@ groups.forEach((g, i) => {
     topics: g.topics,
     links,
     image: null,
-    status: AUTO && !accused ? 'live' : 'hidden',
+    status: AUTO ? 'live' : 'hidden',
     origin: 'auto',
     featured: false,
     demo: false,
     edited_by_human: false,
     editor_note: null,
-    content_notice: null,
+    content_notice: noticeFor(g, g.topics),
     published_at: g.at,
     updated_at: new Date().toISOString(),
   })
@@ -264,10 +264,7 @@ if (toInsert.length > 0) {
   }
 }
 
-const held = toInsert.filter((r) => r.status === 'hidden').length
-const live = toInsert.length - held
-console.log(`已上线 ${live} 条。`)
-if (held) {
-  console.log(`另有 ${held} 条是针对个人的指控，先下架等你过目——`)
-  console.log('去「编辑 → 内容 → 已下架」。这一类自动发出去，错了收不回来。')
-}
+const noticed = toInsert.filter((r) => r.content_notice).length
+console.log(AUTO
+  ? `已上线 ${toInsert.length} 条${noticed ? `，其中 ${noticed} 条带内容提示` : ''}。`
+  : `已写入 ${toInsert.length} 条，全部下架状态等你审核。`)

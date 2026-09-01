@@ -750,18 +750,20 @@ await test('比较网址之前要洗掉跟踪参数', () => {
   eq(a, b, '同一篇文章带不带 utm 参数，应当算同一个网址')
 })
 
-await test('针对个人的指控要被认出来，不自动上线', () => {
+await test('涉及性暴力的条目要带内容提示，别的不要', () => {
   /*
-   * 站长要自动发布，也要重点报道对公众人物的性犯罪指控。这两件事叠在一起
-   * 有一个不可逆的代价：撤稿或判无罪之后，伤害已经造成，而且是对一个具体的人。
-   * 所以只有这一类仍然等他点一下。
+   * 站长要求去掉「等他审核」那一层，包括针对公众人物的指控——那是他指定的
+   * 报道重心，这个决定是他的，抓到就上线。
+   *
+   * 留下的只是给读者的一句话，不影响任何一条是否发布。这个站本来就这么做：
+   * 演示数据里的原话是「本条涉及性骚扰案件的审理程序。总结不描述任何具体案情。」
    */
-  ok(feedparse.namesAnAccused({ title: 'Producer charged with sexual assault', summary: '' }),
-    '「被起诉」要认出来')
-  ok(feedparse.namesAnAccused({ title: '知名导演被控性侵', summary: '' }), '中文的「被控」也要')
-  ok(feedparse.namesAnAccused({ title: 'Actor denies allegations', summary: '' }), '「否认指控」同样是')
-  ok(!feedparse.namesAnAccused({ title: 'Spain passes parental leave law', summary: '' }),
-    '普通立法新闻不该被拦——拦太宽就等于没有自动发布')
+  const n = (title, topics) => feedparse.noticeFor({ title, summary: '' }, topics)
+
+  ok(n('Producer sentenced for sexual assault', ['violence']), '性暴力条目要有提示')
+  ok(n('Producer sentenced for sexual assault', ['violence']).includes('尚未经本站核实'),
+    '涉及具体案件时要说清楚摘要没经过本站核实')
+  ok(!n('Report on gender pay gap', ['equality']), '不相关的条目不该加提示——提示满天飞就没人看了')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
