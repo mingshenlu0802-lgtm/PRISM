@@ -226,6 +226,20 @@ export function friendly(e: unknown): string {
       + '要么在 Supabase 里配置自己的 SMTP（Authentication → Emails / SMTP Settings）。'
       + '当前额度在 Authentication → Rate Limits 里看得到。'
   }
+  /*
+   * 「Error sending ... email」——Supabase 收下了请求，但把信交给 SMTP 时失败了。
+   *
+   * 这条以前会把英文原文直接甩给站长。它跟额度用完完全是两回事：额度是等，
+   * 这个是**配置错了，等多久都不会好**。而且自定义 SMTP 一旦配错，
+   * 连原来那点自带额度也用不了了，是「一封都发不出去」的状态。
+   */
+  if (/error sending.*(email|mail)|smtp/i.test(msg)) {
+    return '发信失败了——这不是额度问题，等也没用。'
+      + '多半是 Supabase 里的自定义 SMTP 填错了：Gmail 要用 16 位「应用专用密码」而不是登录密码，'
+      + '发件地址要和用户名是同一个，端口 465 不行就试 587。'
+      + '真正的原因在 Supabase 的 Logs 里能看到。'
+      + '想先绕开的话，把 Authentication → Emails → Enable custom SMTP 关掉即可。'
+  }
   if (/row-level security|violates row-level/i.test(msg)) return '你的账号没有这项权限。要改内容，请让站长把你设成编辑。'
   if (/JWT|not authenticated|session/i.test(msg)) return '登录状态过期了，请重新登录。'
   if (/Failed to fetch|NetworkError/i.test(msg)) return '连不上服务器，检查一下网络。'

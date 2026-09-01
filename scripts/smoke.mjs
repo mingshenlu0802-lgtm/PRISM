@@ -627,6 +627,21 @@ await test('发信被限流时，说的等待时间必须是对的', () => {
   }
 })
 
+await test('发信失败和额度用完不能混为一谈', () => {
+  /*
+   * 「Error sending magic link email」是 SMTP 配错了——等多久都不会好。
+   * 跟额度用完混在一起说，站长就会去等一个永远等不到的东西。
+   */
+  const smtp = friendly(new Error('Error sending magic link email'))
+  ok(/SMTP/i.test(smtp), '要指向 SMTP 配置，那才是原因')
+  ok(/不是额度问题/.test(smtp) && /等也没用/.test(smtp), '要明说这不是额度问题、等没有用')
+  ok(smtp !== 'Error sending magic link email', '不能把英文原文直接甩给站长')
+
+  // 额度那条不能被这条抢走。
+  const quota = friendly(new Error('email rate limit exceeded'))
+  ok(quota.includes('额度'), '额度用完仍然要认成额度用完')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
