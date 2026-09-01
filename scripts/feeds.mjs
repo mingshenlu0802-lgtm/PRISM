@@ -90,10 +90,25 @@ export const TOPIC_WORDS = {
   rights: ['lgbt', 'lgbtq', 'queer', 'gay rights', 'same-sex', 'marriage equality', 'gender equality',
     '同性', '同志', '性少数', '婚姻平权', '同婚', '性别平等', '女权', '女性主义', '性别认同',
     '彩虹', '出柜', '性倾向', '妇女权益', '性别歧视'],
-  violence: ['sexual violence', 'sexual assault', 'domestic violence', 'domestic abuse', 'rape',
-    'femicide', 'harassment', 'honour killing', 'honor killing',
-    '性暴力', '性侵', '家暴', '家庭暴力', '性骚扰', '强奸', '猥亵', '杀害女性', '拐卖妇女',
-    '荣誉处决', '迷奸', '偷拍', '性剥削'],
+  /*
+   * 性犯罪是这个站的报道重心（站长指定），所以词表比别的议题厚：
+   * 除了行为本身，还要覆盖**司法程序**——起诉、开庭、判决、和解、上诉。
+   * 一件性侵案在新闻里出现，往往不是以「性侵」为标题，而是以
+   * 「某某被判刑」「检方起诉某某」的形式出现。只认行为词会漏掉一大半。
+   */
+  violence: ['sexual violence', 'sexual assault', 'sexual abuse', 'sexual misconduct',
+    'domestic violence', 'domestic abuse', 'rape', 'raped', 'femicide', 'harassment',
+    'honour killing', 'honor killing', 'groping', 'stalking', 'revenge porn', 'image-based abuse',
+    'grooming', 'child abuse', 'trafficking',
+    // 司法程序：案子进到哪一步，往往就是标题本身
+    'charged with', 'indicted', 'convicted', 'sentenced', 'acquitted', 'on trial', 'verdict',
+    'guilty', 'prosecutors', 'lawsuit', 'sues', 'settlement', 'appeal', 'arrested',
+    'accused of', 'allegation', 'accuser', 'testified', 'court heard',
+    '性暴力', '性侵', '性侵犯', '性虐待', '家暴', '家庭暴力', '性骚扰', '强奸', '猥亵',
+    '杀害女性', '拐卖妇女', '荣誉处决', '迷奸', '偷拍', '性剥削', '诱奸', '未成年',
+    // 司法
+    '起诉', '起訴', '被控', '被指控', '判刑', '定罪', '无罪', '無罪', '开庭', '開庭',
+    '检方', '檢方', '一审', '二审', '上诉', '和解', '逮捕', '刑事', '民事诉讼', '出庭作证'],
   repro: ['abortion', 'reproductive rights', 'contraception', 'maternal', 'sterilisation', 'sterilization',
     '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主'],
   trans: ['transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',

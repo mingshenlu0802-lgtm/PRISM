@@ -99,3 +99,112 @@ export function summaryOf(entry) {
   return (stop > 200 ? cut.slice(0, stop + 1) : cut) + '…'
 }
 
+
+/* ------------------------------------------------------------------ *
+ * 去重
+ *
+ * 站长的要求是「不要有任何重复」。按链接去重远远不够——同一件事被路透、
+ * 卫报、19th 各报一次，就会变成三条几乎一样的新闻堆在首页上。
+ *
+ * 但这个网站的数据模型本来就允许一条新闻挂**多个媒体链接**，而且页面上会
+ * 把来源列出来。所以正确的做法不是丢掉后来的两条，而是**把它们合并成一条、
+ * 三个来源**——读者反而看到了更多可核对的出处。
+ * ------------------------------------------------------------------ */
+
+const STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with',
+  'is', 'are', 'was', 'were', 'be', 'been', 'as', 'by', 'from', 'that', 'this', 'it', 'its',
+  'after', 'over', 'into', 'says', 'said', 'new', 'more', 'how', 'why', 'what'])
+
+/**
+ * 简繁归一。
+ *
+ * 台港台媒体写「台灣」「跨性別」「權利」，内地和多数中文源写「台湾」「跨性别」
+ * 「权利」。不归一的话，同一件事的两个标题**一个字都对不上**——这个站同时收
+ * 中港台三地的来源，不处理等于中文去重根本不工作。
+ *
+ * 只收本站题材里高频的那些字，不做完整转换表。
+ */
+const T2S = { '灣': '湾', '臺': '台', '別': '别', '權': '权', '國': '国', '網': '网', '變': '变',
+  '認': '认', '議': '议', '訴': '诉', '訟': '讼', '審': '审', '報': '报', '華': '华', '後': '后',
+  '歲': '岁', '眾': '众', '關': '关', '擊': '击', '譴': '谴', '責': '责', '長': '长', '學': '学',
+  '醫': '医', '療': '疗', '傳': '传', '統': '统', '應': '应', '記': '记', '證': '证', '檢': '检',
+  '無': '无', '韓': '韩', '員': '员', '們': '们', '個': '个', '對': '对', '產': '产', '婦': '妇',
+  '導': '导', '這': '这', '會': '会', '為': '为', '與': '与', '從': '从', '將': '将', '爭': '争' }
+
+const simp = (t) => t.replace(/[\u4e00-\u9fff]/g, (c) => T2S[c] ?? c)
+
+/** 很轻的英文词形归一：shows→show、banning→ban、struck 和 strikes 都收敛到 strik。 */
+function stem(w) {
+  return w
+    .replace(/(ings?|ed|es|s)$/, '')
+    .replace(/(.)\1$/, '$1')
+}
+
+/**
+ * 把标题拆成比较用的词集。
+ *
+ * 英文按词并做轻度归一；中文没有空格，按**相邻两字**切——「性侵案」给出
+ * 「性侵」「侵案」，这样换个说法但讲同一件事的两个标题仍然重叠得上。
+ */
+export function tokens(title) {
+  const t = simp(String(title ?? '').toLowerCase())
+  const out = new Set()
+  for (const w of t.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/)) {
+    if (w.length >= 3 && !STOP.has(w) && !CJK.test(w)) out.add(stem(w))
+  }
+  const cjk = t.replace(/[^\u4e00-\u9fff]/g, '')
+  for (let i = 0; i + 1 < cjk.length; i += 1) out.add(cjk.slice(i, i + 2))
+  return out
+}
+
+/**
+ * 两个标题讲的是同一件事吗。
+ *
+ * 用重叠系数而不是 Jaccard：一个长标题和一个短标题讲同一件事时，
+ * Jaccard 会被长的那个稀释掉，重叠系数不会。
+ */
+export function sameStory(a, b, threshold = 0.42) {
+  const A = a instanceof Set ? a : tokens(a)
+  const B = b instanceof Set ? b : tokens(b)
+  if (A.size === 0 || B.size === 0) return false
+  let hit = 0
+  for (const w of A) if (B.has(w)) hit += 1
+  return hit / Math.min(A.size, B.size) >= threshold
+}
+
+/** 同一篇文章的网址会带各种跟踪参数，比较之前先洗掉。 */
+export function normUrl(u) {
+  try {
+    const x = new URL(u)
+    x.hash = ''
+    for (const k of [...x.searchParams.keys()]) {
+      if (/^(utm_|fbclid|gclid|ref|source|CMP|cmp)/i.test(k)) x.searchParams.delete(k)
+    }
+    return `${x.origin}${x.pathname.replace(/\/$/, '')}${x.search}`
+  } catch {
+    return String(u ?? '')
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 针对个人的指控
+ *
+ * 站长要重点报道针对公众人物的性犯罪指控，也希望省掉自己的审核。这两件事
+ * 叠在一起有一个不可逆的代价：一条被自动转发的指控，如果后来撤稿、澄清或者
+ * 判了无罪，受伤的是一个具体的人，而这个网站会以自己的名义承担它。
+ * RSS 分不清「被起诉」「被指控」和「已获判无罪」。
+ *
+ * 所以只有这一类仍然先下架等站长点一下——**不是不做，是这一类的错代价太大**。
+ * 其余全部自动上线。
+ */
+const ACCUSATION = [
+  'accused of', 'accuses', 'allegation', 'alleged', 'alleges', 'denies',
+  'charged with', 'indicted', 'on trial', 'convicted', 'sentenced', 'acquitted',
+  'lawsuit against', 'sues', 'guilty of', 'arrested',
+  '被控', '被指控', '指控', '否认', '否認', '起诉', '起訴', '被捕', '判刑', '定罪', '无罪', '無罪',
+]
+
+export function namesAnAccused(entry) {
+  const h = hay(entry)
+  return ACCUSATION.some((w) => matches(h, w))
+}

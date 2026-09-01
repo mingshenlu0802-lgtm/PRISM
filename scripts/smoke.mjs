@@ -725,6 +725,45 @@ await test('slug 能进网址，中文也不会变成空串', () => {
   ok(feedparse.slugify('跨性别者就医权益').length > 0, '中文标题不能被清成空串')
 })
 
+await test('同一件事被几家报道，要合并成一条多来源，不是几条重复', () => {
+  // 站长的要求：「不要有任何重复」。按链接去重不够——同一件事的三个报道是三个网址。
+  ok(feedparse.sameStory('Texas law banning drag shows struck down',
+    'Judge strikes down Texas drag show ban'), '换个说法讲同一件事，要认出来')
+  ok(feedparse.sameStory('Producer charged with sexual assault',
+    'Producer denies sexual assault allegations'), '同一个案子的不同进展也算同一件事')
+  ok(!feedparse.sameStory('Woman wins pay discrimination case',
+    'How do you figure out if microplastics are affecting pregnancy'),
+  '不相干的两条绝不能被合并——合错了会把一条新闻的来源挂到另一条上')
+  ok(!feedparse.sameStory('New law on parental leave in Spain', 'Abortion ruling in Poland'),
+    '同属性别议题但不同事件，也不能合')
+})
+
+await test('简繁写法必须归一，否则中文去重根本不工作', () => {
+  // 站里同时收中港台的来源：一边写「台湾跨性别」，一边写「台灣跨性別」。
+  ok(feedparse.sameStory('台湾通过跨性别性别承认新制', '台灣跨性別性別承認新制上路'),
+    '简体和繁体讲的是同一件事')
+})
+
+await test('比较网址之前要洗掉跟踪参数', () => {
+  const a = feedparse.normUrl('https://example.org/news/x?utm_source=twitter&utm_medium=social')
+  const b = feedparse.normUrl('https://example.org/news/x/')
+  eq(a, b, '同一篇文章带不带 utm 参数，应当算同一个网址')
+})
+
+await test('针对个人的指控要被认出来，不自动上线', () => {
+  /*
+   * 站长要自动发布，也要重点报道对公众人物的性犯罪指控。这两件事叠在一起
+   * 有一个不可逆的代价：撤稿或判无罪之后，伤害已经造成，而且是对一个具体的人。
+   * 所以只有这一类仍然等他点一下。
+   */
+  ok(feedparse.namesAnAccused({ title: 'Producer charged with sexual assault', summary: '' }),
+    '「被起诉」要认出来')
+  ok(feedparse.namesAnAccused({ title: '知名导演被控性侵', summary: '' }), '中文的「被控」也要')
+  ok(feedparse.namesAnAccused({ title: 'Actor denies allegations', summary: '' }), '「否认指控」同样是')
+  ok(!feedparse.namesAnAccused({ title: 'Spain passes parental leave law', summary: '' }),
+    '普通立法新闻不该被拦——拦太宽就等于没有自动发布')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

@@ -20,13 +20,22 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf } from './feedparse.mjs'
+import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, namesAnAccused } from './feedparse.mjs'
 
 const DRY = process.argv.includes('--dry')
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '')
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ?? ''
 const MAX_PER_FEED = Number(process.env.MAX_PER_FEED ?? 8)
 const DAYS = Number(process.env.WITHIN_DAYS ?? 7)
+/*
+ * 直接上线，不等站长审。
+ *
+ * 站长的话：「最好省略我的审核部分，前提是新闻质量要高不要有任何重复。」
+ * 所以自动上线是默认的——但**针对个人的指控例外**，那一类仍然先下架。
+ * 理由见 feedparse.mjs 里 namesAnAccused 上面那段：一条被自动转发的指控，
+ * 如果后来撤稿或判无罪，受伤的是一个具体的人。
+ */
+const AUTO = process.env.AUTO_PUBLISH !== '0'
 
 if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
   console.error('缺 SUPABASE_URL 或 SUPABASE_SERVICE_KEY。只想看抓到什么就加 --dry。')
@@ -71,17 +80,29 @@ const db = (path, init = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
   },
 })
 
-async function existingLinks() {
-  const res = await db('news?select=links,slug')
+/**
+ * 这个网站已经提到过这件事了吗。
+ *
+ * 站长要的：「检索相关新闻有没有被我这个棱镜网站提及过」。
+ *
+ * 光比链接不够——同一件事被三家媒体各报一次，链接就是三个不同的网址。
+ * 所以连标题一起读回来，用 sameStory 比。已经有了的，**把新来源加到那一条上**，
+ * 而不是新开一条：这个网站的条目本来就可以挂多个媒体链接，读者反而多了出处。
+ */
+async function existingItems() {
+  const res = await db('news?select=id,slug,headline,links')
   if (!res.ok) throw new Error(`读已有条目失败：HTTP ${res.status}`)
   const rows = await res.json()
   const urls = new Set()
   const slugs = new Set()
+  const items = []
   for (const r of rows) {
     slugs.add(r.slug)
-    for (const l of r.links ?? []) if (l?.url) urls.add(l.url)
+    const links = r.links ?? []
+    for (const l of links) if (l?.url) urls.add(normUrl(l.url))
+    items.push({ id: r.id, headline: r.headline, links, key: tokens(r.headline) })
   }
-  return { urls, slugs }
+  return { urls, slugs, items }
 }
 
 /* ------------------------------------------------------------------ *
@@ -124,6 +145,16 @@ for (const feed of FEEDS) {
   report.push([feed, r.entries.length, kept, ''])
 }
 
+/*
+ * 排序：性犯罪与司法案件排在最前面。
+ *
+ * 站长指定的报道重心。每个源都有条数上限，排在前面就意味着在额度里优先留下。
+ */
+picked.sort((a, b) => {
+  const w = (p) => (p.topics.includes('violence') ? 0 : 1)
+  return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
+})
+
 console.log('PRISM 新闻收集')
 console.log('—'.repeat(76))
 for (const [feed, total, kept, why] of report) {
@@ -144,51 +175,99 @@ if (DRY) {
   process.exit(dead.length === FEEDS.length ? 1 : 0)
 }
 
-const have = await existingLinks()
-const fresh = picked.filter((p) => !have.urls.has(p.link))
-console.log(`去重后 ${fresh.length} 条是新的`)
+/* ------------------------------------------------------------------ *
+ * 合并
+ *
+ * 先在这一批里把讲同一件事的合成一条（多个来源），再拿去跟数据库里已有的比。
+ * ------------------------------------------------------------------ */
 
-if (fresh.length === 0) process.exit(0)
+const groups = []
+for (const p of picked) {
+  const key = tokens(p.title)
+  const g = groups.find((x) => sameStory(x.key, key))
+  if (g) { g.also.push(p); continue }
+  groups.push({ ...p, key, also: [] })
+}
+const merged = groups.reduce((n, g) => n + g.also.length, 0)
+if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲过的事，合并成来源`)
 
-const now = new Date().toISOString()
-const rows = fresh.map((p, i) => {
-  let slug = slugify(p.title) || `item-${i}`
+const have = await existingItems()
+
+const linkOf = (p, i, j) => ({
+  id: `l-${Date.now().toString(36)}-${i}-${j}`,
+  outlet: p.feed.outlet,
+  title: p.title,
+  url: p.link,
+  lang: p.feed.lang,
+  date: p.at.slice(0, 10),
+  ...(p.feed.kind ? { kind: p.feed.kind } : {}),
+})
+
+const toInsert = []
+const toAppend = []
+
+groups.forEach((g, i) => {
+  const sources = [g, ...g.also]
+  const links = sources
+    .filter((p) => !have.urls.has(normUrl(p.link)))
+    .map((p, j) => linkOf(p, i, j))
+  if (links.length === 0) return // 每一个来源都已经在站上了
+
+  // 本站提到过这件事吗？提过就把新来源挂上去，不新开一条。
+  const seen = have.items.find((it) => sameStory(it.key, g.key))
+  if (seen) { toAppend.push({ item: seen, links }); return }
+
+  let slug = slugify(g.title) || `item-${i}`
   while (have.slugs.has(slug)) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
   have.slugs.add(slug)
-  return {
+
+  // 针对个人的指控不自动上线——这一类错了不可逆。
+  const accused = namesAnAccused(g)
+  toInsert.push({
     id: `news-${Date.now().toString(36)}-${i}`,
     slug,
-    headline: p.title,
-    summary: p.summary,
+    headline: g.title,
+    summary: g.summary,
     bullets: [],
-    regions: p.regions,
-    topics: p.topics,
-    links: [{
-      id: `l-${Date.now().toString(36)}-${i}`,
-      outlet: p.feed.outlet,
-      title: p.title,
-      url: p.link,
-      lang: p.feed.lang,
-      date: p.at.slice(0, 10),
-      ...(p.feed.kind ? { kind: p.feed.kind } : {}),
-    }],
+    regions: g.regions,
+    topics: g.topics,
+    links,
     image: null,
-    // 一律先下架。站长看过才上线——这一行是这个脚本最重要的一行。
-    status: 'hidden',
+    status: AUTO && !accused ? 'live' : 'hidden',
     origin: 'auto',
     featured: false,
     demo: false,
     edited_by_human: false,
     editor_note: null,
     content_notice: null,
-    published_at: p.at,
-    updated_at: now,
-  }
+    published_at: g.at,
+    updated_at: new Date().toISOString(),
+  })
 })
 
-const res = await db('news', { method: 'POST', body: JSON.stringify(rows), headers: { prefer: 'return=minimal' } })
-if (!res.ok) {
-  console.error(`写入失败：HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
-  process.exit(1)
+console.log(`本站没提过的 ${toInsert.length} 条；已提过、补上新来源的 ${toAppend.length} 条`)
+
+for (const { item, links } of toAppend) {
+  const res = await db(`news?id=eq.${encodeURIComponent(item.id)}`, {
+    method: 'PATCH',
+    headers: { prefer: 'return=minimal' },
+    body: JSON.stringify({ links: [...item.links, ...links], updated_at: new Date().toISOString() }),
+  })
+  if (!res.ok) console.error(`  给「${item.headline.slice(0, 30)}」加来源失败：HTTP ${res.status}`)
 }
-console.log(`已写入 ${rows.length} 条，全部是下架状态——去控制端「编辑 → 内容 → 已下架」审核。`)
+
+if (toInsert.length > 0) {
+  const res = await db('news', { method: 'POST', body: JSON.stringify(toInsert), headers: { prefer: 'return=minimal' } })
+  if (!res.ok) {
+    console.error(`写入失败：HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
+    process.exit(1)
+  }
+}
+
+const held = toInsert.filter((r) => r.status === 'hidden').length
+const live = toInsert.length - held
+console.log(`已上线 ${live} 条。`)
+if (held) {
+  console.log(`另有 ${held} 条是针对个人的指控，先下架等你过目——`)
+  console.log('去「编辑 → 内容 → 已下架」。这一类自动发出去，错了收不回来。')
+}
