@@ -311,6 +311,15 @@ export interface SiteCopy {
   aboutLead: string
   aboutBody: string
   footerNote: string
+  /**
+   * 站长给收集程序的常驻指示。
+   *
+   * 每天的抓取会读这一段，交给模型当作**优先于一般规则**的当次指令
+   * （见 scripts/editorial.mjs 的 systemPrompt）。放在这里而不是浏览器里，
+   * 是因为抓取跑在 GitHub Actions 上——写在这儿它才到得了那边，
+   * 而且关掉页面也不会丢。
+   */
+  collectNote?: string
 }
 
 /* ------------------------------------------------------------------ *

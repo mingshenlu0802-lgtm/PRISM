@@ -21,6 +21,8 @@
  */
 import { FEEDS } from './feeds.mjs'
 import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor } from './feedparse.mjs'
+import { llmConfigured } from './llm.mjs'
+import { rewriteAll } from './rewrite.mjs'
 
 const DRY = process.argv.includes('--dry')
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '')
@@ -113,7 +115,7 @@ async function existingItems() {
 
 const since = Date.now() - DAYS * 864e5
 const report = []
-const picked = []
+let picked = []
 const seenUrl = new Set()
 
 for (const feed of FEEDS) {
@@ -179,6 +181,32 @@ if (DRY) {
 }
 
 /* ------------------------------------------------------------------ *
+ * 交给模型：按方针筛选，改写成中文
+ *
+ * 没配模型就跳过——退回英文摘要 + 关键词筛选。**说出来**，不要让站长
+ * 以为方针生效了其实没有。
+ * ------------------------------------------------------------------ */
+
+/** 站长在控制端写下的本次指示。存在 site.copy.collectNote 里。 */
+async function ownerNote() {
+  try {
+    const res = await db('site?select=copy&id=eq.site')
+    if (!res.ok) return ''
+    const rows = await res.json()
+    return String(rows?.[0]?.copy?.collectNote ?? '').trim()
+  } catch { return '' }
+}
+
+if (llmConfigured()) {
+  const note = await ownerNote()
+  if (note) console.log(`站长本次指示：${note}`)
+  picked = await rewriteAll(picked, note)
+} else {
+  console.log('没有配置模型（LLM_BASE_URL / LLM_MODEL / LLM_API_KEY），')
+  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译。')
+}
+
+/* ------------------------------------------------------------------ *
  * 合并
  *
  * 先在这一批里把讲同一件事的合成一条（多个来源），再拿去跟数据库里已有的比。
@@ -227,9 +255,9 @@ groups.forEach((g, i) => {
   toInsert.push({
     id: `news-${Date.now().toString(36)}-${i}`,
     slug,
-    headline: g.title,
+    headline: g.headline ?? g.title,
     summary: g.summary,
-    bullets: [],
+    bullets: g.bullets ?? [],
     regions: g.regions,
     topics: g.topics,
     links,
@@ -240,7 +268,7 @@ groups.forEach((g, i) => {
     demo: false,
     edited_by_human: false,
     editor_note: null,
-    content_notice: noticeFor(g, g.topics),
+    content_notice: g.notice ?? noticeFor(g, g.topics),
     published_at: g.at,
     updated_at: new Date().toISOString(),
   })

@@ -142,3 +142,15 @@
 .srch__mbtn { padding: var(--s-2) var(--s-5); border-radius: var(--r-full); font-size: var(--fs-sm); background: var(--chip-bg); color: var(--fg); }
 .srch__mbtn--danger { background: var(--accent); color: var(--accent-fg); font-weight: 620; }
 .srch__mtext { font-size: var(--fs-sm); line-height: 1.75; color: var(--fg-muted); }
+
+/* 给搜集程序的指示 */
+.srch__noterow { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; margin-top: var(--s-3); }
+.srch__notesave {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: var(--s-2) var(--s-4); border-radius: var(--r-full);
+  background: var(--accent); color: var(--accent-fg);
+  font-size: var(--fs-xs); font-weight: 640;
+}
+.srch__notesave:disabled { opacity: .45; }
+.srch__notereset { font-size: var(--fs-2xs); color: var(--fg-subtle); text-decoration: underline; }
+.srch__notehint { flex: 1 1 240px; font-size: 10px; line-height: 1.6; color: var(--fg-faint); }

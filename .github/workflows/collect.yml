@@ -70,6 +70,10 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          # 默认自动上线。针对个人的指控不受这个开关影响，永远先下架。
           AUTO_PUBLISH: ${{ inputs.hold && '0' || '1' }}
+          # 模型：任何 OpenAI 兼容的服务都行（Groq、DeepSeek、OpenRouter、
+          # 本地 Ollama…）。三个都配上才会启用；缺一个就退回不带模型的模式。
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}
