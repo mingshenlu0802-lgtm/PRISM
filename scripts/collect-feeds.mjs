@@ -551,6 +551,21 @@ async function hydrate(list) {
   }
 }
 
+/**
+ * 拿网址当媒体名用。
+ *
+ * 联网搜来的来源没有「媒体名」这个字段，只有网址。域名去掉 www 和后缀，
+ * 首字母大写——theguardian.com 变成 Theguardian，不完美，但比空着强，
+ * 而且读者一眼看得出是谁。站长在控制端可以改。
+ */
+function hostName(url) {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '')
+    const core = h.split('.').slice(0, -1).join('.') || h
+    return core.charAt(0).toUpperCase() + core.slice(1)
+  } catch { return '来源' }
+}
+
 const have = await existingItems()
 
 const linkOf = (p, i, j) => ({
@@ -577,6 +592,35 @@ picked.forEach((g, i) => {
   const links = sources
     .filter((p) => !have.urls.has(normUrl(p.link)))
     .map((p, j) => linkOf(p, i, j))
+
+  /*
+   * 模型联网搜到、并且读过的那几篇，也挂成来源。
+   *
+   * 站长要「3-5 个 sources」，而 RSS 里同一件事往往只有一家。这些是模型
+   * 拿着案件的关键信息去搜、抓回来读完之后真正用到的报道——写进正文的
+   * 细节有一部分就来自它们，那就该让读者点得到。
+   *
+   * 去重按规范化的网址：搜出来的很可能就是我们已经有的那一篇。
+   * 一条最多补四个，够到站长说的五个，也不至于把卡片撑成一张链接表。
+   */
+  const known = new Set([...sources.map((p) => normUrl(p.link)), ...have.urls])
+  for (const f of (g.found ?? [])) {
+    if (links.length >= 5) break
+    const u = normUrl(f.url)
+    if (!u || known.has(u)) continue
+    known.add(u)
+    links.push({
+      id: `l-${Date.now().toString(36)}-${i}-w${links.length}`,
+      outlet: hostName(f.url),
+      title: String(f.title || '').slice(0, 200) || hostName(f.url),
+      url: f.url,
+      lang: 'en',
+      date: g.at.slice(0, 10),
+      kind: undefined,
+      primary: false,
+    })
+  }
+
   if (links.length === 0) return // 每一个来源都已经在站上了
 
   // 本站提到过这件事吗？提过就把新来源挂上去，不新开一条。

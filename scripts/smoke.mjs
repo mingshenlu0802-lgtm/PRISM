@@ -746,35 +746,64 @@ await test('有 Claude 的 key 就够了，不用再填型号名', async () => {
   } finally { process.env = keep }
 })
 
+/**
+ * 假一个 Messages 的流式回复。
+ *
+ * 走 SDK 之后请求是流式的，随手返回一个 JSON body 会得到
+ * 「request ended without sending any chunks」——那不是被测代码坏了，
+ * 是假数据不像真的。这里按 SSE 的事件序列拼一个。
+ */
+function sseReply({ text = '', stopReason = 'end_turn', usage = {} } = {}) {
+  const ev = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`
+  const body = ev('message_start', {
+    message: {
+      id: 'msg_x', type: 'message', role: 'assistant', model: 'claude-opus-5',
+      content: [], stop_reason: null, stop_sequence: null,
+      usage: { input_tokens: usage.input_tokens ?? 0, output_tokens: 0,
+        cache_creation_input_tokens: usage.cache_creation_input_tokens ?? 0,
+        cache_read_input_tokens: usage.cache_read_input_tokens ?? 0 },
+    },
+  })
+    + ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } })
+    + (text ? ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text } }) : '')
+    + ev('content_block_stop', { index: 0 })
+    + ev('message_delta', { delta: { stop_reason: stopReason, stop_sequence: null },
+      usage: { output_tokens: usage.output_tokens ?? 0 } })
+    + ev('message_stop', {})
+  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+}
+
 await test('发给 Claude 的请求必须照它的规矩来', async () => {
-  // 这三处和 OpenAI 那套不一样，每一处填错都是 400 或 401，
-  // 而站长看到的只会是「今天没有新闻」。
+  /*
+   * 这几处填错都是 400 或 401，而站长看到的只会是「今天没有新闻」。
+   * 现在这些字段由官方 SDK 拼，但**拼出来的东西仍然要盯**——
+   * 这条测试守的是线上的请求形状，不是我手写的代码。
+   */
   const keep = { ...process.env }
   const realFetch = globalThis.fetch
   try {
     delete process.env.LLM_BASE_URL
     delete process.env.LLM_MODEL
     delete process.env.LLM_API_KEY
+    delete process.env.LLM_EFFORT
     process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
 
     let seen = null
     globalThis.fetch = async (url, init) => {
-      seen = { url, headers: init.headers, body: JSON.parse(init.body) }
-      return new Response(JSON.stringify({
-        content: [{ type: 'text', text: '{"ok":true}' }],
-        usage: {
-          input_tokens: 120, output_tokens: 30,
-          cache_creation_input_tokens: 6000, cache_read_input_tokens: 0,
-        },
-      }), { status: 200 })
+      seen = { url: String(url), headers: new Headers(init.headers), body: JSON.parse(init.body) }
+      return sseReply({
+        text: '{"ok":true}',
+        usage: { input_tokens: 120, output_tokens: 30, cache_creation_input_tokens: 6000 },
+      })
     }
 
     const got = await llm.ask('这是编辑方针', '这是这一批新闻')
-    eq(got.ok, true, '要能从 content[] 里取出文字并解析成 JSON')
-    ok(String(seen.url).endsWith('/v1/messages'), `要打 /v1/messages，实际 ${seen.url}`)
-    eq(seen.headers['x-api-key'], 'sk-ant-fake', '认证是 x-api-key，不是 Bearer')
-    ok(!seen.headers.authorization, '不该再带 Authorization 头')
-    eq(seen.headers['anthropic-version'], '2023-06-01', '少了版本号直接 400')
+    eq(got.ok, true, '要能从流里取出文字并解析成 JSON')
+    ok(seen.url.endsWith('/v1/messages'), `要打 /v1/messages，实际 ${seen.url}`)
+    eq(seen.headers.get('x-api-key'), 'sk-ant-fake', '认证是 x-api-key，不是 Bearer')
+    ok(!seen.headers.get('authorization'), '不该再带 Authorization 头')
+    ok(seen.headers.get('anthropic-version'), '少了版本号直接 400')
+
     // system 是顶层字段（不是 messages 里的一条），而且带缓存标记：
     // 整份编辑方针每批都一样，不缓存就是把同一段话重新买十几遍。
     eq(seen.body.system[0].text, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
@@ -785,16 +814,67 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
 
     // 第一次真实收集全军覆没就是这个：五批全部 400，
     // `temperature` is deprecated for this model.
-    // 我照着 OpenAI 的习惯加了它，新一代 Claude 不再接受。
     ok(!('temperature' in seen.body), 'temperature 不能发给 Claude——它会整批 400')
 
-    // 记账：站长拿自己的余额在跑，花了多少不该靠猜。
-    const bill = llm.spendReport()
-    ok(bill.includes('120'), '要报出真实的输入 token 数')
-    ok(bill.includes('30'), '要报出真实的输出 token 数')
-    ok(bill.includes('6,000'), '缓存写入要单独报——它和普通输入不同价')
-    ok(/US\$/.test(bill), '要给一个钱的估算，否则数字对站长没有意义')
-  } finally { process.env = keep; globalThis.fetch = realFetch }
+    /*
+     * 新一代 Claude 的两条规矩，写错都是 400：
+     * 思考用 adaptive，budget_tokens 已经被删掉了；深浅由 effort 控制，
+     * 而且 effort 在 output_config 里，不是顶层字段。
+     */
+    eq(seen.body.thinking?.type, 'adaptive', '思考要用 adaptive')
+    ok(!JSON.stringify(seen.body).includes('budget_tokens'),
+      'budget_tokens 在这一代已经删掉了，发过去是 400')
+    eq(seen.body.output_config?.effort, 'high', 'effort 在 output_config 里，不是顶层')
+    ok(seen.body.stream === true, '大 max_tokens 要走流式，否则会撞上 HTTP 超时')
+
+    // 初筛这一路不该带联网工具：它只回一个布尔值，搜索是白花钱。
+    ok(!seen.body.tools, '没要求搜索时不该声明工具')
+
+    eq(llm.spendReport().includes('120'), true, '要把服务端返回的真实 token 数记进账')
+  } finally {
+    globalThis.fetch = realFetch
+    for (const k of ['LLM_BASE_URL', 'LLM_MODEL', 'LLM_API_KEY', 'ANTHROPIC_API_KEY', 'LLM_EFFORT']) {
+      if (keep[k] === undefined) delete process.env[k]; else process.env[k] = keep[k]
+    }
+  }
+})
+
+await test('要联网找来源时，工具要真的声明出去', async () => {
+  /*
+   * 站长：「你怎么只搜索一个 source？……加上 3-5 个 sources，看完 sources，
+   * 进行总结。」这条盯的是那两个服务端工具确实被声明了，以及搜到的网址
+   * 真的被带回来——带不回来，写稿那边就挂不上额外来源，而日志上什么都看不出。
+   */
+  const keep = { ...process.env }
+  const realFetch = globalThis.fetch
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
+
+    let seen = null
+    globalThis.fetch = async (url, init) => {
+      seen = JSON.parse(init.body)
+      return sseReply({ text: '写好的稿子' })
+    }
+    const { text } = await llm.askText('方针', '一条新闻', { maxTokens: 24000, search: true })
+    eq(text, '写好的稿子', '正文要拿得回来')
+
+    const names = (seen.tools ?? []).map((t) => t.name)
+    ok(names.includes('web_search'), '要声明 web_search')
+    ok(names.includes('web_fetch'), '要声明 web_fetch——搜到了还得读得到')
+    const ws = seen.tools.find((t) => t.name === 'web_search')
+    ok(/^web_search_2026/.test(ws.type), `web_search 要用新版工具类型，实际 ${ws.type}`)
+    ok(ws.max_uses > 0, '要给搜索次数封顶，否则一条新闻可能搜到失控')
+    ok((ws.blocked_domains ?? []).includes('news.google.com'),
+      '聚合站要挡掉：它们把同一篇通讯社稿子复制十遍，「五个来源」会变成一个来源的五个影子')
+  } finally {
+    globalThis.fetch = realFetch
+    for (const k of ['LLM_BASE_URL', 'LLM_MODEL', 'LLM_API_KEY', 'ANTHROPIC_API_KEY']) {
+      if (keep[k] === undefined) delete process.env[k]; else process.env[k] = keep[k]
+    }
+  }
 })
 
 await test('三个配齐才算配好，缺一个就整套退回', async () => {
@@ -1073,14 +1153,21 @@ await test('被截断的回复要说清楚是截断，不是「没有返回内�
     delete process.env.LLM_MODEL
     delete process.env.LLM_API_KEY
     process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
-    globalThis.fetch = async () => new Response(JSON.stringify({
-      content: [], stop_reason: 'max_tokens', usage: { input_tokens: 5, output_tokens: 24 },
-    }), { status: 200 })
+    globalThis.fetch = async () => sseReply({
+      text: '写到一半就断了', stopReason: 'max_tokens',
+      usage: { input_tokens: 5, output_tokens: 24 },
+    })
 
     let msg = ''
     try { await llm.ask('s', 'u', { maxTokens: 24 }) } catch (e) { msg = e.message }
     ok(msg.includes('截断'), `要说是被截断，实际「${msg}」`)
     ok(msg.includes('24'), '要把那个上限报出来，人才知道调哪个数')
+
+    /*
+     * **半篇稿子最危险的地方在于它像成功。** 上面那一段「写到一半就断了」
+     * 是能解析的文本，如果不看 stop_reason，它会当成一条正常的稿子入库。
+     * 所以截断必须抛，不能返回。
+     */
   } finally { process.env = keep; globalThis.fetch = realFetch }
 })
 

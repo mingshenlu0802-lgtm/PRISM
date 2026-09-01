@@ -27,6 +27,16 @@ import { systemPrompt, triagePrompt } from './editorial.mjs'
  */
 const BATCH = Number(process.env.LLM_BATCH ?? 2)
 
+/*
+ * 联网找来源，默认开着。
+ *
+ * 站长明确要求「加上 3-5 个 sources，看完 sources，进行总结」。
+ * 它只在 Claude 那条路上有（是 Anthropic 的服务端工具），而且要花钱：
+ * 每次搜索一美分。要关掉就设 LLM_SEARCH=0。
+ */
+const SEARCH = process.env.LLM_SEARCH !== '0'
+const anthropicBacked = () => Boolean((process.env.ANTHROPIC_API_KEY ?? '').trim())
+
 const SHAPE = `
 每一条候选写成一个块，**不要用 JSON**，照下面的格式：
 
@@ -79,27 +89,68 @@ async function runBatch(batch, ownerNote) {
     sources: [{ n: 1, outlet: p.feed.outlet, lang: p.feed.lang, url: p.link },
       ...(p.also ?? []).map((o, k) => ({ n: k + 2, outlet: o.feed.outlet, lang: o.feed.lang, url: o.link }))],
   }))
-  const text = await askText(
+  /*
+   * **开着联网搜索的时候，一次只写一条。**
+   *
+   * 站长：「你怎么只搜索一个 source？我希望你找到新闻后，抽取新闻标题进行
+   * 二次搜索，然后加上 3-5 个 sources，看完 sources，进行总结。」
+   *
+   * 一批两条时，模型的搜索结果是混在同一个回合里的：两条新闻的搜索、抓取、
+   * 正文交错着出现，谁的来源是谁的就分不清了——挂错来源比没有来源更糟。
+   * 一条一条写，found 就明确属于这一条。
+   */
+  const searching = SEARCH && anthropicBacked()
+  const ask1 = (items) => askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
-    `候选新闻 ${input.length} 条。\n`
+    `候选新闻 ${items.length} 条。\n`
     + `**articles 是原报道的正文**，可能有好几篇——都是同一件事的不同来源。\n`
     + `全部读完，写成**一篇**稿子：细节该谁补谁补，不要写成「A 媒体说……B 媒体说……」。\n`
-    + `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n`
-    + `**两家以上报道的，出处要在正文里分别点名**（据 X 报道 / Y 查阅的文件显示），\n`
-    + `读者才看得出这件事不止一家在讲。\n\n`
-    + `${JSON.stringify(input, null, 1)}`,
-    { maxTokens: 24000 },
+    + (searching
+      ? `\n**先补来源，再动笔。** 用 web_search 拿这条新闻的关键信息（人名、地点、\n`
+        + `机构、案件）去搜同一件事的其他报道——不要照抄标题去搜，标题里的\n`
+        + `修辞词会把搜索带偏。找到之后用 web_fetch 把值得读的那几篇抓回来读完，\n`
+        + `**总共凑够三到五个来源**（手上已有的算在内），再开始写。\n`
+        + `优先找：通讯社与大报的同题报道、法院或政府的原始文件、当地媒体的细节。\n`
+        + `搜不到就照手上的材料写，不要为了凑数把不相干的报道算成来源。\n`
+        + `正文里出处要分别点名（据《卫报》报道 / 路透社查阅的法庭文件显示）。\n`
+      : `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n`
+        + `**两家以上报道的，出处要在正文里分别点名**（据 X 报道 / Y 查阅的文件显示），\n`
+        + `读者才看得出这件事不止一家在讲。\n`)
+    + `\n${JSON.stringify(items, null, 1)}`,
+    { maxTokens: 24000, search: searching },
   )
+
+  if (!searching) {
+    const { text } = await ask1(input)
+    return matchBack(batch, text)
+  }
+
+  // 一条一条来，各自带回自己搜到的来源。
+  const out = []
+  for (let i = 0; i < input.length; i += 1) {
+    try {
+      const { text, found } = await ask1([{ ...input[i], i: 0 }])
+      const [item] = matchBack([batch[i]], text)
+      if (item) item.__found = found
+      out.push(item)
+    } catch (e) {
+      console.log(`  第 ${i + 1} 条写失败：${String(e.message ?? e).slice(0, 120)}`)
+      out.push(null)
+    }
+  }
+  return out
+}
+
+/** 按编号把块对回候选，而不是按出现顺序——模型偶尔会漏掉一整块。 */
+function matchBack(batch, text) {
   const blocks = splitBlocks(text)
   if (blocks.length === 0) {
     throw new Error(`没找到 ===ITEM=== 块：${text.slice(0, 200)}`)
   }
-  // 按编号对回去，而不是按出现顺序——模型偶尔会漏掉一整块（那一条就当没留下）。
-  const items = batch.map((_, i) => {
+  return batch.map((_, i) => {
     const b = blocks.find((x) => x.i === i)
     return b ? parseBlock(b.body, FIELDS) : null
   })
-  return items
 }
 
 const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY']
@@ -128,6 +179,8 @@ export function clean(raw, fallback) {
     bullets: parseList(raw.BULLETS).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
+    // 联网搜到、并且真的被读过的那几篇。collect 会把它们挂成额外来源。
+    found: Array.isArray(raw.__found) ? raw.__found : [],
   }
 }
 

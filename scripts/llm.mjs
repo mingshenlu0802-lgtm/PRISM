@@ -29,8 +29,19 @@
  *   别再把它加回来：一个会静静 410 的默认值，只会让站长看到「今天没有新闻」。
  */
 
+import Anthropic from '@anthropic-ai/sdk'
+
 const ANTHROPIC_BASE = 'https://api.anthropic.com/v1'
-const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-5'
+/*
+ * 默认用 Opus 5。
+ *
+ * 站长：「你尝试用最厉害的模型进行搜索？」——而且他两次说过先把质量做上去
+ * 再谈成本。之前默认 Sonnet 是我按一张**记错了的价目表**选的（我以为
+ * Opus 是 Sonnet 的五倍，实际是两倍半）。
+ *
+ * 想换回去只要在仓库 Secrets 里加一个 LLM_MODEL=claude-sonnet-5。
+ */
+const ANTHROPIC_DEFAULT_MODEL = 'claude-opus-5'
 
 /**
  * 粗略价目，单位是「美元 / 百万 token」。
@@ -39,13 +50,18 @@ const ANTHROPIC_DEFAULT_MODEL = 'claude-sonnet-5'
  * 而不是去信一个藏在别处的数字。日志里会标明这是估算。
  */
 const PRICES = [
-  [/opus/i, { in: 15, out: 75 }],
+  [/fable|mythos/i, { in: 10, out: 50 }],
+  [/opus/i, { in: 5, out: 25 }],
+  [/sonnet-5/i, { in: 2, out: 10 }],
   [/sonnet/i, { in: 3, out: 15 }],
   [/haiku/i, { in: 1, out: 5 }],
 ]
 
+/** 一次联网搜索的价钱：每一千次 10 美元。 */
+const SEARCH_PRICE_PER_CALL = 10 / 1000
+
 /** 这一轮累计用掉多少。ask() 每次加上去，跑完由 collect 打印。 */
-const spend = { calls: 0, inTokens: 0, outTokens: 0, cacheWrite: 0, cacheRead: 0 }
+const spend = { calls: 0, inTokens: 0, outTokens: 0, cacheWrite: 0, cacheRead: 0, searches: 0 }
 
 export function resolveLlm() {
   const model = (process.env.LLM_MODEL ?? '').trim()
@@ -84,13 +100,15 @@ export function spendReport() {
   const cache = spend.cacheWrite + spend.cacheRead
     ? `，缓存写入 ${spend.cacheWrite.toLocaleString()} / 命中 ${spend.cacheRead.toLocaleString()}`
     : ''
-  const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token${cache}`
+  const searched = spend.searches ? `，联网搜索 ${spend.searches} 次` : ''
+  const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token${cache}${searched}`
   if (!price) return line
   // 缓存写入约为普通输入的 1.25 倍，命中约为十分之一。
   const usd = (spend.inTokens * price.in
     + spend.cacheWrite * price.in * 1.25
     + spend.cacheRead * price.in * 0.1
     + spend.outTokens * price.out) / 1e6
+    + spend.searches * SEARCH_PRICE_PER_CALL
   const daily = usd * 2 // 站长设的是一天两场
   return `${line}\n估算花费 约 US$${usd.toFixed(4)}（一天两场约 US$${daily.toFixed(2)}，一个月约 US$${(daily * 30).toFixed(2)}；价目写在 scripts/llm.mjs，会变）`
 }
@@ -107,17 +125,14 @@ export function llmName() {
 }
 
 /**
- * 问一次模型，要求返回 JSON。
- *
- * 不用流式：这是批处理，没人在等着看字一个个蹦出来，而一次拿到完整结果
- * 才好校验。超时给得长，因为一批几十条的长总结确实要跑一会儿。
- */
-/**
  * 要一段纯文本回来。
  *
  * 长稿不走 JSON。理由在 scripts/blocks.mjs 的开头写着：一个真实换行就能
  * 让整批作废，而这个站要的正是分段的长文。所以让模型写带分隔符的纯文本，
  * 解析交给 blocks.mjs。
+ *
+ * 返回 `{ text, found }`：found 是模型联网搜到的网址，写稿那一步会把它们
+ * 挂成这条新闻的来源——站长要「3-5 个 sources」，而这就是它们的来路。
  */
 export async function askText(system, user, opts = {}) {
   return raw(system, user, opts)
@@ -125,7 +140,8 @@ export async function askText(system, user, opts = {}) {
 
 /** 要一段 JSON 回来。短结构（初筛）仍然用它——那种输出不会有换行问题。 */
 export async function ask(system, user, opts = {}) {
-  return parseJson(await raw(system, user, opts))
+  const { text } = await raw(system, user, opts)
+  return parseJson(text)
 }
 
 /**
@@ -146,14 +162,17 @@ export async function ask(system, user, opts = {}) {
  */
 const timeoutFor = (maxTokens) => Math.max(180000, maxTokens * 30)
 
-async function raw(system, user, { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens) } = {}) {
+async function raw(system, user, { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens), search = false } = {}) {
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
+
+  // Claude 那条路走官方 SDK；联网搜索是它的服务端工具，只有这条路有。
+  if (cfg.kind === 'anthropic') return anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search })
+
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), timeoutMs)
   try {
-    const req = cfg.kind === 'anthropic' ? anthropicRequest(cfg, system, user, maxTokens)
-      : openaiRequest(cfg, system, user, maxTokens)
+    const req = openaiRequest(cfg, system, user, maxTokens)
     const res = await fetch(req.url, { method: 'POST', signal: ctl.signal, headers: req.headers, body: req.body })
     if (!res.ok) {
       const body = (await res.text()).slice(0, 300)
@@ -161,31 +180,25 @@ async function raw(system, user, { maxTokens = 8000, timeoutMs = timeoutFor(maxT
     }
     const data = await res.json()
 
-    // 记账。两家的字段名不一样，但意思一样：这次实际吃掉了多少 token。
     const u = data?.usage ?? {}
     spend.calls += 1
-    spend.inTokens += u.input_tokens ?? u.prompt_tokens ?? 0
-    spend.outTokens += u.output_tokens ?? u.completion_tokens ?? 0
-    // 缓存的读写单独记：它们的价钱和普通输入不一样，混在一起报账就不准了。
-    spend.cacheWrite += u.cache_creation_input_tokens ?? 0
-    spend.cacheRead += u.cache_read_input_tokens ?? 0
+    spend.inTokens += u.prompt_tokens ?? 0
+    spend.outTokens += u.completion_tokens ?? 0
 
-    const text = cfg.kind === 'anthropic'
-      ? (data?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('')
-      : (data?.choices?.[0]?.message?.content ?? '')
+    const text = data?.choices?.[0]?.message?.content ?? ''
     if (!text) {
       // 空回复最常见的原因是被 max_tokens 截断——尤其是会先想一段再写的型号。
       // 说清楚是哪一种，比一句「没有返回内容」有用得多。
-      const why = (data?.stop_reason ?? data?.choices?.[0]?.finish_reason) === 'max_tokens'
+      const why = data?.choices?.[0]?.finish_reason === 'max_tokens'
         ? `写到 max_tokens（${maxTokens}）就被截断了，一个字都没落地。把批次调小或者把 max_tokens 调大。`
         : '模型没有返回内容'
       throw new Error(why)
     }
     // 被截断的长稿要说出来：半篇稿子看起来像成功，其实结尾是断的。
-    if ((data?.stop_reason ?? data?.choices?.[0]?.finish_reason) === 'max_tokens') {
+    if (data?.choices?.[0]?.finish_reason === 'max_tokens') {
       throw new Error(`写到 max_tokens（${maxTokens}）被截断，这一批不完整。把批次调小或把 max_tokens 调大。`)
     }
-    return text
+    return { text, found: [] }
   } catch (e) {
     /*
      * abort 抛出来的是「The operation was aborted」——在批次日志里
@@ -201,50 +214,162 @@ async function raw(system, user, { maxTokens = 8000, timeoutMs = timeoutFor(maxT
   }
 }
 
-/**
- * Anthropic 原生。
+/* ------------------------------------------------------------------ *
+ * Claude：官方 SDK + 服务端联网搜索
+ * ------------------------------------------------------------------ */
+
+/*
+ * 每次调用新建一个客户端。
  *
- * 三处和 OpenAI 那套不一样，每一处都咬过人：
- *   - 认证是 x-api-key，不是 Authorization: Bearer
- *   - system 是顶层字段，不是 messages 里的一条
- *   - 必须带 anthropic-version，少了直接 400
+ * 一轮收集只有十几次调用，省下的那点连接开销毫无意义，而缓存一个客户端
+ * 会把 key 和拦截到的 fetch 一起钉死——测试里换一个假 key 或换一个假的
+ * fetch，第二个用例就还在用第一个的。状态少一处，能测的地方就多一处。
+ *
+ * baseURL 去掉尾巴上的 /v1：SDK 自己会接。
  */
-function anthropicRequest(cfg, system, user, maxTokens) {
-  return {
-    url: `${cfg.base}/messages`,
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': cfg.key,
-      'anthropic-version': '2023-06-01',
-    },
-    /*
-     * **不发 temperature。**
-     *
-     * 第一次真实收集全军覆没就是它：五批全部 HTTP 400，
-     *   `temperature` is deprecated for this model.
-     * 新一代的 Claude 不再接受这个参数，而我照着 OpenAI 那套习惯性地加上了。
-     *
-     * 不改成「按型号判断要不要发」，是因为那需要维护一张会过期的型号表。
-     * 这里本来也不需要它：默认采样对「按方针筛选 + 翻译 + 写总结」完全够用，
-     * 少发一个参数就少一处会随供应商变化而失效的地方。
-     */
-    body: JSON.stringify({
+const anthropic = (cfg) => new Anthropic({
+  apiKey: cfg.key,
+  baseURL: cfg.base.replace(/\/v1\/?$/, ''),
+  maxRetries: 2,
+})
+
+/**
+ * 联网搜索与抓取，都是 Anthropic 服务端跑的工具。
+ *
+ * 站长：「你怎么只搜索一个 source？我希望你找到新闻后，抽取新闻标题进行
+ * 二次搜索，然后加上 3-5 个 sources，看完 sources，进行总结。」
+ *
+ * 这正是这两个工具做的事，而且不需要再去申请一把搜索引擎的 key：
+ *   web_search 按标题去找同一件事的其他报道
+ *   web_fetch  把找到的那几篇抓回来读（它只抓对话里已经出现过的网址，
+ *              所以必须和 web_search 一起用）
+ *
+ * 域名黑名单挡掉聚合站和内容农场——它们会把同一条通讯社稿子复制十遍，
+ * 让「五个来源」变成一个来源的五个影子。
+ */
+const SEARCH_TOOLS = [
+  {
+    type: 'web_search_20260209',
+    name: 'web_search',
+    max_uses: Number(process.env.LLM_MAX_SEARCHES ?? 4),
+    blocked_domains: [
+      'news.google.com', 'msn.com', 'yahoo.com', 'flipboard.com',
+      'newsbreak.com', 'headtopics.com', 'newsnow.co.uk', 'pressreader.com',
+    ],
+  },
+  {
+    type: 'web_fetch_20260209',
+    name: 'web_fetch',
+    max_uses: Number(process.env.LLM_MAX_FETCHES ?? 6),
+    max_content_tokens: 6000,
+  },
+]
+
+/**
+ * 一次 Claude 调用。
+ *
+ * 用流式：写稿那一路 max_tokens 是 24000，非流式请求会撞上 SDK 的 HTTP 超时。
+ * 带上搜索工具时还要处理 `pause_turn`——服务端工具跑久了会先把回合还给你，
+ * 把它原样接回去再发一次就能续上。不接的话稿子就断在半截。
+ */
+async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search }) {
+  const messages = [{ role: 'user', content: user }]
+  const found = []
+  let text = ''
+
+  for (let round = 0; round < 4; round += 1) {
+    const req = {
       model: cfg.model,
+      max_tokens: maxTokens,
       /*
        * 系统提示词开缓存。
        *
-       * 这一段是整份编辑方针，六千多 token，而它**每一批都一模一样**。
-       * 一轮收集要发十几批，等于把同一份方针重新买十几遍——第一次真实收集的
-       * 账单里，38k 输入 token 有九成是这个。
-       *
+       * 这一段是整份编辑方针，四五千 token，而它**每一批都一模一样**。
+       * 一轮收集要发十几批，等于把同一份方针重新买十几遍。
        * 标上 cache_control 之后，第一次写入贵 25%，之后每次读只要十分之一。
-       * 批次越多越划算，而「批次多」正是长总结逼出来的结果。
        */
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: user }],
-      max_tokens: maxTokens,
-    }),
+      messages,
+      /*
+       * 自适应思考。新一代的 Claude 不再接受 budget_tokens（发了直接 400），
+       * 深浅由 effort 控制。挑选和写稿都值得让它想清楚一点。
+       *
+       * **不发 temperature。** 第一次真实收集全军覆没就是它：五批全部
+       * HTTP 400，`temperature` is deprecated for this model。少发一个参数，
+       * 就少一处会随供应商变化而失效的地方。
+       */
+      thinking: { type: 'adaptive' },
+      output_config: { effort: process.env.LLM_EFFORT ?? 'high' },
+    }
+    if (search) req.tools = SEARCH_TOOLS
+
+    const res = await withTimeout(
+      anthropic(cfg).messages.stream(req).finalMessage(),
+      timeoutMs,
+      maxTokens,
+    )
+
+    const u = res.usage ?? {}
+    spend.calls += 1
+    spend.inTokens += u.input_tokens ?? 0
+    spend.outTokens += u.output_tokens ?? 0
+    spend.cacheWrite += u.cache_creation_input_tokens ?? 0
+    spend.cacheRead += u.cache_read_input_tokens ?? 0
+
+    for (const b of res.content ?? []) {
+      if (b.type === 'text') text += b.text
+      else if (b.type === 'server_tool_use' && b.name === 'web_search') spend.searches += 1
+      else if (b.type === 'web_search_tool_result') collectSearchResults(b, found)
+    }
+
+    /*
+     * 服务端工具跑得久时，回合会以 pause_turn 结束。把这一轮的内容原样接回去
+     * 再发一次，它会接着做完。不处理的话，稿子会停在「刚搜完还没开始写」。
+     */
+    if (res.stop_reason === 'pause_turn') {
+      messages.push({ role: 'assistant', content: res.content })
+      continue
+    }
+    if (res.stop_reason === 'refusal') {
+      throw new Error(`模型拒绝了这一批：${res.stop_details?.category ?? '未说明原因'}`)
+    }
+    if (res.stop_reason === 'max_tokens') {
+      // 半篇稿子看起来像成功，其实结尾是断的。宁可整批重来。
+      throw new Error(`写到 max_tokens（${maxTokens}）被截断，这一批不完整。把批次调小或把 max_tokens 调大。`)
+    }
+    if (!text) throw new Error('模型没有返回内容')
+    return { text, found }
   }
+  throw new Error('模型连续四轮都没写完（一直在 pause_turn），这一批放弃。')
+}
+
+/**
+ * 把搜索结果里的网址和标题收下来。
+ *
+ * **成功时 content 是一个数组，出错时是一个对象**（比如
+ * `{error_code: 'max_uses_exceeded'}`），而且出错不抛异常、HTTP 还是 200。
+ * 不先分支就直接遍历，会静静地什么都收不到。
+ */
+function collectSearchResults(block, out) {
+  const c = block.content
+  if (!Array.isArray(c)) return
+  for (const r of c) {
+    if (r?.type === 'web_search_result' && r.url) {
+      out.push({ url: r.url, title: r.title ?? '', age: r.page_age ?? null })
+    }
+  }
+}
+
+/** SDK 自己没有整体超时，包一层。 */
+async function withTimeout(promise, ms, maxTokens) {
+  let timer
+  const guard = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`等模型超过 ${Math.round(ms / 1000)} 秒还没写完（max_tokens ${maxTokens}），这一批放弃。`)),
+      ms,
+    )
+  })
+  try { return await Promise.race([promise, guard]) } finally { clearTimeout(timer) }
 }
 
 function openaiRequest(cfg, system, user, maxTokens) {
