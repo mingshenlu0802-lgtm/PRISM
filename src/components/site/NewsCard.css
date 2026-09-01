@@ -85,6 +85,25 @@
   background: var(--accent); opacity: .8; transform: rotate(45deg);
 }
 
+/*
+ * 文章页上的要点做成一个方框，摆在正文之前。
+ *
+ * 方框不是装饰：正文前面立刻又是一串文字，读者分不出哪段是「先给的结论」、
+ * 哪段是正文的开头。一条左边线加一层浅底，就把它从正文里拎出来了。
+ * 用左边线而不是四面边框，是因为它下面紧接着就是配图和正文——
+ * 四面框会在页面上再切一刀，把开头切碎。
+ */
+.ncard__bullets--box {
+  max-width: var(--measure);
+  padding: var(--s-4) var(--s-5);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  background: var(--bg-sunken);
+  gap: var(--s-3);
+}
+.ncard__bullets--box > li { color: var(--fg); font-size: var(--fs-sm); }
+.ncard__bullets--box > li::before { background: var(--accent); opacity: 1; }
+
 .ncard__editornote {
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-md);
@@ -138,3 +157,4 @@
  */
 .ncard--full .ncard__summary,
 .ncard--full .ncard__bullets { max-width: 36em; }
+.ncard--full .ncard__bullets--box { max-width: 36em; }
