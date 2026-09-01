@@ -4,16 +4,30 @@ import type { AccentKey, Appearance, StudyKind, ThemeKey, Topic, TopicKey } from
  * 议题 — 一条新闻可以同时属于多个
  * ------------------------------------------------------------------ */
 
+/*
+ * 议题的措辞。
+ *
+ * 这几行字出现在筛选栏、标签和「关于」页上——读者是靠它们判断这个站
+ * 关心什么的。原来的写法是分类学：「法律地位、承认、结社自由与公民空间」
+ * 准确，但那是给编目员看的，不是给读者看的。
+ *
+ * 现在每一条说的是**这一栏里会有什么样的故事**，用和正文一样的语气：
+ * 具体的名词、真实的处境，不用抽象概念堆砌。
+ *
+ * short 是筛选栏和卡片上那个短标签。它也重写过一次——「运动内部」
+ * 「流离与移民」「仇恨与网暴」是把长名硬砍出来的，读着像归档代码。
+ * 短名要能单独成立：一个人看到它，应该知道点进去会看到什么。
+ */
 export const TOPICS: Topic[] = [
-  { key: 'violence', zh: '性暴力与性犯罪', short: '性暴力', en: 'Sexual violence', hue: 'var(--t-violence)', blurb: '性侵、家暴、性骚扰，以及案件走到了哪一步。' },
-  { key: 'children', zh: '儿童与未成年人受害', short: '儿童', en: 'Children', hue: 'var(--t-children)', blurb: '针对儿童与未成年人的侵害、童婚、失学与监护失职。' },
-  { key: 'rights', zh: '女性主义与 LGBTQIA+ 权利', short: '权利', en: 'Rights', hue: 'var(--t-rights)', blurb: '法律地位、承认、结社自由与公民空间。' },
-  { key: 'repro', zh: '生育权与身体自主', short: '生育权', en: 'Reproductive rights', hue: 'var(--t-repro)', blurb: '避孕、终止妊娠、孕产照护与强制绝育。' },
-  { key: 'trans', zh: '跨性别权利与医疗', short: '跨性别', en: 'Trans rights', hue: 'var(--t-trans)', blurb: '法律性别承认、医疗可及性与相关争论。' },
-  { key: 'hate', zh: '仇恨犯罪与网络暴力', short: '仇恨与网暴', en: 'Hate & abuse', hue: 'var(--t-hate)', blurb: '线下袭击、协同骚扰与平台治理。' },
-  { key: 'equality', zh: '教育、职场与制度平等', short: '平等', en: 'Equality', hue: 'var(--t-equality)', blurb: '薪酬、代表性、照护劳动与制度歧视。' },
-  { key: 'displacement', zh: '战争、移民与边缘处境', short: '流离与移民', en: 'Displacement', hue: 'var(--t-displacement)', blurb: '冲突性暴力、庇护程序与无国籍状态。' },
-  { key: 'movement', zh: '运动内部的争议', short: '运动内部', en: 'Movement debates', hue: 'var(--t-movement)', blurb: '策略、包容、资金与代表性的公开分歧。' },
+  { key: 'violence', zh: '性暴力与性犯罪', short: '性暴力', en: 'Sexual violence', hue: 'var(--t-violence)', blurb: '性侵、家暴、性骚扰——以及案子从报案到判决，在哪一步被拦下来。' },
+  { key: 'children', zh: '儿童与未成年人', short: '儿童', en: 'Children', hue: 'var(--t-children)', blurb: '针对儿童的侵害、童婚、女童失学，以及本该保护他们的人没有出手的时候。' },
+  { key: 'rights', zh: '女性主义与 LGBTQIA+ 权利', short: '权利', en: 'Rights', hue: 'var(--t-rights)', blurb: '在法律上算不算数：身份承认、结社与表达的空间、以及它们正在收紧还是松动。' },
+  { key: 'repro', zh: '生育权与身体自主', short: '生育权', en: 'Reproductive rights', hue: 'var(--t-repro)', blurb: '谁来决定生不生、什么时候生：避孕、终止妊娠、孕产照护，以及强制绝育。' },
+  { key: 'trans', zh: '跨性别权利与医疗', short: '跨性别', en: 'Trans rights', hue: 'var(--t-trans)', blurb: '改一个性别标记要过几道关，医疗到不到得了本人手上，以及围绕这些的争论。' },
+  { key: 'hate', zh: '仇恨犯罪与网络暴力', short: '仇恨犯罪', en: 'Hate & abuse', hue: 'var(--t-hate)', blurb: '街上的袭击，网上的围猎，以及平台在其中做了什么、放任了什么。' },
+  { key: 'equality', zh: '教育、职场与制度平等', short: '平等', en: 'Equality', hue: 'var(--t-equality)', blurb: '同工不同酬、升不上去、照护劳动不算数——歧视写进规则里的那一面。' },
+  { key: 'displacement', zh: '战争、移民与边缘处境', short: '战争与移民', en: 'Displacement', hue: 'var(--t-displacement)', blurb: '战时性暴力、庇护程序、无国籍身份：制度垮掉时最先掉下去的那些人。' },
+  { key: 'movement', zh: '运动内部的争议', short: '运动争议', en: 'Movement debates', hue: 'var(--t-movement)', blurb: '策略、包容、资金与谁能代表谁——运动内部还没有谈拢的事。' },
 ]
 
 export const TOPIC_MAP: Record<TopicKey, Topic> = Object.fromEntries(

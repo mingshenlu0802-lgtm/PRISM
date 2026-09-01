@@ -36,7 +36,6 @@ HEADLINE: 主标题
 SUBHEAD: 副标题，一句话
 TOPICS: violence, children
 REGIONS: us
-NOTICE: 内容提示，没有就留空
 BULLETS:
 - 要点一
 - 要点二
@@ -90,7 +89,7 @@ async function runBatch(batch, ownerNote) {
   return items
 }
 
-const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'NOTICE', 'BULLETS', 'SUMMARY']
+const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY']
 
 const TOPICS = new Set(['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'])
 const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
@@ -116,7 +115,6 @@ export function clean(raw, fallback) {
     bullets: parseList(raw.BULLETS).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
-    notice: String(raw.NOTICE ?? '').trim() || null,
   }
 }
 

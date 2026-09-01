@@ -653,20 +653,14 @@ await test('比较网址之前要洗掉跟踪参数', () => {
   eq(a, b, '同一篇文章带不带 utm 参数，应当算同一个网址')
 })
 
-await test('涉及性暴力的条目要带内容提示，别的不要', () => {
-  /*
-   * 站长要求去掉「等他审核」那一层，包括针对公众人物的指控——那是他指定的
-   * 报道重心，这个决定是他的，抓到就上线。
-   *
-   * 留下的只是给读者的一句话，不影响任何一条是否发布。这个站本来就这么做：
-   * 演示数据里的原话是「本条涉及性骚扰案件的审理程序。总结不描述任何具体案情。」
-   */
-  const n = (title, topics) => feedparse.noticeFor({ title, summary: '' }, topics)
-
-  ok(n('Producer sentenced for sexual assault', ['violence']), '性暴力条目要有提示')
-  ok(n('Producer sentenced for sexual assault', ['violence']).includes('尚未经本站核实'),
-    '涉及具体案件时要说清楚摘要没经过本站核实')
-  ok(!n('Report on gender pay gap', ['equality']), '不相关的条目不该加提示——提示满天飞就没人看了')
+await test('不再给条目挂内容提示', () => {
+  // 这里原本测的是「性暴力条目要带内容提示」。站长要求去掉那条红色警告带，
+  // 理由成立：这个站每一条都是性别暴力相关的报道，条条都挂等于没挂。
+  //
+  // 留下 isCase()——它现在的用处是排序（司法进展优先），不再决定挂不挂提示。
+  ok(!('noticeFor' in feedparse), 'noticeFor 应该已经删掉，不要再有条目带提示')
+  ok(feedparse.isCase({ title: '检方起诉某教授', summary: '' }), '认得出司法进展，排序要用')
+  ok(!feedparse.isCase({ title: '一份关于育儿假的报告', summary: '' }), '不是案件就不是案件')
 })
 
 await test('用媒体自己配的图，并且署上它的名字', () => {

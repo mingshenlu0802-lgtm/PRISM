@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor, ogImage } from './feedparse.mjs'
+import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
@@ -374,7 +374,7 @@ groups.forEach((g, i) => {
     demo: false,
     edited_by_human: false,
     editor_note: null,
-    content_notice: g.notice ?? noticeFor(g, g.topics),
+    content_notice: null,
     published_at: g.at,
     updated_at: new Date().toISOString(),
   })
@@ -425,9 +425,8 @@ if (toInsert.length > 0) {
   }
 }
 
-const noticed = toInsert.filter((r) => r.content_notice).length
 console.log(AUTO
-  ? `已上线 ${toInsert.length} 条${noticed ? `，其中 ${noticed} 条带内容提示` : ''}。`
+  ? `已上线 ${toInsert.length} 条。`
   : `已写入 ${toInsert.length} 条，全部下架状态等你审核。`)
 
 /* ------------------------------------------------------------------ *

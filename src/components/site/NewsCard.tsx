@@ -49,13 +49,13 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
         </p>
       </header>
 
-      {/* 内容提示永远排在图之前——读者要先有机会决定看不看。 */}
-      {item.contentNotice && (
-        <p className="ncard__notice">
-          <Icon name="shield" size={13} />
-          <span>{item.contentNotice}</span>
-        </p>
-      )}
+      {/*
+        * 内容提示（那条红色的警告带）去掉了。
+        *
+        * 站长的判断是对的：这个站**每一条**都是性别暴力相关的报道，
+        * 一个条条都挂的提示等于没有提示，只是在每张卡片顶上压了一条红带，
+        * 把注意力从新闻本身挪开。读者知道自己点开的是什么——标题就写着。
+        */}
 
       <Cover
         image={item.image}
