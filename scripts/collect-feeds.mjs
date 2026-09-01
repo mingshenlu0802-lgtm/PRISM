@@ -641,7 +641,10 @@ async function collectStudies() {
   }
   if (fresh.length === 0) { console.log('候选研究站上都有了。'); return }
 
-  const all = llmConfigured()
+  // 和新闻走同一个开关。第一版这里还写着 llmConfigured()，
+  // 于是「演练不叫模型」只挡住了新闻——演练照样为研究付了钱，
+  // 而且一等就是好几分钟。
+  const all = useModel
     ? await rewriteStudies(fresh, await ownerNote())
     : fresh.map((c) => ({ ...c, limitation: '原报告未说明方法与抽样，这里不代为推断。', figures: [] }))
   const kept = all.slice(0, MAX_STUDIES)
