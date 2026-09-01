@@ -240,6 +240,55 @@ for (const [vpName, w, h] of VIEWPORTS) {
   await ctx.close()
 }
 
+/*
+ * 繁简转换：这一段只能在浏览器里验。
+ *
+ * 它是**转 DOM 的文本节点**，不是转数据——那意味着它会不会被 React 的
+ * 重渲染冲掉、切回去能不能拿回原文、按钮会不会把自己的名字也转掉，
+ * 这几件事在 Node 里一件都测不了。而这三件恰好是它最容易坏的地方。
+ */
+{
+  const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } })
+  const page = await ctx.newPage()
+  const dicts = []
+  page.on('request', (r) => { if (/cn2t|opencc/.test(r.url())) dicts.push(r.url()) })
+  await page.goto(`${base}/`, { waitUntil: 'networkidle' })
+
+  const say = (ok, msg) => { if (!ok) problems.push(`[繁简] ${msg}`) }
+
+  // 默认一个字节都不下载：442KB 的词典只该由真的要看繁体的人去付。
+  say(dicts.length === 0, `默认就下载了字典（${dicts.length} 个请求）——那是 442KB`)
+
+  const before = await page.evaluate(() => document.querySelector('.ncard__title')?.textContent ?? '')
+  await page.click('.sct__btn:not([aria-pressed="true"])')
+  await page.waitForTimeout(2500)
+  const after = await page.evaluate(() => document.querySelector('.ncard__title')?.textContent ?? '')
+  say(dicts.length > 0, '按下「繁」之后没有去取字典')
+  say(after !== before && after.length > 0, '按下「繁」之后正文没有变')
+
+  // 按钮不能把自己的名字也转了：一个按下之后改掉自己名字的按钮，
+  // 读者会以为点错了。靠 data-nozh 排除。
+  const label = await page.evaluate(() =>
+    [...document.querySelectorAll('.sct__btn')].map((b) => b.textContent).join('/'))
+  say(label.includes('简'), `切换按钮自己被转换了（「${label}」）`)
+
+  // 切回去要拿回**原文**，不是再做一次繁→简。
+  await page.click('.sct__btn:not([aria-pressed="true"])')
+  await page.waitForTimeout(400)
+  const back = await page.evaluate(() => document.querySelector('.ncard__title')?.textContent ?? '')
+  say(back === before, '切回简体没有拿回一模一样的原文')
+
+  // 换一页之后仍然是繁体：React 重渲染会把文本节点写回原文。
+  await page.click('.sct__btn:not([aria-pressed="true"])')
+  await page.waitForTimeout(600)
+  await page.goto(`${base}/studies`, { waitUntil: 'networkidle' })
+  await page.waitForTimeout(600)
+  const onStudies = await page.evaluate(() => document.body.innerText)
+  say(/[稜數據項與]/.test(onStudies), '换一页之后掉回了简体')
+
+  await ctx.close()
+}
+
 await browser.close()
 server.close()
 

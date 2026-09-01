@@ -18,12 +18,14 @@ export function ScriptToggle(): JSX.Element {
         type="button"
         className={script === 'hans' ? 'sct__btn sct__btn--on' : 'sct__btn'}
         aria-pressed={script === 'hans'}
+        aria-label="改用简体"
         onClick={() => setScript('hans')}
       >简</button>
       <button
         type="button"
         className={script === 'hant' ? 'sct__btn sct__btn--on' : 'sct__btn'}
         aria-pressed={script === 'hant'}
+        aria-label="改用繁體"
         onClick={() => setScript('hant')}
       >{busy ? '…' : '繁'}</button>
     </div>

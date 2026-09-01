@@ -25,3 +25,19 @@
 @media (pointer: coarse) {
   .sct__btn { min-height: 36px; min-width: 40px; }
 }
+
+/*
+ * 手机上只留一个键。
+ *
+ * 两格的开关在 390px 的顶栏里要 82px，把站名挤成了「PRI…」——一个把自己
+ * 名字挤没了的网站，第一眼就显得没做完。
+ *
+ * 所以窄屏上只显示**当前没选中的那一个**：现在是简体，就显示「繁」，
+ * 按下去换过去；换过去之后它变成「简」。少了 40px，而且更贴近站长要的
+ * 「一键」——本来就是一下的事。
+ */
+@media (max-width: 520px) {
+  .sct { border-radius: var(--r-md); }
+  .sct__btn--on { display: none; }
+  .sct__btn { min-width: 38px; }
+}
