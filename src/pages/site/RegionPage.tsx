@@ -43,7 +43,7 @@ export default function RegionPage(): JSX.Element {
         <>
           {news.length > 0 && (
             <div className="lpage__feed">
-              {news.map((n) => <NewsCard key={n.id} item={n} today={`${state.today}T23:59:00Z`} />)}
+              {news.map((n) => <NewsCard key={n.id} item={n} />)}
             </div>
           )}
           {studies.length > 0 && (

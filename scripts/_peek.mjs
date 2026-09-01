@@ -66,11 +66,12 @@ for (const route of routes) {
     // 正文字号
     const sizes = new Set()
     for (const el of document.querySelectorAll('p, li')) sizes.add(getComputedStyle(el).fontSize)
-    return { over, worst, small: small.slice(0, 12), smallN: small.length, sizes: [...sizes], h: doc.scrollHeight }
+    return { over, worst, small: small.slice(0, 12), smallN: small.length, sizes: [...sizes], h: doc.scrollHeight, text: (document.body.innerText||'').replace(/\s+/g,' ').trim() }
   })
   console.log(`\n=== ${route} @${width}px ===`)
   console.log(`  横向溢出 ${info.over}px${info.worst ? `  最宽: ${info.worst.sel} ${info.worst.w}px` : ''}   页高 ${info.h}px`)
   console.log(`  正文字号: ${info.sizes.join(" ")}`)
+  console.log(`  正文（前 200 字）：${info.text.slice(0, 200)}`)
   console.log(`  小于 40px 的点击目标 ${info.smallN} 个:`)
   for (const s of info.small) console.log(`    ${s}`)
 }

@@ -55,18 +55,38 @@ export function todayISO(): string {
   }).format(new Date())
 }
 
-export function fmtDate(iso: string): string {
+/*
+ * 日期时间一律按北京时间显示。
+ *
+ * 这里原本用的是 UTC 取值器（getUTCHours 那一串）。对「2026-09-01」这种
+ * 纯日期没有影响，但 published_at 是完整时间戳：早上六点那一场收集写进去的
+ * 是前一天的 22:00 UTC，页面上就会显示成**前一天晚上十点收录**。
+ *
+ * 这是一份按北京时间每天两场的日报，时间就该按北京时间读。
+ */
+function parts(iso: string): Record<string, string> | null {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return `${d.getUTCFullYear()}年${d.getUTCMonth() + 1}月${d.getUTCDate()}日`
+  if (Number.isNaN(d.getTime())) return null
+  const out: Record<string, string> = {}
+  for (const p of new Intl.DateTimeFormat('en-CA', {
+    timeZone: SITE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(d)) out[p.type] = p.value
+  return out
+}
+
+export function fmtDate(iso: string): string {
+  const p = parts(iso)
+  if (!p) return iso
+  return `${p.year}年${Number(p.month)}月${Number(p.day)}日`
 }
 
 export function fmtDateTime(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${fmtDate(iso)} ${hh}:${mm}`
+  const p = parts(iso)
+  if (!p) return iso
+  // 24 小时制下午夜是 24，不是 00——把它归回 00。
+  const hh = p.hour === '24' ? '00' : p.hour
+  return `${fmtDate(iso)} ${hh}:${p.minute}`
 }
 
 export function relTime(iso: string, from = nowIso()): string {

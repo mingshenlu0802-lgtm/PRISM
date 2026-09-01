@@ -35,7 +35,7 @@ export default function NewsPage(): JSX.Element {
       <Link className="npage__back" to="/"><Icon name="chevron-left" size={14} />回到今日</Link>
 
       <div className="npage__body">
-        <NewsCard item={item} variant="full" today={`${state.today}T23:59:00Z`} />
+        <NewsCard item={item} variant="full" />
         <p className="npage__stamp">
           收录于 {fmtDateTime(item.publishedAt)}
           {item.updatedAt !== item.publishedAt && ` · 最后修改 ${fmtDateTime(item.updatedAt)}`}

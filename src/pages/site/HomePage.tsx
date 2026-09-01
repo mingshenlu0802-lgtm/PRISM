@@ -89,7 +89,7 @@ export default function HomePage(): JSX.Element {
 
       {lead && (
         <section className="home__lead" aria-label="头条">
-          <NewsCard item={lead} variant="lead" today={`${state.today}T23:59:00Z`} />
+          <NewsCard item={lead} variant="lead" />
         </section>
       )}
 
@@ -134,7 +134,7 @@ export default function HomePage(): JSX.Element {
       {/* 只有一条时它已经在头条位上了，下面不再开一个空列表。 */}
       {rest.length > 0 && (
         <div className="home__feed">
-          {rest.map((n) => <NewsCard key={n.id} item={n} today={`${state.today}T23:59:00Z`} />)}
+          {rest.map((n) => <NewsCard key={n.id} item={n} />)}
         </div>
       )}
 

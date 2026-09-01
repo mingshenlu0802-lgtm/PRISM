@@ -28,7 +28,8 @@ const m = await import(pathToFileURL(bundle).href)
 const { buildInitialState, reducer, accessOf,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
-        parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight, Prose } = m
+        parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight, Prose,
+        fmtDate, fmtDateTime } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -1044,6 +1045,23 @@ await test('正文里的小标题和来源角标要变成真的结构', async ()
 
   ok(html.includes('<strong>加粗</strong>'), '**加粗** 要变成 strong')
   ok(!html.includes('**'), '星号不该留在页面上')
+})
+
+await test('时间按北京时间显示，不是 UTC', () => {
+  // 这是一份按北京时间每天两场的日报。早上六点那一场写进数据库的时间戳是
+  // 前一天的 22:00 UTC——按 UTC 渲染，页面上就写成「前一天晚上十点收录」。
+  eq(fmtDateTime('2026-08-31T22:10:00Z'), '2026年9月1日 06:10',
+    '前一天 22:10 UTC 就是北京时间当天早上 6:10')
+  eq(fmtDate('2026-08-31T22:10:00Z'), '2026年9月1日', '日期也要跟着走')
+
+  // 下午两点那一场：06:00 UTC。
+  eq(fmtDateTime('2026-09-01T06:00:00Z'), '2026年9月1日 14:00', '下午那一场是 14:00')
+
+  // 午夜要显示 00:00，不是 24:00——24 小时制下 formatToParts 会给 24。
+  eq(fmtDateTime('2026-09-01T16:00:00Z'), '2026年9月2日 00:00', '午夜是 00:00')
+
+  // 坏日期原样返回，不要抛异常把整页带下去。
+  eq(fmtDate('不是日期'), '不是日期', '坏日期不能让页面崩掉')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
