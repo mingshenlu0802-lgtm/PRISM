@@ -82,25 +82,49 @@ GitHub 仓库 → **Actions** → 左边选「**找新闻**」→ 右上 **Run w
 抓回来的原文是英文、西班牙文、阿拉伯文都有。把它们按编辑方针筛一遍、翻成中文、
 写成够长的总结，这一步要一个模型。
 
-**默认已经有了，你什么都不用配。** 走的是 **GitHub Models**——就是你这个仓库
-所在的 GitHub 自己提供的，workflow 里那行 `models: read` 就是钥匙。
-不用绑卡、不用注册第三方、不用再存一把密钥，额度是按天限的，不是按钱算的。
-
-想换成别家（Groq、DeepSeek、OpenRouter、chatanywhere⋯⋯任何 OpenAI 兼容的都行），
-加这三个 Secret，**三个要齐**，缺一个就退回默认：
+**加一个 Secret 就行**（仓库 → Settings → Secrets and variables → Actions）：
 
 | 名字 | 填什么 |
 | --- | --- |
-| `LLM_BASE_URL` | 例 `https://api.groq.com/openai/v1`——注意结尾那段 `/v1` |
-| `LLM_MODEL` | 型号名，去对方控制台抄，别照文档抄（会变） |
-| `LLM_API_KEY` | 对方给的 key |
+| `ANTHROPIC_API_KEY` | platform.claude.com → **API keys** → Create key，整串复制 |
 
-**不确定哪个型号现在能免费跑**，就让机器去试：Actions → 找新闻 → Run workflow，
+型号名不用填，默认用 Claude Sonnet。想换的话再加一个 `LLM_MODEL`：
+`claude-haiku-4-5-20251001` 便宜大约五倍，`claude-opus-5` 贵大约五倍。
+
+**每次跑完会报账**，像这样：
+
+```
+5 次调用，输入 41,200 token，输出 18,600 token
+估算花费 约 US$0.4028（按每天一轮算，一个月约 US$12.08；价目写在 scripts/llm.mjs，会变）
+```
+
+token 数是 Claude 那边返回的真数，钱是按代码里那张表估的。日更三十条这种量，
+20 美元余额大概能撑一两个月。嫌贵就把 workflow 的 `max` 调小，或者换 Haiku。
+
+<details>
+<summary>不想付费的话，还有哪些选择</summary>
+
+任何 **OpenAI 兼容**的服务都能接，配这三个 Secret，**三个要齐**：
+`LLM_BASE_URL`（例 `https://api.groq.com/openai/v1`，注意结尾的 `/v1`）、
+`LLM_MODEL`、`LLM_API_KEY`。
+
+不要钱也不要绑卡的几家：**Groq**（`https://api.groq.com/openai/v1`，上面有
+通义千问和 Kimi，中文母语级）、**chatanywhere**（`https://api.chatanywhere.tech/v1`，
+转发的 gpt-4o-mini，每天有次数上限）、**OpenRouter**（型号名结尾带 `:free` 的
+不计费）、**Cerebras**。
+
+**GitHub Models 别试了**——仓库自带 token 就能调，本来是最省事的一条，
+2026-09-01 实测五个型号全部 HTTP 410，官方说法是 "scheduled retirement
+brownout"，它在退役。
+
+</details>
+
+**不确定型号名现在还能不能用**，就让机器去试：Actions → 找新闻 → Run workflow，
 把 **probe** 勾上。它会真的各发一次最小请求，然后告诉你哪个通过了、哪个是限流、
 哪个是要付款——顺带看一眼它肯不肯写中文。这一步不抓新闻也不写数据库。
 
-> 「有免费额度」和「你这个账号现在能不能免费跑」是两回事。文档会过期，
-> 探测不会。
+> 「文档说它能用」和「你这个 key 现在能不能跑」是两回事。文档会过期，探测不会。
+> 上面那条 410 就是这么发现的——我原本以为它能用。
 
 #### 换来源
 

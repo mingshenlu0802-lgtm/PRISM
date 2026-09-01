@@ -818,64 +818,125 @@ await test('编辑方针要完整传给模型', () => {
   ok(p.includes('台湾的司法进展'), '站长当次的额外指示要接得上')
 })
 
-await test('什么都不配也要有模型可用，这是默认不是降级', async () => {
-  // 站长要的是「真正免费的 API」。免费到底的那一条是 GitHub Models：
-  // 仓库自带的 token 就能调，不用绑卡、不用注册第三方、不用再存密钥。
+await test('有 Claude 的 key 就够了，不用再填型号名', async () => {
+  // 站长：「付费也没关系，我全部用 Claude api 吧。」那就让它只需要一个 Secret。
   const keep = { ...process.env }
   try {
     delete process.env.LLM_BASE_URL
     delete process.env.LLM_MODEL
     delete process.env.LLM_API_KEY
-    process.env.GITHUB_TOKEN = 'ghs_fake'
-
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
     const c = llm.resolveLlm()
-    ok(c, '有 GITHUB_TOKEN 就该有模型可用')
-    ok(c.base.includes('models.github.ai'), '应当落到 GitHub Models')
-    eq(c.key, 'ghs_fake', '用的就是仓库那把 token，不需要另外的 key')
-    ok(c.model, '必须给一个默认型号，否则等于没配')
-    ok(llm.llmConfigured(), '这种情况要算「已配置」')
+    ok(c, '有 key 就该能跑')
+    eq(c.kind, 'anthropic', '要走原生协议，不是 OpenAI 兼容层')
+    ok(c.model.startsWith('claude-'), '没填型号也要有一个能用的默认')
+    ok(llm.llmConfigured(), '这就算配好了')
+
+    // 别家的配置不该把 Claude 挤掉——站长说的是「全部用 Claude」。
+    process.env.LLM_BASE_URL = 'https://api.groq.com/openai/v1'
+    process.env.LLM_MODEL = 'qwen/qwen3-32b'
+    process.env.LLM_API_KEY = 'gsk_fake'
+    eq(llm.resolveLlm().kind, 'anthropic', 'Claude 优先')
+    eq(llm.resolveLlm().model, 'qwen/qwen3-32b', 'LLM_MODEL 仍然用来选 Claude 的型号')
   } finally { process.env = keep }
 })
 
-await test('自己配的端点优先于默认，三个要齐', async () => {
+await test('发给 Claude 的请求必须照它的规矩来', async () => {
+  // 这三处和 OpenAI 那套不一样，每一处填错都是 400 或 401，
+  // 而站长看到的只会是「今天没有新闻」。
+  const keep = { ...process.env }
+  const realFetch = globalThis.fetch
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
+
+    let seen = null
+    globalThis.fetch = async (url, init) => {
+      seen = { url, headers: init.headers, body: JSON.parse(init.body) }
+      return new Response(JSON.stringify({
+        content: [{ type: 'text', text: '{"ok":true}' }],
+        usage: { input_tokens: 120, output_tokens: 30 },
+      }), { status: 200 })
+    }
+
+    const got = await llm.ask('这是编辑方针', '这是这一批新闻')
+    eq(got.ok, true, '要能从 content[] 里取出文字并解析成 JSON')
+    ok(String(seen.url).endsWith('/v1/messages'), `要打 /v1/messages，实际 ${seen.url}`)
+    eq(seen.headers['x-api-key'], 'sk-ant-fake', '认证是 x-api-key，不是 Bearer')
+    ok(!seen.headers.authorization, '不该再带 Authorization 头')
+    eq(seen.headers['anthropic-version'], '2023-06-01', '少了版本号直接 400')
+    eq(seen.body.system, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
+    eq(seen.body.messages.length, 1, 'messages 里只该有用户那一条')
+    ok(!JSON.stringify(seen.body).includes('response_format'),
+      'response_format 是 OpenAI 的字段，发给 Claude 会报错')
+
+    // 记账：站长拿自己的余额在跑，花了多少不该靠猜。
+    const bill = llm.spendReport()
+    ok(bill.includes('120'), '要报出真实的输入 token 数')
+    ok(bill.includes('30'), '要报出真实的输出 token 数')
+    ok(/US\$/.test(bill), '要给一个钱的估算，否则数字对站长没有意义')
+  } finally { process.env = keep; globalThis.fetch = realFetch }
+})
+
+await test('三个配齐才算配好，缺一个就整套退回', async () => {
   const keep = { ...process.env }
   try {
-    process.env.GITHUB_TOKEN = 'ghs_fake'
     process.env.LLM_BASE_URL = 'https://api.groq.com/openai/v1/'
-    process.env.LLM_MODEL = 'llama-3.3-70b-versatile'
+    process.env.LLM_MODEL = 'qwen/qwen3-32b'
     process.env.LLM_API_KEY = 'gsk_fake'
     const c = llm.resolveLlm()
     eq(c.base, 'https://api.groq.com/openai/v1', '结尾的斜杠要洗掉，否则会拼出 //chat')
-    eq(c.model, 'llama-3.3-70b-versatile', '要用站长指定的型号')
-    eq(c.key, 'gsk_fake', '要用站长自己的 key')
+    eq(c.model, 'qwen/qwen3-32b', '要用站长指定的型号')
+    ok(llm.llmConfigured(), '三个齐了就该算配好')
 
-    // 缺一个就不能半途用别人的 key 去打别人的端点——那只会得到一串 401。
+    // 缺一个不能半途用这家的 key 去打那家的端点——那只会得到一串 401，
+    // 而日志里看起来像是「模型坏了」，站长会去改一个本来就对的东西。
     delete process.env.LLM_API_KEY
-    const back = llm.resolveLlm()
-    ok(back.base.includes('models.github.ai'), '缺一个就整套退回默认，不许混搭')
-  } finally { process.env = keep }
-})
-
-await test('连 GITHUB_TOKEN 都没有时，老老实实说没有', async () => {
-  const keep = { ...process.env }
-  try {
-    delete process.env.LLM_BASE_URL
-    delete process.env.LLM_MODEL
-    delete process.env.LLM_API_KEY
-    delete process.env.GITHUB_TOKEN
-    eq(llm.resolveLlm(), null, '没得用就要返回 null')
+    eq(llm.resolveLlm(), null, '缺一个就整套退回，不许混搭')
     eq(llm.llmConfigured(), false, '不能假装配好了——收集会以为能翻译，结果整批失败')
   } finally { process.env = keep }
 })
 
-await test('抓取的 workflow 必须真的开了 models 权限', async () => {
-  // 少这一行，GitHub Models 会回 401，而站长看到的只是「今天没有新闻」。
+await test('不许再把 GitHub Models 当默认——它已经 410 了', async () => {
+  // 我曾经把它设成默认：仓库自带 token 就能调，看起来正是「真正免费」的答案。
+  // 2026-09-01 让 runner 真打了一次，五个型号全部 HTTP 410，
+  // github_models_retirement_brownout——它在退役。
+  // 一个会静静 410 的默认值，只会让站长看到「今天没有新闻」。
+  const keep = { ...process.env }
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.GITHUB_TOKEN = 'ghs_fake'
+    eq(llm.resolveLlm(), null, '有 GITHUB_TOKEN 也不该自作主张去调一个退役的服务')
+  } finally { process.env = keep }
+
   const { readFileSync } = await import('node:fs')
   const y = readFileSync('.github/workflows/collect.yml', 'utf8')
-  // 行首要顶得住：注释掉的 `# models: read` 不算数，那正是会漏过去的写法。
-  ok(/^\s*models:\s*read\s*$/m.test(y), 'collect.yml 要有 permissions: models: read（不能是注释）')
-  ok(/^\s*contents:\s*read\s*$/m.test(y), '写了 permissions 之后 checkout 还要 contents: read')
-  ok(y.includes('GITHUB_TOKEN: ${{ github.token }}'), '要把仓库那把 token 交给抓取步骤')
+  ok(!/^\s*models:\s*read\s*$/m.test(y), 'collect.yml 不该再要 models 权限')
+  ok(/^\s*contents:\s*read\s*$/m.test(y), '这个 job 只读代码，权限就该写死到这么大')
+})
+
+await test('探测脚本要说清楚缺的是哪一个', async () => {
+  // 「配了但没生效」和「压根没配」是两回事。第一次真跑就发现 Secrets 里
+  // 根本没有这两个——如果只说一句「没配置模型」，站长会去改 Groq 那边。
+  const { execFileSync } = await import('node:child_process')
+  const run = (env) => {
+    try {
+      return execFileSync(process.execPath, ['scripts/llm-check.mjs'],
+        { env: { ...process.env, LLM_BASE_URL: '', LLM_API_KEY: '', ...env }, encoding: 'utf8' })
+    } catch (e) { return String(e.stdout ?? '') }
+  }
+  ok(run({}).includes('都是空的'), '两个都缺就要说两个都缺')
+  ok(run({ LLM_API_KEY: 'k' }).includes('LLM_BASE_URL 是空的'), '要指名缺的是 BASE_URL')
+  ok(run({ LLM_BASE_URL: 'u' }).includes('LLM_API_KEY 是空的'), '要指名缺的是 API_KEY')
+
+  // 而且要给得出下一步：光说「没配」等于把人扔在原地。
+  const out = run({})
+  ok(out.includes('https://api.groq.com/openai/v1'), '要给出可以直接粘贴的端点')
+  ok(out.includes('410'), '要写明 GitHub Models 已退役，免得又去试一遍')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

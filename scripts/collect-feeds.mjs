@@ -21,7 +21,7 @@
  */
 import { FEEDS } from './feeds.mjs'
 import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor } from './feedparse.mjs'
-import { llmConfigured } from './llm.mjs'
+import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll } from './rewrite.mjs'
 
 const DRY = process.argv.includes('--dry')
@@ -218,9 +218,9 @@ if (llmConfigured()) {
   if (note) console.log(`站长本次指示：${note}`)
   picked = await rewriteAll(picked, note)
 } else {
-  console.log('这一轮没有模型可用：既没配 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY，')
-  console.log('也没有 GITHUB_TOKEN（在 Actions 里跑的话，workflow 要有 permissions: models: read）。')
-  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译。')
+  console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
+  console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
+  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译成中文。')
 }
 
 /* ------------------------------------------------------------------ *
@@ -314,3 +314,10 @@ const noticed = toInsert.filter((r) => r.content_notice).length
 console.log(AUTO
   ? `已上线 ${toInsert.length} 条${noticed ? `，其中 ${noticed} 条带内容提示` : ''}。`
   : `已写入 ${toInsert.length} 条，全部下架状态等你审核。`)
+
+// 站长是拿自己的余额在跑。跑完报一次账，别让它悄悄花钱。
+const bill = spendReport()
+if (bill) {
+  console.log('')
+  console.log(bill)
+}

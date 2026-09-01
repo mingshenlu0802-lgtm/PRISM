@@ -47,13 +47,9 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    # models: read 就是「真正免费」那把钥匙——GitHub Models 用仓库自带的
-    # token 就能调，不用绑卡、不用注册第三方、不用再存一把密钥。
-    # 写清 contents: read 是因为一旦写了 permissions，默认权限就全被收回，
-    # checkout 还要读代码。
+    # 这个 job 只读代码、往 Supabase 写。给它的 token 就不该有别的权力。
     permissions:
       contents: read
-      models: read
     steps:
       - uses: actions/checkout@v4
 
@@ -81,10 +77,13 @@ jobs:
       # 站长要「真正免费的 API」。我在的环境连不上任何供应商，查不了；
       # 这台 runner 可以，所以让它去问，并且真的发一次最小请求——
       # 「有免费额度」和「你这个账号现在能不能免费跑」是两回事。
+      #
+      # 第一次跑就抓到了一个我自己的错：我以为 GitHub Models 可以白用，
+      # 它回的是 HTTP 410，在退役。所以这一步不是可有可无的。
       - name: 探测模型
         if: inputs.probe
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         run: node scripts/llm-check.mjs ${{ inputs.probe_models }}
@@ -102,11 +101,11 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           AUTO_PUBLISH: ${{ inputs.hold && '0' || '1' }}
-          # 模型，按这个顺序挑：
-          #   1 三个 LLM_* 都配齐了 → 用你自己的（任何 OpenAI 兼容的服务）
-          #   2 什么都没配 → GitHub Models，用下面这把仓库自带的 token
-          # 所以「不配任何密钥」也有模型可用，这是默认路径，不是降级路径。
-          GITHUB_TOKEN: ${{ github.token }}
+          # 模型。有 ANTHROPIC_API_KEY 就走 Claude（站长选的这条）；
+          # 没有就看 LLM_* 那三个，任何 OpenAI 兼容的服务都行。
+          # 都没有就退回不带模型的模式，那时候摘要还是英文的。
+          # 不确定型号名填什么，先勾 probe 跑一次，它会列出来。
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
