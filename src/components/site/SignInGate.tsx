@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
-import { sendLink } from '../../lib/session'
+import { sendLink, signInWithPassword } from '../../lib/session'
 import { PrismMark, TextInput, ToastHost, toast } from '../common'
 import './SignInGate.css'
 
@@ -33,6 +33,15 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
   const [email, setEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState('')
+  /*
+   * 密码登录默认收起来。
+   *
+   * 朋友要的是「不用记密码」那条路，把两个表单并排摆出来只会让人犹豫。
+   * 但站长需要一条**不经过邮件**的路：邮件服务会限流，配错了还会整个发不出去，
+   * 那时候他会被挡在自己的控制端外面——已经发生过，挡了两天。
+   */
+  const [pwOpen, setPwOpen] = useState(false)
+  const [password, setPassword] = useState('')
 
   async function send() {
     if (sending) return
@@ -41,6 +50,21 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
     setSending(false)
     if (r.ok) { setSent(r.message); onDone?.() }
     else toast(r.message, 'warn')
+  }
+
+  async function byPassword() {
+    if (sending) return
+    setSending(true)
+    const r = await signInWithPassword(email, password)
+    setSending(false)
+    if (r.ok) {
+      toast('登录成功。', 'go')
+      onDone?.()
+      // 整个网站要按「已登录」重新起来——跟接上后端时一样，最干净的是重载。
+      window.location.reload()
+    } else {
+      toast(r.message, 'warn')
+    }
   }
 
   if (sent) {
@@ -94,6 +118,37 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
         邮箱只用来登录和给你发站点通知。<strong>别的读者看不到你的地址</strong>——
         成员名单在数据库里是锁着的，只有站长能看。
       </p>
+
+      {pwOpen ? (
+        <div className="gate__pw">
+          <p className="gate__note gate__note--small">
+            <strong>用密码登录</strong>——给设过密码的人用，不发邮件。
+            没设过就用上面那条路。
+          </p>
+          <div className="gate__row">
+            <TextInput
+              type="password"
+              placeholder="密码"
+              value={password}
+              autoComplete="current-password"
+              onChange={(e) => { const v = e.currentTarget.value; setPassword(v) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void byPassword() }}
+            />
+            <button
+              type="button"
+              className="gate__go"
+              onClick={() => void byPassword()}
+              disabled={sending || !email.trim() || !password}
+            >
+              {sending ? '登录中…' : '登录'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="gate__link gate__pwlink" onClick={() => setPwOpen(true)}>
+          有密码？用密码登录
+        </button>
+      )}
     </div>
   )
 }

@@ -203,7 +203,9 @@ export function getClient(): Promise<SupabaseClient | null> {
 /** 把报错翻译成人话，并且说下一步做什么。 */
 export function friendly(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e ?? '')
-  if (/Invalid login credentials|Email not confirmed/i.test(msg)) return '这个邮箱还没通过验证，请点邮件里的链接。'
+  // 这两条以前挤在一句里，说的是「去点邮件里的链接」——用密码登录时那是句废话。
+  if (/Invalid login credentials/i.test(msg)) return '邮箱或密码不对。密码在 Supabase 后台的 Authentication → Users 里设。'
+  if (/Email not confirmed/i.test(msg)) return '这个邮箱还没通过验证，请点邮件里的链接。'
   /*
    * 发信被限流。
    *
