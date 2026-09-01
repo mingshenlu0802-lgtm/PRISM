@@ -124,3 +124,17 @@
   font-weight: 500;
 }
 :root[data-body="serif"] .ncard__subhead { font-family: var(--font-serif); }
+
+/*
+ * 长文的行宽。
+ *
+ * 实测详情页正文一行 43 个汉字。中文的舒适行宽是 30–40 字——再长，
+ * 眼睛从行尾跳回行首时容易串行，而这个站的正文现在是一两千字，
+ * 串一次行就要重读一段。
+ *
+ * 用 em 而不是 ch：ch 是「0」的宽度，对汉字没有意义；
+ * 一个汉字差不多正好是 1em，所以 36em ≈ 36 个字。
+ * 只收窄详情页——信息流里的卡片在两栏网格里，本来就不宽。
+ */
+.ncard--full .ncard__summary,
+.ncard--full .ncard__bullets { max-width: 36em; }

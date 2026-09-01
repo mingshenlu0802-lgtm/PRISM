@@ -64,3 +64,6 @@
 .scard__more:hover { text-decoration: underline; }
 .scard--full .scard__title { font-size: var(--fs-2xl); line-height: 1.25; }
 a:hover > .scard__title, .scard__title a:hover { color: var(--accent); }
+
+/* 研究详情页同理，见 NewsCard.css 里那段说明。 */
+.scard--full .scard__summary { max-width: 36em; }
