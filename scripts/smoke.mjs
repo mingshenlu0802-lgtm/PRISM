@@ -10,7 +10,7 @@
  *   node scripts/smoke.mjs
  */
 import { build } from 'esbuild'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -1275,6 +1275,40 @@ await test('英文的复数要认得出来', () => {
   const nm = feedparse.regionsOf({ title: 'Assault at a New Mexico middle school', summary: '' }, { regions: ['global'] })
   ok(nm.includes('us'), 'New Mexico 要算美国')
   ok(!nm.includes('latam'), 'New Mexico 不能算拉丁美洲')
+})
+
+await test('「关于」页上的来源数字不能自己变旧', () => {
+  /*
+   * 站长两次说了同一件事：「关于界面的这些内容也不准确」「有很多内容界面
+   * 内容都是outdated的」。
+   *
+   * 「关于」页写着订阅了多少个源、其中多少家是专做性别报道的、多少家是中文。
+   * 那几个数字是手写的，而源清单在 feeds.mjs 里，随时会加。加了源、忘了改
+   * 页面，页面就开始撒谎——而且不会有任何报错，正是**上一次**变旧的方式。
+   *
+   * 所以在这里对一次。这条测试挂了，不是代码坏了，是那一页该改数字了。
+   */
+  const src = readFileSync(join(process.cwd(), 'src/pages/site/AboutPage.tsx'), 'utf8')
+
+  const claimed = (re, what) => {
+    const m = re.exec(src)
+    ok(m, `「关于」页上找不到${what}的数字——句子改写过了就把这条测试一起改`)
+    return Number(m[1])
+  }
+
+  eq(claimed(/订阅\s*(\d+)\s*个来源/, '来源总数'), feeds.FEEDS.length, '「关于」页写的来源总数')
+  eq(claimed(/(\d+)\s*家专做性别与\s*LGBTQIA\+\s*报道/, '性别媒体数'),
+     feeds.FEEDS.filter((f) => f.topical).length, '「关于」页写的性别媒体家数')
+  eq(claimed(/中文来源\s*(\d+)\s*家/, '中文来源数'),
+     feeds.FEEDS.filter((f) => String(f.lang).startsWith('zh')).length, '「关于」页写的中文来源家数')
+
+  // 页面点名的那几家必须真的在清单里，否则就是在吹。
+  for (const outlet of ['BBC News', 'The Guardian', 'AP', 'The New York Times']) {
+    ok(feeds.FEEDS.some((f) => f.outlet === outlet), `「关于」页点名了 ${outlet}，清单里却没有`)
+  }
+  for (const outlet of ['报导者', '端传媒', '法庭線', '婦女救援基金會']) {
+    ok(feeds.FEEDS.some((f) => f.outlet === outlet), `「关于」页点名了 ${outlet}，清单里却没有`)
+  }
 })
 
 /* ------------------------------ 结果 ------------------------------ */

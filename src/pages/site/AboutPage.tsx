@@ -28,7 +28,12 @@ export default function AboutPage(): JSX.Element {
         </ol>
       </section>
 
-      <section className="about__how" aria-labelledby="about-source">
+      {/*
+        * aria-labelledby 要指向这一节自己的标题。
+        * 这里原本写的是 about-source——上一节复制下来忘了改，于是读屏软件
+        * 会把「什么时候更新」这一整节念成「来源怎么选」。
+        */}
+      <section className="about__how" aria-labelledby="about-when">
         <h2 className="about__h2" id="about-when">什么时候更新</h2>
         <p className="about__note">
           每天两次，北京时间早上 6:00 和下午 2:00。
@@ -39,8 +44,18 @@ export default function AboutPage(): JSX.Element {
       <section className="about__how" aria-labelledby="about-source">
         <h2 className="about__h2" id="about-source">来源怎么选</h2>
         <p className="about__note">
-          报道部分优先采用独立与境外媒体。判决书、法案、统计表这类原始文件照常收录，
-          排在最前面，并标为「官方文件」。
+          现在订阅 58 个来源。骨架是主流通讯社与大报——美联社、BBC、卫报、
+          纽约时报、华盛顿邮报、半岛电视台、法广、NPR——它们决定一件事是不是
+          真的发生了，也常常同时报同一件事，于是一条新闻底下能有两三家媒体。
+        </p>
+        <p className="about__note">
+          再往上叠 30 家专做性别与 LGBTQIA+ 报道的媒体。综合大报一天可能一条
+          都没有，这些媒体的整个版面都是这个网站的题目——大报不写的那些，
+          通常只有它们在写。中文来源 12 家，包括报导者、端传媒、法庭線、
+          婦女救援基金會。
+        </p>
+        <p className="about__note">
+          判决书、法案、统计表这类原始文件照常收录，排在最前面，并标为「官方文件」。
         </p>
         <p className="about__note">
           在新闻不自由的地方，官方媒体是政府自己的说法，不是独立的第三方记述。
