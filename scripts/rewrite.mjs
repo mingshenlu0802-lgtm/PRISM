@@ -37,6 +37,22 @@ const BATCH = Number(process.env.LLM_BATCH ?? 2)
 const SEARCH = process.env.LLM_SEARCH !== '0'
 const anthropicBacked = () => Boolean((process.env.ANTHROPIC_API_KEY ?? '').trim())
 
+/*
+ * **一轮里有几条走联网搜索。**
+ *
+ * 实测：搜过的一条 0.69 美元，没搜的大约 0.19。站长设的是一天两场、
+ * 每场 15 条——三十条全搜，一个月约 625 美元，而他账上是 20 美元，
+ * 也就是**不到一天就会用完，然后每一场都失败**。
+ *
+ * 所以默认只给排在最前面的几条：它们是当天的头条，是读者真正会点进去
+ * 读完的那几条，也是「三到五个来源」最值钱的地方。排在后面的仍然会写，
+ * 用我们自己抓回来的原文，一千五百字上下。
+ *
+ * 这是**成本上的取舍，不是我替站长做的判断**——LLM_SEARCH_TOP 调成
+ * 15 就是全都搜，调成 0 就是都不搜。日志里会写清楚这一轮搜了几条。
+ */
+const SEARCH_TOP = Number(process.env.LLM_SEARCH_TOP ?? 5)
+
 const SHAPE = `
 每一条候选写成一个块，**不要用 JSON**，照下面的格式：
 
@@ -67,6 +83,9 @@ SUMMARY:
 - REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
+/** 这一轮还能搜几条。runBatch 每写一条搜过的就减一。 */
+const searchBudget = { left: 0 }
+
 async function runBatch(batch, ownerNote) {
   const input = batch.map((p, i) => ({
     i,
@@ -99,8 +118,7 @@ async function runBatch(batch, ownerNote) {
    * 正文交错着出现，谁的来源是谁的就分不清了——挂错来源比没有来源更糟。
    * 一条一条写，found 就明确属于这一条。
    */
-  const searching = SEARCH && anthropicBacked()
-  const ask1 = (items) => askText(
+  const ask1 = (items, searching) => askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
     `候选新闻 ${items.length} 条。\n`
     + `**articles 是原报道的正文**，可能有好几篇——都是同一件事的不同来源。\n`
@@ -120,18 +138,26 @@ async function runBatch(batch, ownerNote) {
     { maxTokens: 24000, search: searching },
   )
 
-  if (!searching) {
-    const { text } = await ask1(input)
+  /*
+   * 预算是**按条**花的，不是按批。
+   *
+   * 第一版把「这一批要不要搜」在批的开头算一次——预算只剩 1 条时，
+   * 一批两条会两条都搜，悄悄超支。预算是拿站长的钱定的，不能这样漏。
+   */
+  if (searchBudget.left <= 0) {
+    const { text } = await ask1(input, false)
     return matchBack(batch, text)
   }
 
   // 一条一条来，各自带回自己搜到的来源。
   const out = []
   for (let i = 0; i < input.length; i += 1) {
+    const searching = searchBudget.left > 0
     try {
-      const { text, found } = await ask1([{ ...input[i], i: 0 }])
+      if (searching) searchBudget.left -= 1
+      const { text, found } = await ask1([{ ...input[i], i: 0 }], searching)
       const [item] = matchBack([batch[i]], text)
-      if (item) item.__found = found
+      if (item && searching) item.__found = found
       out.push(item)
     } catch (e) {
       console.log(`  第 ${i + 1} 条写失败：${String(e.message ?? e).slice(0, 120)}`)
@@ -299,7 +325,12 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity, 
   const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
   picked.sort((a, b) => tier(a) - tier(b) || (a.bodies?.length ? 0 : 1) - (b.bodies?.length ? 0 : 1))
 
-  console.log(`  开始写（每批 ${BATCH} 条）`)
+  searchBudget.left = SEARCH && anthropicBacked() ? Math.min(SEARCH_TOP, picked.length) : 0
+  if (searchBudget.left > 0) {
+    console.log(`  开始写：前 ${searchBudget.left} 条联网找来源，其余用手上的材料`)
+  } else {
+    console.log(`  开始写（每批 ${BATCH} 条）`)
+  }
   const out = []
   let dropped = 0
   let failed = 0
