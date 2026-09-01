@@ -753,9 +753,28 @@ async function collectStudies() {
     fresh.push(c)
     // 备到目标的三倍再交给模型——和新闻那边同一个教训：
     // 只备三条，模型按方针丢掉两条，站长就只拿到一条。
-    if (fresh.length >= MAX_STUDIES * 3) break
+    if (fresh.length >= MAX_STUDIES * 4) break
   }
   if (fresh.length === 0) { console.log('候选研究站上都有了。'); return }
+
+  /*
+   * 研究也要读原文。
+   *
+   * 新闻那边早就这么做了，而研究一直只拿 RSS 摘要——两三百字的发布通告，
+   * 却要写成一篇「像新闻一样、可以点进去、有详细总结」的稿子（站长的原话）。
+   * 材料不够，写出来就只能是把标题换个说法。跟新闻那边一模一样的病，
+   * 我在这一侧漏掉了。
+   *
+   * 机构的报告页往往比新闻页更值得读：摘要、方法、样本量、局限，
+   * 常常就写在页面上。而「这项研究不能说明什么」正是这一栏存在的理由，
+   * 没有原文就只能空着或者靠猜。
+   */
+  const bodies = await inBatches(fresh, 6, (c) => pageInfo(c.link, c.feed.publisher))
+  let gotText = 0
+  bodies.forEach((info, i) => {
+    if (info?.text && info.text.length > 400) { fresh[i].body = info.text; gotText += 1 }
+  })
+  console.log(`原文：${gotText}/${fresh.length} 项拿到报告页正文`)
 
   // 和新闻走同一个开关。第一版这里还写着 llmConfigured()，
   // 于是「演练不叫模型」只挡住了新闻——演练照样为研究付了钱，

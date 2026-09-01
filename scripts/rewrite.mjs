@@ -314,7 +314,11 @@ SUMMARY:
 - FIGURES 里只放**原文里真的出现过的数字**，一行一个，三段用 | 隔开。
   原文没给数字就整个留空——编一个数字比没有数字糟糕得多。
   第三段（它没说什么）不能空着：每个数字都要说清它的边界。
-- LIMITATION 同理，宁可写「原报告未说明抽样方法」，也不要编一个方法出来。`.trim()
+- LIMITATION 同理，宁可写「原报告未说明抽样方法」，也不要编一个方法出来。
+- 输入里有 article 字段时，那是**报告页的正文**，以它为准来写：
+  方法、样本量、时间范围、局限通常都写在那里。摘要（excerpt）只是通告。
+  只有 excerpt、没有 article 的，就照它能支撑的长度写，八百字打住——
+  硬凑到一千五只会把同一句话换三种说法。`.trim()
 
 const STUDY_FIELDS = ['KEEP', 'TITLE', 'PUBLISHER', 'KIND', 'TOPICS', 'REGIONS', 'FIGURES', 'LIMITATION', 'SUMMARY']
 
@@ -362,6 +366,9 @@ export async function rewriteStudies(cands, ownerNote) {
     defaultKind: c.feed.kind,
     title: c.title,
     excerpt: c.summary,
+    // 报告页的正文。取到了就以它为准——摘要只有两三百字，
+    // 方法、样本量和局限基本都在正文里，而那正是这一栏要写的东西。
+    ...(c.body ? { article: c.body.slice(0, 6000) } : {}),
     url: c.link,
     date: c.at.slice(0, 10),
   }))
