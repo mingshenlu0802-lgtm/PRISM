@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage } from './feedparse.mjs'
+import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
@@ -235,7 +235,7 @@ if (picked.length > poolSize) {
 if (llmConfigured()) {
   const note = await ownerNote()
   if (note) console.log(`站长本次指示：${note}`)
-  picked = await rewriteAll(picked, note, MAX_ITEMS)
+  picked = await rewriteAll(picked, note, MAX_ITEMS, { onPicked: hydrate })
 } else {
   console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
   console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
@@ -272,7 +272,7 @@ if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲�
  * 那是给真实事件配一张无关的照片。
  * ------------------------------------------------------------------ */
 
-async function pageImage(url, outlet) {
+async function pageInfo(url, outlet) {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 12000)
   try {
@@ -287,9 +287,8 @@ async function pageImage(url, outlet) {
     if (!res.ok) return null
     const type = res.headers.get('content-type') ?? ''
     if (!/html/i.test(type)) return null
-    // og 标签都在 <head> 里，没必要把整篇文章读进内存。
-    const html = (await res.text()).slice(0, 250000)
-    return ogImage(html, outlet)
+    const html = (await res.text()).slice(0, 400000)
+    return { image: ogImage(html, outlet), text: articleText(html) }
   } catch {
     return null
   } finally {
@@ -306,18 +305,34 @@ async function inBatches(items, size, fn) {
   return out
 }
 
-async function upgradeImages(list) {
+/**
+ * 把候选「补全」：取回报道页面，拿到大图和**正文**。
+ *
+ * 正文这一项是长稿质量的根本。RSS 的摘要通常两三百字，而站长要 1500–3000 字
+ * ——模型手上没有材料，就只能把同一件事换几种说法写满篇幅。稿子空、重复、
+ * 爱讲大道理，根源在这里，不在提示词写得不够严。
+ *
+ * 一次请求同时解决配图和正文，所以这一步比原来只取图并不更贵。
+ */
+async function hydrate(list) {
   const before = list.filter((g) => g.image).length
-  const got = await inBatches(list, 6, (g) => pageImage(g.link, g.feed.outlet))
+  const got = await inBatches(list, 6, (g) => pageInfo(g.link, g.feed.outlet))
   let better = 0
+  let texts = 0
+  let chars = 0
   list.forEach((g, i) => {
-    if (!got[i]) return
-    if (!g.image) { g.image = got[i]; better += 1; return }
-    // feed 有图也换掉：og:image 基本总是更大的那张。
-    if (got[i].url !== g.image.url) { g.image = got[i]; better += 1 }
+    const info = got[i]
+    if (!info) return
+    if (info.image && (!g.image || info.image.url !== g.image.url)) { g.image = info.image; better += 1 }
+    // 太短就当没取到——一两句话还不如 feed 的摘要，塞进去只会添乱。
+    if (info.text && info.text.length > 400) { g.body = info.text; texts += 1; chars += info.text.length }
+
+    // 合并进来的其他来源也取一遍：同一件事，第二家往往补上第一家没写的细节。
+    // 这也是站长要的「读若干个 reference 然后总结」。
   })
   const after = list.filter((g) => g.image).length
-  console.log(`配图：feed 自带 ${before} 张，去报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
+  console.log(`配图：feed 自带 ${before} 张，报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
+  console.log(`正文：取到 ${texts}/${list.length} 篇，平均 ${texts ? Math.round(chars / texts) : 0} 字`)
 }
 
 const have = await existingItems()
@@ -332,13 +347,10 @@ const linkOf = (p, i, j) => ({
   ...(p.feed.kind ? { kind: p.feed.kind } : {}),
 })
 
-// 先算出哪些是真要写进去的，只给它们取大图。
-const fresh = groups.filter((g) => {
-  if (have.items.some((it) => sameStory(it.key, g.key))) return false
-  return [g, ...g.also].some((p) => !have.urls.has(normUrl(p.link)))
-})
-if (fresh.length > 0) await upgradeImages(fresh)
-
+/*
+ * 配图和正文已经在初筛之后取过了（见 hydrate），这里不再重复取一次页面。
+ * 那一步必须早于「写」，因为模型要拿原文当材料。
+ */
 const toInsert = []
 const toAppend = []
 

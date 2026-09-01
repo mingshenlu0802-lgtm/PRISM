@@ -61,7 +61,10 @@ async function runBatch(batch, ownerNote) {
   const input = batch.map((p, i) => ({
     i,
     title: p.title,
-    excerpt: p.summary,
+    // 原文正文。这是模型写长稿的**材料**——没有它，1500 字只能靠车轱辘话凑。
+    // 取不到就退回 feed 摘要，并且下面的提示词会告诉模型「材料只有这些」。
+    article: p.body || undefined,
+    excerpt: p.body ? undefined : p.summary,
     date: p.at.slice(0, 10),
     /*
      * 来源按 [1] [2] 编号交给模型，让它在正文里标角标。
@@ -74,7 +77,9 @@ async function runBatch(batch, ownerNote) {
   }))
   const text = await askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
-    `候选新闻 ${input.length} 条：\n\n${JSON.stringify(input, null, 1)}`,
+    `候选新闻 ${input.length} 条。**article 是原报道的正文**，写的时候以它为材料；\n`
+    + `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n\n`
+    + `${JSON.stringify(input, null, 1)}`,
     { maxTokens: 24000 },
   )
   const blocks = splitBlocks(text)
@@ -184,7 +189,7 @@ async function triage(cands, ownerNote) {
  *
  * 一批失败不拖垮整次收集——报出来，继续下一批。
  */
-export async function rewriteAll(candidates, ownerNote = '', target = Infinity) {
+export async function rewriteAll(candidates, ownerNote = '', target = Infinity, { onPicked } = {}) {
   console.log(`交给模型（${llmName()}），目标 ${target === Infinity ? '全部' : `${target} 条`}`)
 
   /*
@@ -198,6 +203,16 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity) 
     console.log('  初筛之后一条都不剩。今天的候选里没有符合方针的。')
     return []
   }
+
+  /*
+   * 选完了再去取原文。
+   *
+   * 顺序是关键：取报道页面要发几十个 HTTP 请求，只对**留下来的**做才划算；
+   * 而它必须在写之前做完，否则模型手上只有 RSS 那两三百字的摘要，
+   * 写 1500–3000 字就只能靠注水。
+   */
+  if (onPicked) await onPicked(picked)
+
   console.log(`  开始写（每批 ${BATCH} 条）`)
   const out = []
   let dropped = 0

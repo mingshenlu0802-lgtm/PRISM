@@ -1105,6 +1105,47 @@ await test('时间按北京时间显示，不是 UTC', () => {
   eq(fmtDate('不是日期'), '不是日期', '坏日期不能让页面崩掉')
 })
 
+await test('要把报道正文抠出来交给模型，而不是只给 RSS 摘要', () => {
+  /*
+   * 这是长稿质量的根本。RSS 的 description 通常两三百字，而站长要 1500–3000 字
+   * ——模型手上没有材料，只能把同一件事换几种说法写满篇幅。
+   * 稿子空、重复、爱讲大道理，根源在这里，不在提示词写得不够严。
+   */
+  const html = [
+    '<html><head><script>var a=1</script><style>p{color:red}</style></head><body>',
+    '<nav><p>订阅我们的通讯，第一时间把最新消息推送到您的邮箱地址里面去</p></nav>',
+    '<article>',
+    '<p>图说</p>',
+    '<p>检方周一宣布，对一名曾在当地医院任职的医生提出多项控罪，案件涉及数名患者。</p>',
+    '<p>Subscribe to our newsletter for the latest updates from our newsroom team today</p>',
+    '<p>该医生今年五十一岁，自二〇一四年起在该院任职，握有排班与转诊的实际权力。</p>',
+    '</article>',
+    '<footer><p>版权所有，未经许可不得转载，联系我们请发送邮件至编辑部的信箱</p></footer>',
+    '</body></html>',
+  ].join('')
+
+  const t = feedparse.articleText(html)
+  ok(t.includes('检方周一宣布'), '正文段落要留下')
+  ok(t.includes('握有排班与转诊'), '第二段也要留下——细节就在这些地方')
+  ok(t.includes('\n\n'), '段落之间要分开，不要糊成一坨')
+
+  // 下面这些进了正文，模型就会把「订阅我们的通讯」当成事实写进稿子。
+  ok(!t.includes('订阅我们'), '导航要排除')
+  ok(!t.includes('版权所有'), '页脚要排除')
+  ok(!t.includes('Subscribe'), '推广段落要排除')
+  ok(!t.includes('图说'), '太短的碎片（图说、署名）要排除')
+  ok(!t.includes('var a'), '脚本要排除')
+  ok(!t.includes('color:red'), '样式要排除')
+
+  // 没有 <article> 时退回整页，但仍然要能抠出东西来。
+  const plain = feedparse.articleText('<body><p>' + '这是一段足够长的正文内容用来测试没有 article 标签的情况。'.repeat(2) + '</p></body>')
+  ok(plain.length > 40, '没有 article 标签也要能抠出正文')
+
+  // 长度要有上限：整篇塞进提示词会把成本推上去，也会挤掉编辑方针。
+  const huge = feedparse.articleText('<p>' + '很长的正文。'.repeat(5000) + '</p>', 1000)
+  ok(huge.length <= 1000, `要截断到上限，实际 ${huge.length}`)
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
