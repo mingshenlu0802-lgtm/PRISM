@@ -24,6 +24,7 @@ export function NewsEditor(
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [draft, setDraft] = useState({
     headline: item.headline,
+    subhead: item.subhead ?? '',
     summary: item.summary,
     bullets: item.bullets.join('\n'),
     editorNote: item.editorNote ?? '',
@@ -36,6 +37,7 @@ export function NewsEditor(
 
   const dirty =
     draft.headline !== item.headline
+    || draft.subhead !== (item.subhead ?? '')
     || draft.summary !== item.summary
     || draft.bullets !== item.bullets.join('\n')
     || draft.editorNote !== (item.editorNote ?? '')
@@ -56,6 +58,7 @@ export function NewsEditor(
       type: 'news-edit', id: item.id, who,
       patch: {
         headline: draft.headline.trim() || item.headline,
+        subhead: draft.subhead.trim() || null,
         summary: draft.summary.trim(),
         bullets: draft.bullets.split('\n').map((b) => b.trim()).filter(Boolean),
         editorNote: draft.editorNote.trim() || undefined,
@@ -74,6 +77,7 @@ export function NewsEditor(
 
   const revert = () => setDraft({
     headline: item.headline,
+    subhead: item.subhead ?? '',
     summary: item.summary,
     bullets: item.bullets.join('\n'),
     editorNote: item.editorNote ?? '',
@@ -134,14 +138,29 @@ export function NewsEditor(
             disabled={!canEdit}
           />
 
+          {/*
+            * 副标题在这里一直是**只写不读**的：收集会写，页面会显示，
+            * 站长却改不了、也加不了。写进数据库的东西，控制端就该能改。
+            */}
+          <label className="nedit__label" htmlFor={`sh-${item.id}`}>
+            副标题
+            <span className="nedit__hint">一句话，说明案件范围、证据变化或制度意义。留空就不显示。</span>
+          </label>
+          <TextInput
+            id={`sh-${item.id}`} value={draft.subhead}
+            onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, subhead: v })) }}
+            disabled={!canEdit}
+          />
+
           <label className="nedit__label" htmlFor={`s-${item.id}`}>
             总结
             <span className="nedit__hint">
               想写多长写多长，几百上千字都行。空一行分段。当前 {textLength(draft.summary)} 字。
             </span>
           </label>
+          {/* 稿子现在动辄两三千字，14 行要滚很久才看得完一段。 */}
           <TextArea
-            id={`s-${item.id}`} rows={14} value={draft.summary}
+            id={`s-${item.id}`} rows={22} value={draft.summary}
             onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, summary: v })) }}
             disabled={!canEdit}
           />

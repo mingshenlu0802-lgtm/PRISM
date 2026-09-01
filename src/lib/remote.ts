@@ -174,10 +174,37 @@ export async function fetchAll(db: SupabaseClient): Promise<RemoteSnapshot> {
  * 写
  * ------------------------------------------------------------------ */
 
-export async function saveNews(db: SupabaseClient, items: NewsItem[]): Promise<void> {
+/**
+ * subhead 是后加的一列，而**旧库上它可能还不存在**。
+ *
+ * PostgREST 碰到不认识的列会整行拒绝，于是站长在控制端改一个错别字、
+ * 按保存，得到的是一句看不懂的数据库报错——而他改的那一处跟副标题毫无关系。
+ * 收集脚本早就处理了这种情况（脱掉这一列重发一次，并把该跑的 SQL 喊出来），
+ * 浏览器这一侧却没有：同一个坑挖了两次，只补了一边。
+ *
+ * 所以这里也降级重试。降级要**响**：调用方会把这句话弹给站长，
+ * 不然副标题会「莫名其妙一直不出现」，而没有任何地方说过为什么。
+ */
+export const SUBHEAD_SQL = 'alter table public.news add column if not exists subhead text;'
+
+export async function saveNews(
+  db: SupabaseClient,
+  items: NewsItem[],
+  onDegraded?: (why: string) => void,
+): Promise<void> {
   if (items.length === 0) return
-  const { error } = await db.from('news').upsert(items.map(fromNews))
-  if (error) throw error
+  const rows = items.map(fromNews)
+  const { error } = await db.from('news').upsert(rows)
+  if (!error) return
+
+  if (/subhead/i.test(`${error.message} ${error.details ?? ''}`)) {
+    const stripped = rows.map(({ subhead, ...rest }) => rest)
+    const retry = await db.from('news').upsert(stripped)
+    if (retry.error) throw retry.error
+    onDegraded?.(`数据库还没有 subhead 这一列，这次先不存副标题。去 Supabase 的 SQL Editor 跑一次：${SUBHEAD_SQL}`)
+    return
+  }
+  throw error
 }
 
 export async function removeNews(db: SupabaseClient, id: string): Promise<void> {
