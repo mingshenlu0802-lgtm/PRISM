@@ -677,6 +677,35 @@ if (toInsert.length > 0) {
   const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0)
   console.log(`  篇幅 中位 ${mid} 字（最短 ${lens[0]}，最长 ${lens[lens.length - 1]}）`)
   console.log(`  两家以上媒体报道的 ${multi}/${toInsert.length} 条`)
+  /*
+   * 抄一段出来给人看。
+   *
+   * 站长说了五次「语言不够好」，而我一直在**猜**哪里不好——日志里只有条数和
+   * 字数，没有一个字是稿子本身。改哪一版提示词、换哪一个模型有没有用，
+   * 靠数字是判断不出来的：一千五百字的空话和一千五百字的好稿，
+   * 在「中位 1135 字」这一行里长得一模一样。
+   *
+   * 所以每轮抄一条最长的出来，标题、副标题、开头六百字。这是要上线的公开
+   * 内容，不是私密数据；而有了它，「这批写得怎么样」才是一个能回答的问题。
+   */
+  const sample = [...toInsert].sort((a, b) => len(b.summary) - len(a.summary))[0]
+  if (sample) {
+    console.log('')
+    console.log('这一轮写成什么样（最长的一条，开头六百字）：')
+    console.log('—'.repeat(76))
+    console.log(`  标题：${sample.headline}`)
+    if (sample.subhead) console.log(`  副题：${sample.subhead}`)
+    console.log(`  来源：${sample.links.map((l) => l.outlet).join('、')}`)
+    console.log('')
+    for (const para of String(sample.summary).split(/\n+/).slice(0, 8)) {
+      if (!para.trim()) continue
+      console.log(`  ${para.slice(0, 300)}`)
+      console.log('')
+    }
+    console.log('—'.repeat(76))
+    console.log('')
+  }
+
   if (withText.length && withText.length < toInsert.length) {
     const a = avg(withText.map((n) => len(n.summary)))
     const b = avg(toInsert.filter((n) => !hydrated.has(n.slug)).map((n) => len(n.summary)))
