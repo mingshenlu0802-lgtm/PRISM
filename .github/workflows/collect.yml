@@ -18,6 +18,10 @@ on:
         description: '只看抓到什么，不写数据库'
         type: boolean
         default: false
+      hold:
+        description: '全部先下架等审核（默认自动上线）'
+        type: boolean
+        default: false
 
 # 同时只跑一个，免得两次收集互相写重复条目。
 concurrency:
@@ -55,4 +59,6 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # 默认自动上线。针对个人的指控不受这个开关影响，永远先下架。
+          AUTO_PUBLISH: ${{ inputs.hold && '0' || '1' }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}
