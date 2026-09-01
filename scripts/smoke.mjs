@@ -642,6 +642,61 @@ await test('发信失败和额度用完不能混为一谈', () => {
   ok(quota.includes('额度'), '额度用完仍然要认成额度用完')
 })
 
+/* --------------------- 真实新闻收集：解析与归类 --------------------- */
+
+const feedparse = await import('./feedparse.mjs')
+
+await test('RSS 和 Atom 都要认得出来', () => {
+  const rss = `<rss><channel>
+    <item><title>Court strikes down abortion ban</title>
+      <link>https://example.org/a</link>
+      <description><![CDATA[<p>A ruling in <b>Poland</b>.</p>]]></description>
+      <pubDate>Tue, 01 Sep 2026 10:00:00 GMT</pubDate></item>
+  </channel></rss>`
+  const a = feedparse.parseFeed(rss)
+  eq(a.length, 1, '应当解析出一条')
+  eq(a[0].title, 'Court strikes down abortion ban', '标题要对')
+  eq(a[0].link, 'https://example.org/a', '链接要对')
+  ok(!a[0].summary.includes('<'), 'HTML 标签要清掉，CDATA 要拆开')
+
+  const atom = `<feed><entry><title>Trans rights bill passes</title>
+    <link rel="alternate" href="https://example.org/b"/>
+    <summary>In Taiwan.</summary><published>2026-09-01T00:00:00Z</published></entry></feed>`
+  const b = feedparse.parseFeed(atom)
+  eq(b.length, 1, 'Atom 也要认')
+  eq(b[0].link, 'https://example.org/b', 'Atom 的链接在属性里，不在标签内容里')
+})
+
+await test('没有链接的条目一律丢掉', () => {
+  // 读者没法自己去核对的新闻，对这个网站没有价值。
+  const xml = '<rss><channel><item><title>只有标题</title></item></channel></rss>'
+  eq(feedparse.parseFeed(xml).length, 0, '缺链接就不该留下')
+})
+
+await test('综合来源要靠关键词筛，不能什么都收', () => {
+  const sport = { title: 'Local team wins the cup', summary: 'A football final.' }
+  eq(feedparse.topicsOf(sport).length, 0, '体育新闻不该命中任何议题')
+
+  const real = { title: 'New law on domestic violence', summary: '' }
+  ok(feedparse.topicsOf(real).includes('violence'), '家暴应当归到暴力')
+
+  const zh = { title: '跨性别者就医权益争议', summary: '' }
+  ok(feedparse.topicsOf(zh).includes('trans'), '中文也要认得出来')
+})
+
+await test('地区认得出来，认不出来就用来源默认的', () => {
+  const feed = { regions: ['global'] }
+  ok(feedparse.regionsOf({ title: 'Ruling in Taiwan', summary: '' }, feed).includes('tw'),
+    '标题里写了台湾就该归到台湾')
+  eq(feedparse.regionsOf({ title: 'A general report', summary: '' }, feed)[0], 'global',
+    '认不出来时退回来源本来覆盖的地区，而不是留空')
+})
+
+await test('slug 能进网址，中文也不会变成空串', () => {
+  ok(/^[a-z0-9-]+$/.test(feedparse.slugify('Court Strikes Down Ban!')), '英文标题要变成干净的 slug')
+  ok(feedparse.slugify('跨性别者就医权益').length > 0, '中文标题不能被清成空串')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

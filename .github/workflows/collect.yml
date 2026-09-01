@@ -1,0 +1,58 @@
+# 真实新闻收集。
+#
+# 控制端里的「找新闻」是原型，取的是虚构素材、假链接。这个才是真的：
+# 它去订阅真实媒体的 RSS，把条目写进数据库——**一律先下架**，
+# 站长在控制端一条条看过、按「重新上线」，读者才看得到。
+#
+# 为什么跑在这里而不是浏览器里：静态站没有后端可以跑定时任务，
+# 而且抓取需要出网、写库需要一把不能进浏览器的密钥。Actions 两样都有。
+name: 找新闻
+
+on:
+  schedule:
+    # UTC 22:00 = 北京/台北早上 6 点，站长起来就能看到一批待审的。
+    - cron: '0 22 * * *'
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: '只看抓到什么，不写数据库'
+        type: boolean
+        default: false
+
+# 同时只跑一个，免得两次收集互相写重复条目。
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 没配密钥就只做一次演练，并且把该配什么说清楚。
+      # 这样第一次运行不需要任何准备，就能知道 27 个源里哪些还活着。
+      - name: 决定这次是演练还是真写
+        id: mode
+        env:
+          HAS_URL: ${{ secrets.SUPABASE_URL != '' }}
+          HAS_KEY: ${{ secrets.SUPABASE_SERVICE_KEY != '' }}
+        run: |
+          if [ "${{ inputs.dry }}" = "true" ] || [ "$HAS_URL" != "true" ] || [ "$HAS_KEY" != "true" ]; then
+            echo "dry=--dry" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.dry }}" != "true" ]; then
+              echo "::notice::还没配密钥，这次只做演练。要真的写进数据库，去 Settings → Secrets and variables → Actions 添加 SUPABASE_URL 和 SUPABASE_SERVICE_KEY。"
+            fi
+          else
+            echo "dry=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 抓取
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}
