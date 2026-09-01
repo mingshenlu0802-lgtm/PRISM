@@ -7,39 +7,61 @@
  */
 .rmap { display: grid; gap: var(--s-3); }
 
+/*
+ * 行高写死，**不用 aspect-ratio**。
+ *
+ * 上一版每格是正方形。桌面上正文宽约 1200px，六列就是每格 190px，
+ * 五行下来地图有一千多像素高——首页最上面摆着一块比头条还高的导航，
+ * 新闻被推到屏幕外面去了。地图是用来跳转的，不是今天的内容。
+ *
+ * 现在按行高算：六行加上间距，桌面上约 380px，手机上约 300px。
+ * 一眼看得完，下面就是新闻。
+ */
 .rmap__grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: 46px;
   gap: 6px;
 }
-
-.rmap__gap { aspect-ratio: 1; }
+@media (min-width: 700px) { .rmap__grid { grid-auto-rows: 58px; gap: 8px; } }
+@media (min-width: 1000px) { .rmap__grid { grid-auto-rows: 64px; } }
 
 .rmap__tile {
   position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px;
-  aspect-ratio: 1;
+  gap: 1px;
   padding: 4px;
   border-radius: var(--r-sm);
   text-align: center;
   line-height: 1.2;
-  /* 用地区自己的颜色，但压得很淡——地图是导航，不是信息图，
-     颜色只负责把同一个地区的几格连起来。 */
-  background: color-mix(in srgb, var(--tile) 14%, transparent);
-  color: var(--fg-muted);
+  /*
+   * 有内容的地区上色重一些。这样地图会「亮」在今天真的发生了事情的地方，
+   * 那一眼本身就是信息——而不只是一张彩色的导航表。
+   */
+  background: color-mix(in srgb, var(--tile) 30%, transparent);
+  color: var(--fg);
   border: var(--bw) solid transparent;
   transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
 .rmap__tile:hover, .rmap__tile:focus-visible {
-  background: color-mix(in srgb, var(--tile) 34%, transparent);
+  background: color-mix(in srgb, var(--tile) 52%, transparent);
   border-color: var(--tile);
-  color: var(--fg);
 }
 
-.rmap__name { font-size: var(--fs-2xs); font-weight: 600; }
+/* 今天没有内容的地区：压淡，但照样可以点——那一页会说清楚今天这里没有内容。 */
+.rmap__tile--bare {
+  background: color-mix(in srgb, var(--tile) 10%, transparent);
+  color: var(--fg-faint);
+}
+.rmap__tile--bare:hover, .rmap__tile--bare:focus-visible {
+  background: color-mix(in srgb, var(--tile) 26%, transparent);
+  color: var(--fg-muted);
+}
+
+.rmap__name { font-size: var(--fs-2xs); font-weight: 640; }
 .rmap__n {
-  font-size: var(--fs-2xs); font-weight: 700; color: var(--fg-faint);
+  font-size: var(--fs-2xs); font-weight: 700;
+  color: inherit; opacity: .75;
   font-variant-numeric: tabular-nums;
 }
 
@@ -51,12 +73,13 @@
 .rmap__dot { width: 8px; height: 8px; border-radius: 50%; }
 
 @media (min-width: 700px) {
-  .rmap__grid { gap: 8px; }
   .rmap__name { font-size: var(--fs-xs); }
 }
 
-/* 触屏上格子本身就够大（最小 44px 由 aspect-ratio 和列宽保证），
-   但小屏幕上六列会把每格压到 40px 出头，所以放宽一点点。 */
+/*
+ * 触屏。单行的那几块（日韩、台湾、香港、南亚）高 46px，过了 44px 的线；
+ * 其余都跨两行，更大。间距收窄一点，免得六列把每格压得太窄。
+ */
 @media (pointer: coarse) and (max-width: 420px) {
   .rmap__grid { gap: 4px; }
 }

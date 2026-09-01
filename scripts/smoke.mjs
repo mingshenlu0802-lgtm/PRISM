@@ -1355,6 +1355,58 @@ await test('等模型的时间要跟着要写的字数走', async () => {
   }
 })
 
+await test('地图上每个地区占一块，不重叠也不漏', () => {
+  /*
+   * 上一版地图是一张扁平的格子表，一个地区占好几格，名字只写在第一格——
+   * 屏幕上于是有一半格子是没有字的彩色方块。现在改成每个地区用 grid-area
+   * 占一个矩形。
+   *
+   * grid-area 是四个数字的字符串，写错了 CSS 不会报错：两块重叠就是后面那块
+   * 盖住前面那块，少一块就是那个地区从地图上消失，读者永远点不到。所以在这里
+   * 把版面摊开来数一遍。
+   */
+  const src = readFileSync(join(process.cwd(), 'src/components/site/RegionMap.tsx'), 'utf8')
+  const places = [...src.matchAll(/key:\s*'([a-z]+)',\s*area:\s*'(\d+) \/ (\d+) \/ (\d+) \/ (\d+)'/g)]
+    .map((m) => ({ key: m[1], r0: +m[2], c0: +m[3], r1: +m[4], c1: +m[5] }))
+  ok(places.length > 0, '没能从 RegionMap.tsx 里读出版面')
+
+  // 每个地区一条，不重复。
+  eq(new Set(places.map((p) => p.key)).size, places.length, '同一个地区不能摆两次')
+
+  // 除了「跨区域·国际机构」（它没有地理位置，单独一行文字），全部要在图上。
+  const onMap = new Set(places.map((p) => p.key))
+  const regionKeys = [...readFileSync(join(process.cwd(), 'src/lib/regions.ts'), 'utf8')
+    .matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1])
+  for (const k of regionKeys) {
+    if (k === 'global') { ok(!onMap.has(k), '「跨区域」不该塞进格子里假装它在某处'); continue }
+    ok(onMap.has(k), `地区「${k}」在地图上找不到——读者点不到它`)
+  }
+
+  // 摊成格子：任何一格不能被两个地区占。
+  const cells = new Map()
+  for (const p of places) {
+    ok(p.r1 > p.r0 && p.c1 > p.c0, `${p.key} 的 grid-area 是空的（止要大于起）`)
+    for (let r = p.r0; r < p.r1; r++) {
+      for (let c = p.c0; c < p.c1; c++) {
+        const at = `${r},${c}`
+        ok(!cells.has(at), `第 ${r} 行第 ${c} 列被 ${cells.get(at)} 和 ${p.key} 同时占用`)
+        cells.set(at, p.key)
+      }
+    }
+  }
+
+  /*
+   * 空间直觉要还在，否则这就不是地图只是一张彩色表格。
+   * 抽查几组不该颠倒的：欧洲在美国右边、拉美在下面、澳新在最下、日韩在最右。
+   */
+  const at = (k) => places.find((p) => p.key === k)
+  ok(at('eu').c0 > at('us').c0, '欧洲要在美国右边')
+  ok(at('latam').r0 > at('us').r0, '拉美要在美国下面')
+  ok(at('anz').r0 >= at('sea').r0, '澳新要在东南亚下面（或同排）')
+  ok(at('jpkr').c1 >= at('cn').c1, '日韩要在中国右边')
+  ok(at('africa').r0 > at('eu').r0, '非洲要在欧洲下面')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
