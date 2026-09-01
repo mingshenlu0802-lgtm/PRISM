@@ -180,3 +180,29 @@ hr { border: 0; border-top: var(--bw) solid var(--line); margin: 0; }
     margin-block: -7px;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * 手机上的字号与输入框
+ *
+ * 量下来最小的一档是 11px（--fs-2xs）。在桌面上它是「附注」，
+ * 在手机上它接近读不动——而这个站放在这一档里的是**来源信息**：
+ * 哪家媒体、什么语言、什么日期。那正是读者要用来判断可信度的东西。
+ *
+ * 输入框同理：38px 高在触屏上偏矮，点进去容易点到旁边。
+ * iOS 还有一条硬规则——输入框字号小于 16px 时，聚焦会自动放大整页，
+ * 用户填完得手动缩回去。所以手机上的输入字号锁在 16px。
+ * ------------------------------------------------------------------ */
+@media (max-width: 560px) {
+  :root {
+    --fs-2xs: calc(0.75rem   * var(--fs));  /* 11px → 12px */
+    --fs-xs:  calc(0.8125rem * var(--fs));  /* 12px → 13px */
+  }
+}
+
+@media (pointer: coarse) {
+  .pfield-input, .pfield-textarea, input[type="email"], input[type="password"], input[type="text"], textarea {
+    min-height: 46px;
+    /* 低于 16px，iOS 聚焦时会自动放大整页。 */
+    font-size: max(16px, var(--fs-md));
+  }
+}

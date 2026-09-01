@@ -30,5 +30,7 @@
 .home__sechead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
 .home__sectitle { font-size: var(--fs-xl); }
 .home__seclink { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); font-weight: 600; }
+/* 触屏上撑开可点区域，负 margin 抵掉，免得把它和上面的小标题挤开。 */
+@media (pointer: coarse) { .home__seclink { padding-block: 12px; margin-block: -12px; } }
 .home__studygrid { display: grid; gap: var(--s-4); }
 @media (min-width: 1000px) { .home__studygrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

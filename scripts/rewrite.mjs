@@ -14,7 +14,7 @@
  * 免费额度撑不住。六条是个折中。
  */
 import { ask, llmName } from './llm.mjs'
-import { systemPrompt } from './editorial.mjs'
+import { systemPrompt, triagePrompt } from './editorial.mjs'
 
 /*
  * 一批几条。
@@ -104,6 +104,57 @@ export function clean(raw, fallback) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * 第一步：先挑，再写
+ *
+ * 长稿把一个隐藏的浪费放大了出来。模型按方针要丢掉七八成候选，而在原来的
+ * 单段流程里，**每一条被丢掉的候选都是先写满两三千字才被丢的**——
+ * 一轮收集大半的钱和时间，花在了永远不会上线的稿子上。
+ *
+ * 所以拆成两步。挑的那一步一次看二十条，每条只回一个 true/false 和一句理由，
+ * 输出几十个 token；写的那一步只碰留下来的。
+ * 长输出的调用次数从「候选数 ÷ 2」降到「目标数 ÷ 2」。
+ * ------------------------------------------------------------------ */
+
+const TRIAGE_BATCH = Number(process.env.LLM_TRIAGE_BATCH ?? 20)
+
+const TRIAGE_SHAPE = `
+只返回 JSON，形如：
+{"picks":[{"i":0,"keep":true,"why":"检方起诉，涉及机构失察"},{"i":1,"keep":false,"why":"名人八卦"}]}
+
+picks 必须覆盖输入里的每一个 i，不要增删。why 写十个字以内，只是给日志看的。`.trim()
+
+/** 先挑一遍。返回留下来的候选，顺序不变。 */
+async function triage(cands, ownerNote) {
+  const kept = []
+  let looked = 0
+  for (let i = 0; i < cands.length; i += TRIAGE_BATCH) {
+    const batch = cands.slice(i, i + TRIAGE_BATCH)
+    looked += batch.length
+    try {
+      const out = await ask(
+        `${triagePrompt(ownerNote)}\n\n${TRIAGE_SHAPE}`,
+        `候选 ${batch.length} 条：\n\n${JSON.stringify(
+          batch.map((c, k) => ({ i: k, source: c.feed.outlet, title: c.title, excerpt: String(c.summary).slice(0, 300) })),
+          null, 1,
+        )}`,
+        { maxTokens: 2000 },
+      )
+      const picks = Array.isArray(out?.picks) ? out.picks : []
+      for (const p of picks) {
+        if (p?.keep && batch[p.i]) kept.push(batch[p.i])
+      }
+    } catch (e) {
+      // 挑这一步失败就把这一批**全部留下**，交给写的那一步去筛。
+      // 宁可多花钱，也不要因为一次网络抖动就把二十条真新闻整批扔掉。
+      console.log(`  初筛第 ${Math.floor(i / TRIAGE_BATCH) + 1} 批失败，这批全部留给下一步：${String(e.message ?? e).slice(0, 80)}`)
+      kept.push(...batch)
+    }
+  }
+  console.log(`  初筛：看 ${looked} 条，留 ${kept.length} 条`)
+  return kept
+}
+
 /**
  * 一直跑到够数为止。
  *
@@ -119,8 +170,21 @@ export function clean(raw, fallback) {
  *
  * 一批失败不拖垮整次收集——报出来，继续下一批。
  */
-export async function rewriteAll(picked, ownerNote = '', target = Infinity) {
-  console.log(`交给模型筛选改写（${llmName()}，每批 ${BATCH} 条，要 ${target === Infinity ? '全部' : `${target} 条`}）`)
+export async function rewriteAll(candidates, ownerNote = '', target = Infinity) {
+  console.log(`交给模型（${llmName()}），目标 ${target === Infinity ? '全部' : `${target} 条`}`)
+
+  /*
+   * 先挑后写。挑的那一步便宜，写的那一步贵——所以别在会被丢掉的稿子上动笔。
+   * 只有一批的时候不值得多跑一次调用，直接写。
+   */
+  const picked = candidates.length > BATCH * 2
+    ? await triage(candidates, ownerNote)
+    : candidates
+  if (picked.length === 0) {
+    console.log('  初筛之后一条都不剩。今天的候选里没有符合方针的。')
+    return []
+  }
+  console.log(`  开始写（每批 ${BATCH} 条）`)
   const out = []
   let dropped = 0
   let failed = 0
