@@ -224,6 +224,20 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity, 
    */
   if (onPicked) await onPicked(picked)
 
+  /*
+   * 取到原文的排前面。
+   *
+   * 实测：读过报道正文写出来的稿子平均 1672 字，只有 RSS 摘要的平均 855 字。
+   * 而写到目标条数就停——所以**先写谁，直接决定了当天上线的是哪一批**。
+   * 候选备的是目标的四倍，其中十几条会写不到，那就让写得成的先上。
+   *
+   * 只在**同一个议题层内**调换。性犯罪仍然排在最前面（站长定的重心），
+   * 不能因为某篇取不到正文，就把一篇家暴报道顶到性侵案前面去。
+   * sort 是稳定的，所以层内原来的顺序（多来源、主流媒体、时间）也保住了。
+   */
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  picked.sort((a, b) => tier(a) - tier(b) || (a.bodies?.length ? 0 : 1) - (b.bodies?.length ? 0 : 1))
+
   console.log(`  开始写（每批 ${BATCH} 条）`)
   const out = []
   let dropped = 0

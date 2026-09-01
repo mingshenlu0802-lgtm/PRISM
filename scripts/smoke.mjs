@@ -1585,6 +1585,36 @@ await test('抠正文：要取最长的那个 article，还要认得 JSON-LD', (
   eq(feedparse.articleText(broken), '', '坏 JSON 要安静地跳过')
 })
 
+await test('取到原文的先写，但不能越过议题的优先级', () => {
+  /*
+   * 写到目标条数就停，所以**先写谁就决定了当天上线的是哪一批**。
+   * 实测读过原文的稿子平均 1672 字、只有摘要的 855 字，那就让写得成的先上。
+   *
+   * 但只在同一个议题层内调换：性犯罪是站长定的重心，不能因为某篇取不到
+   * 正文，就把一篇家暴报道顶到性侵案前面去。
+   */
+  const src = readFileSync(join(process.cwd(), 'scripts/rewrite.mjs'), 'utf8')
+  ok(/picked\.sort\(\(a, b\) => tier\(a\) - tier\(b\)/.test(src), '排序必须以议题层为第一关键字')
+
+  // 用同一条规则跑一遍，确认三件事：层次递增、层内有正文的在前、稳定。
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  const list = [
+    { n: 'sexual-无', topics: ['sexual'] },
+    { n: 'sexual-有', topics: ['sexual'], bodies: [1] },
+    { n: 'domestic-有', topics: ['domestic'], bodies: [1] },
+    { n: 'sexual-无2', topics: ['sexual'] },
+    { n: 'children-有', topics: ['children'], bodies: [1] },
+  ]
+  list.sort((a, b) => tier(a) - tier(b) || (a.bodies?.length ? 0 : 1) - (b.bodies?.length ? 0 : 1))
+
+  eq(list[0].n, 'sexual-有', '有正文的性侵报道排第一')
+  const tiers = list.map(tier)
+  ok(tiers.every((v, i) => i === 0 || v >= tiers[i - 1]), '议题层次仍然递增——有正文不能越层')
+  eq(list[1].n, 'sexual-无', '层内同类保持原顺序（稳定排序）')
+  eq(list[2].n, 'sexual-无2', '同上')
+  ok(tier(list[list.length - 1]) === 2, '最后一条仍然是优先级最低的那一层')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
