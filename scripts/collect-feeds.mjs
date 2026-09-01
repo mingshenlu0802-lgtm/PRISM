@@ -184,9 +184,30 @@ for (const feed of FEEDS) {
  * 站长指定的报道重心。每个源都有条数上限，排在前面就意味着在额度里优先留下。
  */
 picked.sort((a, b) => {
-  // 性犯罪第一，儿童第二——站长定的两个重心，其余按时间。
-  const w = (p) => (p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2)
+  // 性犯罪第一、家暴第二、儿童第三——站长定的重心，其余按时间。
+  const w = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
   return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
+})
+
+/*
+ * 有两家以上报道的排前面。
+ *
+ * 站长：「每个新闻最好有两个或以上的引用。」这有两层意思，都成立：
+ *   - 对读者：两家独立报道过的事，比一家报道的更值得信，也更好核对。
+ *   - 对写作：两篇原文比一篇多出一倍的细节，稿子才写得实。
+ *
+ * 所以在议题优先级之内，**多来源的排在单来源前面**。
+ * 不是把单来源的丢掉——很多重要的调查报道全世界只有一家做了，
+ * 尤其是本地媒体和独立媒体，那正是这个站要收的东西。
+ */
+picked.sort((a, b) => {
+  const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
+  const sources = (p) => ((p.also?.length ?? 0) >= 1 ? 0 : 1)
+  // 主流媒体优先（站长要求），但只在前两个条件之后——
+  // 一篇本地媒体做的性侵调查，仍然要排在主流媒体的一般报道前面。
+  const major = (p) => (p.feed.major || (p.also ?? []).some((o) => o.feed.major) ? 0 : 1)
+  return tier(a) - tier(b) || sources(a) - sources(b) || major(a) - major(b)
+    || Date.parse(b.at) - Date.parse(a.at)
 })
 
 /*
@@ -202,7 +223,7 @@ picked.sort((a, b) => {
  */
 const byTier = new Map()
 for (const p of picked) {
-  const tier = p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2
+  const tier = p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3
   if (!byTier.has(tier)) byTier.set(tier, new Map())
   const feeds = byTier.get(tier)
   if (!feeds.has(p.feed.id)) feeds.set(p.feed.id, [])
@@ -553,7 +574,7 @@ async function collectStudies() {
 
   // 重心一致：性暴力与儿童优先，其余按新旧。
   cands.sort((a, b) => {
-    const w = (c) => (c.topics.includes('violence') ? 0 : c.topics.includes('children') ? 1 : 2)
+    const w = (c) => (c.topics.includes('sexual') ? 0 : c.topics.includes('domestic') ? 1 : c.topics.includes('children') ? 2 : 3)
     return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
   })
 

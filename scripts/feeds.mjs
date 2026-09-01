@@ -24,7 +24,17 @@
  * 报出来，也不要偷偷少收一半新闻。
  */
 
-/** @typedef {{id:string,outlet:string,url:string,regions:string[],topical?:boolean,kind?:'official'|'state',lang:string,note:string}} Feed */
+/**
+ * @typedef {{
+ *   id:string, outlet:string, url:string, regions:string[],
+ *   topical?:boolean, kind?:'official'|'state', major?:boolean,
+ *   lang:string, note:string
+ * }} Feed
+ *
+ * `major` 标的是主流大报和通讯社。站长：「新闻搜寻的时候，可以以主流媒体为主。」
+ * 它有两个作用：排序时优先，以及**制造重复**——同一件事被 BBC 和卫报都报了，
+ * 合并之后这一条就有两个来源，正好对上「每个新闻最好有两个或以上的引用」。
+ */
 
 /** @type {Feed[]} */
 export const FEEDS = [
@@ -41,6 +51,24 @@ export const FEEDS = [
     note: '同上。立场明确但事实核查严格，页面会标成民间机构。' },
 
   /* ---- 专做性别与 LGBTQIA+ 的媒体：整版都是本站题目 ---- */
+  /* ---- 主流大报与国际台：站长要求「以主流媒体为主」 ---- */
+  { id: 'bbc-world', outlet: 'BBC News', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', regions: ['global'], major: true, lang: 'en',
+    note: '综合源，要过关键词。它和下面几家常常报同一件事——合并之后一条新闻就有了多个来源。' },
+  { id: 'guardian-world', outlet: 'The Guardian', url: 'https://www.theguardian.com/world/rss', regions: ['global'], major: true, lang: 'en',
+    note: '综合国际版。它的 Gender 专版另外单列，这一条收的是没进专版的那些。' },
+  { id: 'aljazeera', outlet: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', regions: ['mena', 'global'], major: true, lang: 'en',
+    note: '中东与全球南方的覆盖比欧美大报厚。综合源。' },
+  { id: 'npr', outlet: 'NPR', url: 'https://feeds.npr.org/1001/rss.xml', regions: ['us'], major: true, lang: 'en',
+    note: '美国公共广播，法庭与政策报道扎实。综合源。' },
+  { id: 'nyt-world', outlet: 'The New York Times', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', regions: ['global', 'us'], major: true, lang: 'en',
+    note: '综合国际版。' },
+  { id: 'wapo-world', outlet: 'The Washington Post', url: 'https://feeds.washingtonpost.com/rss/world', regions: ['global', 'us'], major: true, lang: 'en',
+    note: '综合国际版。' },
+  { id: 'france24', outlet: 'France 24', url: 'https://www.france24.com/en/rss', regions: ['eu', 'africa', 'global'], major: true, lang: 'en',
+    note: '法语圈与非洲的覆盖较好。综合源。' },
+  { id: 'apnews-world', outlet: 'AP', url: 'https://feedx.net/rss/ap.xml', regions: ['global'], major: true, lang: 'en',
+    note: '美联社。官方已不提供公开 RSS，这是第三方镜像——跑一次就知道能不能用。' },
+
   { id: 'guardian-gender', outlet: 'The Guardian · Gender', url: 'https://www.theguardian.com/world/gender/rss', regions: ['global'], topical: true, lang: 'en',
     note: '有专职性别记者和公开的更正栏。' },
   { id: 'guardian-lgbt', outlet: 'The Guardian · LGBTQ+', url: 'https://www.theguardian.com/world/lgbt-rights/rss', regions: ['global'], topical: true, lang: 'en', note: '同上。' },

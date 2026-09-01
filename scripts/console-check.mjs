@@ -438,6 +438,42 @@ await run('键盘跳转不能把人踢出正在读的文章', async () => {
   check(focused === 'main', '焦点要落在 <main> 上', `实际落在 "${focused}"`)
 })
 
+await run('缓存里的旧日期不能盖住今天', async () => {
+  /*
+   * 站长发现的：他自己的浏览器上首页写着 8 月 31 日，换一个浏览器打开是 9 月 1 日。
+   *
+   * 本地缓存把上一次存下来的 today 一起还原了，于是日期停在这个人**第一次打开
+   * 网站的那一天**，之后再也不变。一份日报的日期由读者的浏览器缓存决定，
+   * 而且没有人会怀疑到缓存上——站长自己看了一整天旧日期。
+   */
+  await page.goto(`${base}/`, { waitUntil: 'load' })
+  await page.waitForTimeout(300)
+
+  // 塞一份「上个月存下来的」状态，日期是假的。
+  await page.evaluate(() => {
+    const raw = window.localStorage.getItem('prism.site.v3')
+    if (!raw) return
+    const saved = JSON.parse(raw)
+    saved.today = '2020-01-01'
+    window.localStorage.setItem('prism.site.v3', JSON.stringify(saved))
+  })
+  await page.reload({ waitUntil: 'load' })
+  await page.waitForTimeout(500)
+
+  const shown = await page.evaluate(() => document.querySelector('.home__title')?.textContent ?? '')
+  // en-CA 给的是 YYYY-MM-DD，好拆。zh 给的是 2026/9/1，拆起来容易出错——
+  // 第一版就是这么写的，结果测试自己算出了「202691年」。
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date()).split('-').map(Number)
+
+  check(!shown.includes('2020'), '不能显示缓存里那个旧日期', `实际显示「${shown}」`)
+  check(/年.*月.*日/.test(shown), '首页顶上要有一个日期', `实际显示「${shown}」`)
+  // 精确到天：北京时间的今天。
+  check(shown.includes(`${y}年${m}月${d}日`), '要显示北京时间的今天',
+    `期望包含 ${y}年${m}月${d}日，实际「${shown}」`)
+})
+
 await browser.close()
 server.close()
 

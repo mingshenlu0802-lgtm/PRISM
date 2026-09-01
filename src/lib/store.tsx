@@ -350,10 +350,23 @@ function load(): PrismState {
     const parsed = JSON.parse(raw) as Persisted
     if (!parsed || parsed.__schema !== SCHEMA) return fresh
     if (!Array.isArray(parsed.news) || !Array.isArray(parsed.studies)) return fresh
-    // Fill in anything a newer build added, so an old save never blanks a field.
+    /*
+     * Fill in anything a newer build added, so an old save never blanks a field.
+     *
+     * `today` 是例外，必须**每次重新算**。
+     *
+     * 站长发现的：他自己的浏览器上首页写着 8 月 31 日，换一个浏览器打开却是
+     * 9 月 1 日。原因就在下面这行 `...parsed`——它把上一次存下来的 today
+     * 一起还原了，于是日期停在这个人**第一次打开网站的那一天**，
+     * 而且永远不会再变。
+     *
+     * 一份日报，日期由读者的缓存决定，是最糟的一种坏法：站长看到的是旧日期，
+     * 新读者看到的是对的，谁都不会怀疑是缓存。
+     */
     return {
       ...fresh,
       ...parsed,
+      today: fresh.today,
       appearance: { ...fresh.appearance, ...parsed.appearance },
       collect: { ...fresh.collect, ...parsed.collect },
       auth: { ...fresh.auth, ...parsed.auth },
