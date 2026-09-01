@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { PrismProvider } from './lib/store'
+import { ZhProvider } from './lib/zh'
 import { ErrorBoundary } from './components/common'
 import { takeAuthFromHash } from './lib/authlink'
 import './styles/tokens.css'
@@ -21,7 +22,9 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <HashRouter>
         <PrismProvider>
-          <App />
+          <ZhProvider>
+            <App />
+          </ZhProvider>
         </PrismProvider>
       </HashRouter>
     </ErrorBoundary>

@@ -1442,56 +1442,64 @@ await test('等模型的时间要跟着要写的字数走', async () => {
   }
 })
 
-await test('地图上每个地区占一块，不重叠也不漏', () => {
+await test('世界地图：每个地区都在，没有国家被分到两处', () => {
   /*
-   * 上一版地图是一张扁平的格子表，一个地区占好几格，名字只写在第一格——
-   * 屏幕上于是有一半格子是没有字的彩色方块。现在改成每个地区用 grid-area
-   * 占一个矩形。
+   * 上一版地图是一张 6×6 的格子表。站长看过之后说：「我对地图也不满意，
+   * 那不是世界地图。」现在是真的地理数据——Natural Earth 的国界，
+   * 构建时投影好（scripts/build-map.mjs），运行时零依赖。
    *
-   * grid-area 是四个数字的字符串，写错了 CSS 不会报错：两块重叠就是后面那块
-   * 盖住前面那块，少一块就是那个地区从地图上消失，读者永远点不到。所以在这里
-   * 把版面摊开来数一遍。
+   * 会出错的地方也跟着换了。以前怕两块格子重叠，现在怕的是：
+   *   一、某个地区在地图上根本没有对应的形状——读者永远点不到它；
+   *   二、同一个国家被写进两个地区——地图上那块颜色是随机的，
+   *       看的人以为埃及归非洲，点下去进的是中东。
    */
-  const src = readFileSync(join(process.cwd(), 'src/components/site/RegionMap.tsx'), 'utf8')
-  const places = [...src.matchAll(/key:\s*'([a-z]+)',\s*area:\s*'(\d+) \/ (\d+) \/ (\d+) \/ (\d+)'/g)]
-    .map((m) => ({ key: m[1], r0: +m[2], c0: +m[3], r1: +m[4], c1: +m[5] }))
-  ok(places.length > 0, '没能从 RegionMap.tsx 里读出版面')
+  const gen = readFileSync(join(process.cwd(), 'scripts/build-map.mjs'), 'utf8')
+  const map = readFileSync(join(process.cwd(), 'src/lib/worldmap.ts'), 'utf8')
 
-  // 每个地区一条，不重复。
-  eq(new Set(places.map((p) => p.key)).size, places.length, '同一个地区不能摆两次')
-
-  // 除了「跨区域·国际机构」（它没有地理位置，单独一行文字），全部要在图上。
-  const onMap = new Set(places.map((p) => p.key))
-  const regionKeys = [...readFileSync(join(process.cwd(), 'src/lib/regions.ts'), 'utf8')
-    .matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1])
-  for (const k of regionKeys) {
-    if (k === 'global') { ok(!onMap.has(k), '「跨区域」不该塞进格子里假装它在某处'); continue }
-    ok(onMap.has(k), `地区「${k}」在地图上找不到——读者点不到它`)
-  }
-
-  // 摊成格子：任何一格不能被两个地区占。
-  const cells = new Map()
-  for (const p of places) {
-    ok(p.r1 > p.r0 && p.c1 > p.c0, `${p.key} 的 grid-area 是空的（止要大于起）`)
-    for (let r = p.r0; r < p.r1; r++) {
-      for (let c = p.c0; c < p.c1; c++) {
-        const at = `${r},${c}`
-        ok(!cells.has(at), `第 ${r} 行第 ${c} 列被 ${cells.get(at)} 和 ${p.key} 同时占用`)
-        cells.set(at, p.key)
-      }
+  // 同一个国家不能出现在两个地区里。
+  const block = gen.slice(gen.indexOf('const REGION_OF = {'), gen.indexOf('const SKIP ='))
+  const entries = [...block.matchAll(/^\s*(\w+): \[([\s\S]*?)\],$/gm)]
+  ok(entries.length >= 10, `没能从 build-map.mjs 里读出映射表（读到 ${entries.length} 组）`)
+  const where = new Map()
+  for (const [, region, list] of entries) {
+    for (const m of list.matchAll(/'([^']+)'|"([^"]+)"/g)) {
+      const country = m[1] ?? m[2]
+      ok(!where.has(country), `「${country}」同时被分到 ${where.get(country)} 和 ${region}`)
+      where.set(country, region)
     }
   }
 
   /*
-   * 空间直觉要还在，否则这就不是地图只是一张彩色表格。
-   * 抽查几组不该颠倒的：欧洲在美国右边、拉美在下面、澳新在最下、日韩在最右。
+   * 每个地区都要能在地图上找到，否则它就从这一屏消失了。
+   * 两个例外，各有各的道理：
+   *   hk —— 香港是一座城市，110m 的数据里画不出来，用一个点标住（MAP_HK）
+   *   global —— 「跨区域·国际机构」本来就没有地理位置
    */
-  const at = (k) => places.find((p) => p.key === k)
-  ok(at('eu').c0 > at('us').c0, '欧洲要在美国右边')
-  ok(at('latam').r0 > at('us').r0, '拉美要在美国下面')
-  ok(at('anz').r0 >= at('sea').r0, '澳新要在东南亚下面（或同排）')
-  ok(at('jpkr').c1 >= at('cn').c1, '日韩要在中国右边')
-  ok(at('africa').r0 > at('eu').r0, '非洲要在欧洲下面')
+  const regionKeys = [...readFileSync(join(process.cwd(), 'src/lib/regions.ts'), 'utf8')
+    .matchAll(/key:\s*'([a-z]+)'/g)].map((m) => m[1])
+  for (const k of regionKeys) {
+    if (k === 'global') continue
+    if (k === 'hk') { ok(/MAP_HK\s*=\s*\{/.test(map), '香港要有一个坐标点'); continue }
+    ok(new RegExp(`"${k}":\\s*"M`).test(map), `地区「${k}」在地图上没有形状——读者点不到它`)
+  }
+
+  // 路径要是真的路径，不是空字符串。
+  const paths = [...map.matchAll(/"([a-z]+)":\s*"([^"]*)"/g)].filter(([, k]) => regionKeys.includes(k))
+  ok(paths.length >= 10, `地图上只有 ${paths.length} 块，太少了`)
+  for (const [, k, d] of paths) ok(d.length > 100, `地区「${k}」的路径短得不像真的（${d.length} 个字符）`)
+
+  // 没有对应地区的陆地要画出来，但要画成灰的、点不动的。
+  ok(/MAP_REST\s*=\s*"M/.test(map), '没有对应地区的陆地也要画，否则地图上会缺一块')
+  const cmp = readFileSync(join(process.cwd(), 'src/components/site/RegionMap.tsx'), 'utf8')
+  ok(/rmap__rest/.test(cmp) && /pointer-events/.test(readFileSync(join(process.cwd(), 'src/components/site/RegionMap.css'), 'utf8')),
+    '灰色那块要点不动——这个站确实不覆盖那里，让它可点是骗人')
+
+  /*
+   * 无障碍：SVG 整块 aria-hidden，语义在底下那一排链接上。
+   * 台湾和香港在这个比例尺上只有几个像素，指望人用手指点中是不诚实的。
+   */
+  ok(/aria-hidden="true"/.test(cmp), '地图图形本身要 aria-hidden')
+  ok(/rmap__chip/.test(cmp), '地图底下要有一排真的链接，键盘和读屏走那里')
 })
 
 await test('繁体不能靠手写——九个中文源是繁体的', () => {

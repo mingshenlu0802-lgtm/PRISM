@@ -1,0 +1,27 @@
+/*
+ * 简 / 繁 开关。
+ *
+ * 做成一个两格的小段落，不是两个独立按钮：读者要看出这是**一个**选择的
+ * 两面，而不是两个可以各自按下的东西。
+ */
+.sct {
+  display: inline-flex;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--bg);
+}
+.sct__btn {
+  min-width: 34px; min-height: 32px;
+  padding: 0 var(--s-2);
+  border: 0; background: transparent;
+  font-size: var(--fs-xs); font-weight: 600;
+  color: var(--fg-muted); cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.sct__btn:hover { color: var(--fg); }
+.sct__btn--on { background: var(--fg); color: var(--bg); }
+
+@media (pointer: coarse) {
+  .sct__btn { min-height: 36px; min-width: 40px; }
+}
