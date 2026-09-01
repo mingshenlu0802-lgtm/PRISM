@@ -14,3 +14,6 @@
 .npage__rel:hover { border-color: var(--accent); }
 .npage__relhead { font-size: var(--fs-sm); font-weight: 600; line-height: 1.5; }
 .npage__relmeta { flex: none; font-size: 10px; color: var(--fg-faint); }
+
+/* 触屏上「回到今日」是最常按的一个链接，20px 高按不准。 */
+@media (pointer: coarse) { .npage__back { padding-block: 12px; } }

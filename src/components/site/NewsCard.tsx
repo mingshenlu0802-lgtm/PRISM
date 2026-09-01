@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import type { NewsItem } from '../../lib/types'
-import { cx, paragraphs, relTime, textLength } from '../../lib/util'
+import { cx, relTime, textLength } from '../../lib/util'
 import { Icon } from '../common'
 import { TagRow } from './Tags'
 import { LinkList } from './LinkList'
 import { Cover } from './Cover'
+import { Prose } from './Prose'
 import './NewsCard.css'
 
 /**
@@ -41,6 +42,7 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
             <Link to={`/news/${item.slug}`}>{item.headline}</Link>
           </h2>
         )}
+        {item.subhead && <p className="ncard__subhead">{item.subhead}</p>}
         <p className="ncard__when">
           <time dateTime={item.publishedAt}>{relTime(item.publishedAt, today)}</time>
           {item.editedByHuman && <span className="ncard__edited">· 站长已校订</span>}
@@ -64,7 +66,7 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
       />
 
       <div className={cx('ncard__summary', clamped && 'ncard__summary--clamp')}>
-        {paragraphs(item.summary).map((p, i) => <p key={i}>{p}</p>)}
+        <Prose text={item.summary} links={item.links} />
       </div>
 
       {clamped && (

@@ -58,7 +58,9 @@ for (const route of routes) {
       const r = el.getBoundingClientRect()
       if (r.width === 0 || r.height === 0) continue
       if (r.height < 40 || r.width < 40) {
-        small.push(`${el.tagName.toLowerCase()}.${(el.className || '').toString().split(' ')[0]} ${Math.round(r.width)}x${Math.round(r.height)} "${(el.textContent || '').trim().slice(0, 14)}"`)
+        const cls = (el.className || '').toString().split(' ')[0]
+        const parent = el.parentElement ? `${el.parentElement.tagName.toLowerCase()}.${(el.parentElement.className || '').toString().split(' ')[0]}` : ''
+        small.push(`${el.tagName.toLowerCase()}.${cls} ${Math.round(r.width)}x${Math.round(r.height)} in ${parent} "${(el.textContent || '').trim().slice(0, 16)}"`)
       }
     }
     // 正文字号

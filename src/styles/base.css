@@ -132,3 +132,51 @@ hr { border: 0; border-top: var(--bw) solid var(--line); margin: 0; }
    */
   a.tagx { min-height: 32px; }
 }
+
+/*
+ * 控制端的触屏尺寸。
+ *
+ * 公众站改过了，控制端还没有——量下来它更差：分段按钮 29px、图标按钮 18px。
+ * 站长在手机上审内容、改标题、按「下架」，这几个正是他最常按的东西，
+ * 而按错的代价是把一条内容误删。
+ */
+@media (pointer: coarse) {
+  .clyt__brand, .clyt__view,
+  .psegmented__seg, .mng__segbtn, .srch__chip, .srch__notesave,
+  .slyt__brand, .gate__back, .npage__back {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* 图标按钮是最小的一类，给它一个方形的最小尺寸。 */
+  .mng__icon, .nedit__icon, .clyt__icon { min-width: 44px; min-height: 44px; }
+
+  /*
+   * 媒体链接。这是整个网站被按得最多的东西——「你可以顺着链接自己读原文」
+   * 就是这个站的承诺，而它们只有 21px 高，还一条紧挨一条。
+   * 按错的结果是打开了另一家媒体的另一篇报道。
+   */
+  .lnk__row, .lnk__item > span { padding-block: 10px; display: block; }
+  .lnk__list > li + li { margin-top: 2px; }
+
+  /* 控制端剩下的两类：分段选择和展开/收起。 */
+  .srch__segbtn, .nedit__toggle { min-height: 44px; }
+
+  /*
+   * 标题链接。
+   *
+   * 标题在屏幕上很大，但 <a> 是行内元素，它的可点区域只有一行文字那么高
+   * ——21px，而且只覆盖字，不覆盖行与行之间。读者会去点标题的空白处，
+   * 什么都不会发生。改成块级，整个标题都能按。
+   */
+  .ncard__title a, .scard__title a {
+    display: block;
+    /*
+     * 再往外撑一点，但**不推动版面**：padding 把可点区域做大，
+     * 等量的负 margin 把它拉回原位。标题和它下面的标签行离得很近，
+     * 多出来的几像素如果真的占了位置，两者就会挤在一起。
+     */
+    padding-block: 7px;
+    margin-block: -7px;
+  }
+}

@@ -73,6 +73,8 @@ const ROUTES = [
   ['region-tw', '/region/tw'],
   ['topic', '/topic/violence'],
   ['studies', '/studies'],
+  // 研究详情页是新加的（站长要研究「可以点进去」）。种子里第一项的 slug。
+  ['study', '/study/cn-time-use-care-labour'],
   ['about', '/about'],
   // 朋友第一次登录会落在这一页，坏了就没人能被设成编辑。
   ['signin', '/signin'],
@@ -162,6 +164,14 @@ for (const [vpName, w, h] of VIEWPORTS) {
           const r = el.getBoundingClientRect()
           if (r.width === 0 || r.height === 0) continue          // 收起来的菜单不算
           if (el.closest('[hidden], [aria-hidden="true"]')) continue
+          /*
+           * 视觉上隐藏的原生控件不算。
+           *
+           * 勾选框常常是「把真正的 input 缩到 1×1 藏起来，用 label 画一个好看的
+           * 方块」——手指点的是那个 label，不是 input。把 input 报成「目标过小」
+           * 是假警报，而假警报会让人开始无视这份报告。
+           */
+          if (r.width <= 2 || r.height <= 2) continue
           const isTag = el.classList.contains('tagx')
           const floor = isTag ? 30 : 36
           if (r.height < floor) {

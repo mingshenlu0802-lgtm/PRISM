@@ -24,14 +24,15 @@ import { systemPrompt } from './editorial.mjs'
  * 三条一批留出余量。批次多一倍意味着系统提示词多发一倍，但那是几千 token 的
  * 输入，比丢掉一整批便宜得多。
  */
-const BATCH = Number(process.env.LLM_BATCH ?? 3)
+const BATCH = Number(process.env.LLM_BATCH ?? 2)
 
 const SHAPE = `
 只返回 JSON，形如：
 {"items":[{
   "keep": true,
-  "headline": "中文标题",
-  "summary": "中文总结，1000 字左右，4-6 段，段间用 \\n\\n 断开",
+  "headline": "主标题",
+  "subhead": "副标题，一句话，给范围/证据变化/制度意义",
+  "summary": "中文新闻稿，1500-3000 字，用「## 小标题」分节，段间用 \\n\\n 断开，来源用 [1] [2] 角标",
   "bullets": ["要点一", "要点二"],
   "topics": ["violence"],
   "regions": ["us"],
@@ -48,19 +49,25 @@ regions 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa
 async function runBatch(batch, ownerNote) {
   const input = batch.map((p, i) => ({
     i,
-    source: p.feed.outlet,
-    lang: p.feed.lang,
     title: p.title,
     excerpt: p.summary,
-    url: p.link,
     date: p.at.slice(0, 10),
+    /*
+     * 来源按 [1] [2] 编号交给模型，让它在正文里标角标。
+     * 一条新闻常常已经合并了好几家的报道（同一件事多个来源），
+     * 站长要求「引用尽量使用多过一个引用」——这里把它们都列出来，
+     * 模型才有第二个可标的东西。
+     */
+    sources: [{ n: 1, outlet: p.feed.outlet, lang: p.feed.lang, url: p.link },
+      ...(p.also ?? []).map((o, k) => ({ n: k + 2, outlet: o.feed.outlet, lang: o.feed.lang, url: o.link }))],
   }))
   const out = await ask(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
     `候选新闻 ${input.length} 条：\n\n${JSON.stringify(input, null, 1)}`,
-    // 三条 × 1000 字，加上标题、要点和 JSON 结构本身。给够余量，
-    // 因为写到一半被截断等于这一批全丢。
-    { maxTokens: 16000 },
+    // 两条 × 2000 字，加上标题、要点和 JSON 结构本身。给够余量：
+    // 写到一半被截断等于这一批全丢，而现在每一批都很贵。
+    // 编辑方针有缓存，批次变多不会把输入成本按批数翻倍。
+    { maxTokens: 24000 },
   )
   const items = Array.isArray(out?.items) ? out.items : []
   if (items.length !== batch.length) {
@@ -82,12 +89,13 @@ export function clean(raw, fallback) {
   if (!raw || raw.keep === false) return null
   const headline = String(raw.headline ?? '').trim()
   const summary = String(raw.summary ?? '').trim()
-  if (!headline || summary.length < 80) return null // 太短就是没写，宁可不要
+  if (!headline || summary.length < 400) return null // 太短就是没写，宁可不要
 
   const topics = (Array.isArray(raw.topics) ? raw.topics : []).filter((t) => TOPICS.has(t))
   const regions = (Array.isArray(raw.regions) ? raw.regions : []).filter((r) => REGIONS.has(r))
   return {
     headline,
+    subhead: String(raw.subhead ?? '').trim() || null,
     summary,
     bullets: (Array.isArray(raw.bullets) ? raw.bullets : []).map((b) => String(b).trim()).filter(Boolean).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
@@ -182,7 +190,7 @@ const STUDY_SHAPE = `
   "title": "中文标题",
   "publisher": "中文机构名",
   "kind": "official-statistics",
-  "summary": "详细的中文总结，分段，用 \\n\\n 断段",
+  "summary": "中文新闻稿，1000-1500 字，按「怎么写这一篇」的结构写，分段用 \\n\\n 断开",
   "limitation": "这份研究撑不起什么结论，一到两句",
   "figures": [{"label":"指标名","value":"数字带单位","note":"这个数字没有说什么"}],
   "topics": ["violence"],
@@ -221,7 +229,7 @@ export function cleanStudy(raw, fallback) {
     // 模型没给或给了个不存在的类型，就退回这个源的默认类型，不要让研究页
     // 出现一个显示不出可信度提示的空类别。
     kind: KINDS.has(raw?.kind) ? raw.kind : fallback.kind,
-    summary: summary.length >= 200 ? summary : fallback.summary,
+    summary: summary.length >= 400 ? summary : fallback.summary,
     limitation: String(raw?.limitation ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
     figures,
     topics: topics.length ? topics : fallback.topics,
@@ -246,6 +254,7 @@ export async function rewriteStudies(cands, ownerNote) {
     const out = await ask(
       `${systemPrompt(ownerNote)}\n\n${STUDY_SHAPE}`,
       `候选研究 ${input.length} 项：\n\n${JSON.stringify(input, null, 1)}`,
+      { maxTokens: 24000 },
     )
     const items = Array.isArray(out?.items) ? out.items : []
     if (items.length !== cands.length) {

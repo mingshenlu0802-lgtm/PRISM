@@ -109,6 +109,13 @@ export interface NewsItem {
   bullets: string[]
   regions: RegionKey[]
   topics: TopicKey[]
+  /**
+   * 副标题。
+   *
+   * 站长要的「主标题＋副标题」：主标题给核心事件，副标题给案件范围、
+   * 证据变化或制度意义。旧条目没有这一项，所以是可选的。
+   */
+  subhead?: string | null
   publishedAt: ISODateTime
   updatedAt: ISODateTime
   status: ItemStatus

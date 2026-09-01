@@ -361,6 +361,7 @@ groups.forEach((g, i) => {
     id: `news-${Date.now().toString(36)}-${i}`,
     slug,
     headline: g.headline ?? g.title,
+    subhead: g.subhead ?? null,
     summary: g.summary,
     bullets: g.bullets ?? [],
     regions: g.regions,
@@ -391,7 +392,33 @@ for (const { item, links } of toAppend) {
 }
 
 if (toInsert.length > 0) {
-  const res = await db('news', { method: 'POST', body: JSON.stringify(toInsert), headers: { prefer: 'return=minimal' } })
+  let res = await db('news', { method: 'POST', body: JSON.stringify(toInsert), headers: { prefer: 'return=minimal' } })
+
+  /*
+   * subhead 是新加的一列。已经建过库的人要跑一次
+   *   alter table public.news add column if not exists subhead text;
+   * （schema.sql 里就有这一句），在他跑之前，PostgREST 会因为这一列不存在而
+   * 整批拒绝——那意味着**一整天的新闻全丢**，只因为少一个副标题。
+   *
+   * 所以认出这种失败，脱掉这一列重发一次，并且把该跑的 SQL 喊出来。
+   * 降级要响，不能悄悄发生：不然副标题会「莫名其妙一直不出现」。
+   */
+  if (!res.ok) {
+    const why = await res.text()
+    if (/subhead/.test(why)) {
+      console.log('数据库还没有 subhead 这一列，这一轮先不带副标题写入。')
+      console.log('要让副标题出现，去 Supabase 的 SQL Editor 跑一次：')
+      console.log('  alter table public.news add column if not exists subhead text;')
+      res = await db('news', {
+        method: 'POST',
+        headers: { prefer: 'return=minimal' },
+        body: JSON.stringify(toInsert.map(({ subhead, ...rest }) => rest)),
+      })
+    } else {
+      console.error(`写入失败：HTTP ${res.status} ${why.slice(0, 300)}`)
+      process.exit(1)
+    }
+  }
   if (!res.ok) {
     console.error(`写入失败：HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
     process.exit(1)

@@ -35,7 +35,12 @@ export function LinkList({ links, compact, groupPrimary = true }: LinkListProps)
         <>
           <p className="lnk__group">原始文件</p>
           <ul className="lnk__list">
-            {primary.map((l) => <LinkRow key={l.id} link={l} primary />)}
+            {/*
+              * 编号取自**原始顺序**，不是分组后的顺序。正文里的 [1] [2] 是按
+              * 交给模型时的那一份来源清单编的；这里把「原始文件」拆到上面去了，
+              * 如果按分组重新编号，角标就会指错人。
+              */}
+            {primary.map((l) => <LinkRow key={l.id} link={l} primary n={links.indexOf(l) + 1} />)}
           </ul>
         </>
       )}
@@ -43,7 +48,7 @@ export function LinkList({ links, compact, groupPrimary = true }: LinkListProps)
         <>
           {primary.length > 0 && <p className="lnk__group">媒体报道</p>}
           <ul className="lnk__list">
-            {rest.map((l) => <LinkRow key={l.id} link={l} />)}
+            {rest.map((l) => <LinkRow key={l.id} link={l} n={links.indexOf(l) + 1} />)}
           </ul>
         </>
       )}
@@ -51,7 +56,7 @@ export function LinkList({ links, compact, groupPrimary = true }: LinkListProps)
   )
 }
 
-function LinkRow({ link, primary }: { link: MediaLink; primary?: boolean }): JSX.Element {
+function LinkRow({ link, primary, n }: { link: MediaLink; primary?: boolean; n?: number }): JSX.Element {
   const placeholder = isPlaceholderUrl(link.url)
   const inner = (
     <>
@@ -74,7 +79,11 @@ function LinkRow({ link, primary }: { link: MediaLink; primary?: boolean }): JSX
   )
 
   return (
-    <li className={cx('lnk__item', primary && 'lnk__item--primary')}>
+    /*
+     * id 让正文里的 [1] [2] 角标跳到这里。编号就是这条链接在列表里的位置，
+     * 和交给模型的编号是同一套。
+     */
+    <li className={cx('lnk__item', primary && 'lnk__item--primary')} id={n ? `src-${n}` : undefined}>
       {placeholder ? (
         <span className="lnk__row lnk__row--demo" title="示例链接：本原型的演示数据位于保留域名 .invalid，不会跳转。接入真实来源后这里就是可点击的真实链接。">
           <Icon name="link" size={14} className="lnk__icon" />

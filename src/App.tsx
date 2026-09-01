@@ -8,6 +8,7 @@ import NewsPage from './pages/site/NewsPage'
 import RegionPage from './pages/site/RegionPage'
 import TopicPage from './pages/site/TopicPage'
 import StudiesPage from './pages/site/StudiesPage'
+import StudyPage from './pages/site/StudyPage'
 import AboutPage from './pages/site/AboutPage'
 import { SignInPage } from './components/site/SignInGate'
 
@@ -47,6 +48,7 @@ export default function App(): JSX.Element {
           <Route path="/region/:key" element={<RegionPage />} />
           <Route path="/topic/:key" element={<TopicPage />} />
           <Route path="/studies" element={<StudiesPage />} />
+          <Route path="/study/:slug" element={<StudyPage />} />
           <Route path="/about" element={<AboutPage />} />
         </Route>
 
