@@ -32,11 +32,29 @@ const MIME = {
   '.woff2': 'font/woff2', '.png': 'image/png', '.ico': 'image/x-icon',
 }
 
+/*
+ * 检查必须是封闭的：**永远不要连真的后端**。
+ *
+ * 发布产物里的 prism-config.json 带着站长真实的 Supabase 项目。CI 上是有外网的，
+ * 照原样跑，这些检查就会连上他的生产数据库——console-check 还会去新建条目。
+ * 数据库的权限规则会挡住未登录的写入，但页面会变成「共享模式 + 空数据库」，
+ * 测的就不是我们要测的东西了，而且这种依赖会让检查随别人的数据库状态飘。
+ *
+ * 所以这一个路径由服务器接管，一律返回空配置 —— 等于「没有配置后端」，
+ * 也就是这个仓库开箱即用的样子。
+ */
+const EMPTY_CONFIG = JSON.stringify({ url: '', anonKey: '' })
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost')
     let p = normalize(decodeURIComponent(url.pathname))
     if (p === '/' || !extname(p)) p = '/index.html'
+    if (p === '/prism-config.json') {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(EMPTY_CONFIG)
+      return
+    }
     const body = await readFile(join(ROOT, p))
     res.writeHead(200, { 'content-type': MIME[extname(p)] ?? 'application/octet-stream' })
     res.end(body)
