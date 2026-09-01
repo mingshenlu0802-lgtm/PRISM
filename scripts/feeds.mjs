@@ -56,6 +56,35 @@ export const FEEDS = [
     note: '原 Openly / Thomson Reuters Foundation，专做人权与性别。' },
 
   /* ---- 中文世界 ---- */
+  /*
+   * 中文的专题来源。
+   *
+   * 前几轮真实抓取暴露了这个站最大的窟窿：42 个源里只有 5 个中文，
+   * 而且全是综合媒体——BBC 中文 0/42、德国之声 0/64、报导者 0/10。
+   * 一个写给中文读者、重点关注中港台的站，中文条目几乎为零。
+   *
+   * 综合媒体一天可能一条性别新闻都没有。下面这些不一样：**整站都是这个题目**，
+   * 所以标 topical，不再过关键词。台港的倡议团体多用 WordPress，
+   * `/feed/` 基本都在。
+   *
+   * 「法庭线」单列出来说一句：它做的是香港法庭的逐日旁听报道，
+   * 正好对上这个站最看重的「司法过程」。
+   */
+  { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: 'https://hotline.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '台湾历史最久的同志权益组织，法案与个案协助的一手记录。' },
+  { id: 'awakening-tw', outlet: '婦女新知基金會', url: 'https://www.awakening.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '台湾妇运的老牌团体，长期做修法倡议，法条讨论写得细。' },
+  { id: 'twrf', outlet: '婦女救援基金會', url: 'https://www.twrf.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '性暴力与人口贩运的服务机构，个案与统计都出自实务。' },
+  { id: 'mwf-tw', outlet: '現代婦女基金會', url: 'https://www.38.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '家暴与性侵害防治，台湾相关立法的主要推动者之一。' },
+  { id: 'tgeea', outlet: '台灣性別平等教育協會', url: 'https://www.tgeea.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+    note: '性别平等教育，校园性侵与性骚扰的处理机制。对应「儿童」议题。' },
+  { id: 'witness-hk', outlet: '法庭線', url: 'https://thewitnesshk.com/feed', regions: ['hk'], lang: 'zh-Hant',
+    note: '香港法庭的逐日旁听报道。综合源要过关键词，但它写的正是司法过程。' },
+  { id: 'inmedia-hk', outlet: '獨立媒體', url: 'https://www.inmediahk.net/rss.xml', regions: ['hk'], lang: 'zh-Hant',
+    note: '香港独立媒体，公民社会与性别议题的长期报道。综合源。' },
+
   { id: 'twreporter', outlet: '报导者', url: 'https://www.twreporter.org/a/rss2.xml', regions: ['tw'], lang: 'zh-Hant',
     note: '台湾非营利调查报道，资金来源公开。综合源。' },
   { id: 'initium', outlet: '端传媒', url: 'https://theinitium.com/feed', regions: ['hk', 'tw', 'cn'], lang: 'zh-Hant',
