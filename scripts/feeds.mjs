@@ -109,6 +109,27 @@ export const TOPIC_WORDS = {
     // 司法
     '起诉', '起訴', '被控', '被指控', '判刑', '定罪', '无罪', '無罪', '开庭', '開庭',
     '检方', '檢方', '一审', '二审', '上诉', '和解', '逮捕', '刑事', '民事诉讼', '出庭作证'],
+  /*
+   * 儿童（站长后加的议题）。
+   *
+   * 词表刻意**不收裸的 child / 儿童**。综合源要命中关键词才会被收进来，
+   * 而「child」什么新闻里都有——学校预算、儿科医院、育儿建议。放它进来，
+   * 站长刚抱怨过的「题材不全是女性主义」会立刻更严重。
+   * 所以每一条都绑着侵害、婚配、失学或监护，也就是这个站真正要盯的部分。
+   */
+  children: ['child abuse', 'child sexual', 'sexual abuse of children', 'child marriage',
+    'child bride', 'child trafficking', 'child protection', 'child labour', 'child labor',
+    "children's rights", 'underage', 'schoolgirl', 'grooming', 'paedophile', 'pedophile',
+    'csam', 'female genital mutilation', 'fgm', 'girls education', 'teen pregnancy',
+    'foster care', 'juvenile detention',
+    // 中文这边**不放裸的「儿童」**，理由和英文那边一样：「儿童医院」「儿童节」
+    // 「儿童剧」全会中招。CJK 是按子串匹配的（中文没有词边界可依），
+    // 所以词越短，误伤越大。每一条都带上侵害、婚配、失学或监护。
+    '未成年', '幼女', '女童', '童婚', '童工', '少女怀孕', '少女懷孕',
+    '儿童性侵', '兒童性侵', '性侵儿童', '性侵兒童', '侵害儿童', '侵害兒童',
+    '虐待儿童', '虐待兒童', '猥亵儿童', '猥褻兒童', '拐卖儿童', '拐賣兒童',
+    '儿童保护', '兒童保護', '儿童权利', '兒童權利', '校园性侵', '校園性侵',
+    '师生恋', '師生戀', '监护权', '監護權', '寄养', '寄養', '割礼', '割禮'],
   repro: ['abortion', 'reproductive rights', 'contraception', 'maternal', 'sterilisation', 'sterilization',
     '堕胎', '人工流产', '生育权', '避孕', '绝育', '孕产', '代孕', '产假', '生育自主'],
   trans: ['transgender', 'trans rights', 'gender-affirming', 'gender recognition', 'non-binary',
@@ -124,6 +145,50 @@ export const TOPIC_WORDS = {
   movement: ['feminist movement', 'womens movement', "women's march", 'metoo', '#metoo',
     '女权运动', '米兔', 'MeToo', '妇女运动', '女性主义者'],
 }
+
+/* ------------------------------------------------------------------ *
+ * 研究与数据的来源
+ *
+ * 站长要每天 30 条新闻加 **3 项研究**。研究不能从新闻源里挑——新闻写的是
+ * 「一份报告说」，研究页要的是那份报告本身：谁做的、方法是什么、这个数字
+ * 撑得起什么结论、撑不起什么。
+ *
+ * 所以单独一份清单，全部是**发布方自己**的出版渠道：统计机构、政府间组织、
+ * 有方法学附录的研究所、有公开取证方法的人权组织。
+ *
+ * `kind` 是这个源的默认类型（研究页会按它显示可信度提示）。模型看过标题和
+ * 摘要后可以改——同一个机构既发统计年报也发倡导报告，一刀切会误导读者。
+ *
+ * 这些地址同样没能在本地验证（出网被挡）。跑一次就知道哪些活着。
+ * ------------------------------------------------------------------ */
+
+/** @typedef {{id:string,publisher:string,url:string,kind:string,regions:string[],lang:string,note:string}} StudyFeed */
+
+/** @type {StudyFeed[]} */
+export const STUDY_FEEDS = [
+  { id: 'unwomen-pub', topical: true, publisher: '联合国妇女署', url: 'https://www.unwomen.org/en/digital-library/publications/rss', kind: 'official-statistics', regions: ['global'], lang: 'en',
+    note: '性别统计与各国进展报告，口径随表公布。' },
+  { id: 'unfpa', topical: true, publisher: '联合国人口基金', url: 'https://www.unfpa.org/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
+    note: '生育健康与人口数据，《世界人口状况》年报出自这里。' },
+  { id: 'unicef', publisher: '联合国儿童基金会', url: 'https://www.unicef.org/rss.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
+    note: '童婚、女童失学、儿童保护的跨国统计——站长新加的「儿童」议题主要靠它。' },
+  { id: 'who', publisher: '世界卫生组织', url: 'https://www.who.int/rss-feeds/news-english.xml', kind: 'official-statistics', regions: ['global'], lang: 'en',
+    note: '亲密伴侣暴力患病率、孕产死亡率这类全球估算的原始发布方。' },
+  { id: 'guttmacher', topical: true, publisher: '古特马赫研究所', url: 'https://www.guttmacher.org/rss.xml', kind: 'peer-reviewed', regions: ['global', 'us'], lang: 'en',
+    note: '生育健康领域的方法学标杆，估算过程公开可复核。' },
+  { id: 'williams', topical: true, publisher: '威廉姆斯研究所', url: 'https://williamsinstitute.law.ucla.edu/feed/', kind: 'peer-reviewed', regions: ['us'], lang: 'en',
+    note: 'UCLA 法学院，性倾向与性别认同的人口学研究，长期做 LGBTQIA+ 抽样。' },
+  { id: 'pew', publisher: '皮尤研究中心', url: 'https://www.pewresearch.org/feed/', kind: 'official-statistics', regions: ['us', 'global'], lang: 'en',
+    note: '抽样与问卷全文公开，态度调查的常用参照。综合源，要过关键词。' },
+  { id: 'eige', topical: true, publisher: '欧洲性别平等研究所', url: 'https://eige.europa.eu/rss.xml', kind: 'official-statistics', regions: ['eu'], lang: 'en',
+    note: '欧盟的性别平等指数，成员国可比口径。' },
+  { id: 'hrw-reports', publisher: '人权观察', url: 'https://www.hrw.org/rss/reports', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '实地取证报告，方法写在报告里。倡导机构，立场公开。' },
+  { id: 'amnesty-research', publisher: '国际特赦组织', url: 'https://www.amnesty.org/en/latest/research/feed/', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '同上：可核对，但选题服务于其倡导目标。' },
+  { id: 'ilga', topical: true, publisher: '国际同志联合会', url: 'https://ilga.org/feed', kind: 'ngo-report', regions: ['global'], lang: 'en',
+    note: '《国家支持的恐同》年度法律普查，逐国列出法条。' },
+]
 
 /** 从标题和摘要里认出地区。综合源的 regions 只是默认值，命中这些词就更准。 */
 export const REGION_WORDS = {

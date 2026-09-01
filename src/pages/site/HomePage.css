@@ -1,10 +1,14 @@
 .home { padding-block: var(--s-7) var(--s-9); display: grid; gap: var(--s-6); }
 
 .home__hero { display: grid; gap: var(--s-3); max-width: 72ch; }
-.home__eyebrow { font-size: var(--fs-2xs); font-weight: 660; letter-spacing: .12em; color: var(--fg-faint); }
-.home__title { font-size: var(--fs-3xl); line-height: 1.25; letter-spacing: -0.02em; }
-.home__intro { font-size: var(--fs-md); line-height: var(--lh-prose); color: var(--fg-muted); }
-:root[data-body="serif"] .home__intro { font-family: var(--font-serif); }
+/*
+ * 现在这里只有日期。它不再是标语上面那行小字，而是这一页的标题本身，
+ * 所以字号收到 xl——3xl 是给一整句标语用的，一个日期占那么大只显得空。
+ */
+.home__title {
+  font-size: var(--fs-xl); line-height: 1.25; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; color: var(--fg-muted); font-weight: 660;
+}
 
 .home__stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-3); margin-top: var(--s-3); }
 @media (min-width: 700px) { .home__stats { grid-template-columns: repeat(4, 1fr); } }

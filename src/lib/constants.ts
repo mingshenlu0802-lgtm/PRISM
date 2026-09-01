@@ -5,14 +5,15 @@ import type { AccentKey, Appearance, StudyKind, ThemeKey, Topic, TopicKey } from
  * ------------------------------------------------------------------ */
 
 export const TOPICS: Topic[] = [
+  { key: 'violence', zh: '性暴力与性犯罪', short: '性暴力', en: 'Sexual violence', hue: 'var(--t-violence)', blurb: '性侵、家暴、性骚扰，以及案件走到了哪一步。' },
+  { key: 'children', zh: '儿童与未成年人受害', short: '儿童', en: 'Children', hue: 'var(--t-children)', blurb: '针对儿童与未成年人的侵害、童婚、失学与监护失职。' },
   { key: 'rights', zh: '女性主义与 LGBTQIA+ 权利', short: '权利', en: 'Rights', hue: 'var(--t-rights)', blurb: '法律地位、承认、结社自由与公民空间。' },
-  { key: 'violence', zh: '性暴力、家暴与性骚扰', short: '暴力', en: 'Violence', hue: 'var(--t-violence)', blurb: '以创伤知情、受害者为中心的方式呈现。' },
-  { key: 'repro', zh: '生育权与身体自主权', short: '生育权', en: 'Reproductive rights', hue: 'var(--t-repro)', blurb: '避孕、终止妊娠、孕产照护与强制绝育。' },
+  { key: 'repro', zh: '生育权与身体自主', short: '生育权', en: 'Reproductive rights', hue: 'var(--t-repro)', blurb: '避孕、终止妊娠、孕产照护与强制绝育。' },
   { key: 'trans', zh: '跨性别权利与医疗', short: '跨性别', en: 'Trans rights', hue: 'var(--t-trans)', blurb: '法律性别承认、医疗可及性与相关争论。' },
   { key: 'hate', zh: '仇恨犯罪与网络暴力', short: '仇恨与网暴', en: 'Hate & abuse', hue: 'var(--t-hate)', blurb: '线下袭击、协同骚扰与平台治理。' },
-  { key: 'equality', zh: '法律、政治、教育、医疗与职场平等', short: '平等', en: 'Equality', hue: 'var(--t-equality)', blurb: '薪酬、代表性、照护劳动与制度歧视。' },
-  { key: 'displacement', zh: '战争、移民与交叉边缘群体', short: '流离与移民', en: 'Displacement', hue: 'var(--t-displacement)', blurb: '冲突性暴力、庇护程序与无国籍状态。' },
-  { key: 'movement', zh: '运动内部的重要争议', short: '运动内部', en: 'Movement debates', hue: 'var(--t-movement)', blurb: '策略、包容、资金与代表性的公开分歧。' },
+  { key: 'equality', zh: '教育、职场与制度平等', short: '平等', en: 'Equality', hue: 'var(--t-equality)', blurb: '薪酬、代表性、照护劳动与制度歧视。' },
+  { key: 'displacement', zh: '战争、移民与边缘处境', short: '流离与移民', en: 'Displacement', hue: 'var(--t-displacement)', blurb: '冲突性暴力、庇护程序与无国籍状态。' },
+  { key: 'movement', zh: '运动内部的争议', short: '运动内部', en: 'Movement debates', hue: 'var(--t-movement)', blurb: '策略、包容、资金与代表性的公开分歧。' },
 ]
 
 export const TOPIC_MAP: Record<TopicKey, Topic> = Object.fromEntries(

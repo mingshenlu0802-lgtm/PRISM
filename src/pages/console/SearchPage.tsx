@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import type { CollectMode, TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
 import { PRIORITY_REGIONS, REGIONS, sortRegions } from '../../lib/regions'
-import { ENGINES, TOPICS } from '../../lib/constants'
+import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
-import { collect, planSteps } from '../../lib/collect'
-import { cx, fmtDateTime, nowIso, relTime, uid } from '../../lib/util'
-import { Checkbox, Icon, Modal, TextArea, toast } from '../../components/common'
+import { cx } from '../../lib/util'
+import { Checkbox, Icon, TextArea, toast } from '../../components/common'
 import { Coverage } from '../../components/console/Coverage'
 import './SearchPage.css'
 
@@ -22,17 +20,10 @@ export default function SearchPage(): JSX.Element {
   // 给搜集程序的常驻指示。存进 site.copy.collectNote，跑在 Actions 上的抓取会读它。
   const [note, setNote] = useState(state.copy.collectNote ?? '')
   const cfg = state.collect
-  const [running, setRunning] = useState(false)
-  const [stepIndex, setStepIndex] = useState(-1)
-  const [runId, setRunId] = useState<string | null>(null)
-  const [confirmUndo, setConfirmUndo] = useState<string | null>(null)
-  const timers = useRef<number[]>([])
-
-  useEffect(() => () => { timers.current.forEach((t) => window.clearTimeout(t)) }, [])
-
-  const lastRun = state.runs[0]
-  const steps = useMemo(() => planSteps(cfg), [cfg])
-
+  /*
+   * 演示按钮删掉之后，这一页不再「跑」任何东西——它只保存设置。
+   * running / stepIndex / runId / 计时器那一套都跟着走了。
+   */
   const setCfg = (patch: Parameters<typeof dispatch>[0] extends never ? never : Partial<typeof cfg>) =>
     dispatch({ type: 'collect-config', patch })
 
@@ -42,130 +33,41 @@ export default function SearchPage(): JSX.Element {
   const toggleTopic = (k: TopicKey) =>
     setCfg({ topics: cfg.topics.includes(k) ? cfg.topics.filter((t) => t !== k) : [...cfg.topics, k] })
 
-  function start() {
-    if (running) return
-    if (cfg.regions.length === 0) { toast('先至少选一个地区。', 'warn'); return }
-    if (cfg.topics.length === 0) { toast('先至少选一个议题。', 'warn'); return }
-
-    const id = uid('run')
-    const run = {
-      id, startedAt: nowIso(), config: { ...cfg },
-      steps: planSteps(cfg), addedNewsIds: [], addedStudyIds: [],
-      skipped: [], state: 'running' as const,
-    }
-    dispatch({ type: 'run-start', run })
-    setRunId(id); setRunning(true); setStepIndex(-1)
-
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    const gap = reduce ? 60 : 520
-
-    run.steps.forEach((_, i) => {
-      timers.current.push(window.setTimeout(() => {
-        setStepIndex(i)
-        dispatch({ type: 'run-step', runId: id, index: i })
-      }, gap * (i + 1)))
-    })
-
-    timers.current.push(window.setTimeout(() => {
-      const result = collect(cfg, state.news, state.studies, state.runs.length)
-      if (result.news.length) dispatch({ type: 'news-add', items: result.news, who })
-      if (result.studies.length) dispatch({ type: 'study-add', items: result.studies, who })
-      dispatch({
-        type: 'run-finish', runId: id,
-        addedNews: result.news.map((n) => n.id),
-        addedStudies: result.studies.map((s) => s.id),
-        skipped: result.skipped,
-      })
-      setRunning(false)
-      const total = result.news.length + result.studies.length
-      if (total === 0) toast('这次没有找到新内容——素材都已经在站上了。', 'info')
-      else if (cfg.autoPublish) toast(`找到 ${total} 条，已经直接上线。不满意可以随时删。`, 'go')
-      else toast(`找到 ${total} 条，已存为草稿，去「编辑」里看。`, 'go')
-    }, gap * (run.steps.length + 1)))
-  }
-
-  const currentRun = runId ? state.runs.find((r) => r.id === runId) : lastRun
-
   return (
     <div className="srch">
       <header className="srch__head">
         <h1 className="srch__title">找新闻</h1>
         <p className="srch__lede">
-          选好地区和议题，按下面那个大按钮就行。其余设置都有默认值，看不懂可以不动。
+          搜集<strong>每天早上六点（北京时间）自动跑一次</strong>，一次最多 30 条，
+          抓到就直接上线。这一页是给它下指示的地方，不是一个要你按的按钮。
         </p>
       </header>
 
-      {/* ------------------------------ the button ------------------------------ */}
-      <section className="srch__go">
-        <button type="button" className="srch__gobtn" onClick={start} disabled={running || !canEdit}>
-          {running ? (<><span className="srch__spinner" aria-hidden="true" />正在搜集…</>)
-            : (<><Icon name="search" size={20} />开始搜集</>)}
-        </button>
-        <div className="srch__gonote">
-          <p>
-            这次会搜 <strong>{cfg.regions.length}</strong> 个地区、
-            <strong>{cfg.topics.length}</strong> 个议题，最多加 <strong>{cfg.perRun}</strong> 条。
-          </p>
-          <p className={cx('srch__mode', cfg.autoPublish && 'srch__mode--live')}>
-            {cfg.autoPublish
-              ? '找到就直接上线，公众站马上能看到。你可以随时删掉。'
-              : '找到后存为草稿，不会出现在公众站，等你去「编辑」里放行。'}
-          </p>
-          {!canEdit && <p className="srch__warn">你的账号只能看内容。要搜集，请让站长把你设成编辑。</p>}
-        </div>
+      {/*
+        * 这里原本有一个「开始搜集」的大按钮，一条走格子的进度条，和一份
+        * 「上次搜集」报告。
+        *
+        * 全是演示。它取的是代码里内置的虚构素材，链接落在保留域名 .invalid 上。
+        * 站长按过，然后问「为什么我搜寻的新闻质量这么差，只有示例？」——
+        * 答案就是这个按钮。真正的搜集跑在 GitHub Actions 上，抓的是真媒体的 RSS。
+        *
+        * 一个会往站上灌假数据的按钮，留着只会再骗人一次，所以删掉。
+        * 下面这些设置留着，因为它们是真的：每天那一次会读它们。
+        */}
+      <section className="srch__block">
+        <h2 className="srch__blocktitle">它什么时候跑</h2>
+        <ul className="srch__facts">
+          <li><strong>每天早上 6:00</strong>（北京 / 台北时间）自动开始</li>
+          <li>一次最多 <strong>30 条</strong>，按编辑方针筛过、翻成中文、写好总结</li>
+          <li>和站上已有内容讲同一件事的会<strong>合并</strong>，不重复占位</li>
+          <li>抓到<strong>直接上线</strong>，不满意随时在「编辑 → 内容」里下架或删除</li>
+        </ul>
+        <p className="srch__blocknote">
+          想现在就跑一次、或者看上一次跑得怎么样：去 GitHub 仓库的
+          <strong> Actions → 找新闻</strong>。那里有每一次的完整日志，
+          包括每个来源抓到几条、哪些被合并了、这一轮花了多少 token。
+        </p>
       </section>
-
-      {/* ------------------------------- progress ------------------------------- */}
-      {(running || currentRun) && (
-        <section className="srch__run" aria-live="polite">
-          <p className="srch__runhead">
-            {running ? '正在进行' : `上次搜集 · ${currentRun ? relTime(currentRun.startedAt) : ''}`}
-          </p>
-          <ol className="srch__steps">
-            {(currentRun?.steps ?? steps).map((s, i) => {
-              const done = running ? i <= stepIndex : Boolean(currentRun && currentRun.state === 'done')
-              return (
-                <li key={`${s.stage}-${i}`} className={cx('srch__step', done && 'srch__step--done')}>
-                  <span className="srch__stepmark" aria-hidden="true">
-                    {done ? <Icon name="check" size={13} /> : i}
-                  </span>
-                  <div>
-                    <p className="srch__steplabel">{s.label}</p>
-                    <p className="srch__stepdetail">{s.detail}</p>
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
-
-          {currentRun && currentRun.state === 'done' && (
-            <div className="srch__result">
-              <p className="srch__resulthead">
-                这次加了 <strong>{currentRun.addedNewsIds.length}</strong> 条新闻、
-                <strong>{currentRun.addedStudyIds.length}</strong> 项研究
-              </p>
-              {currentRun.skipped.length > 0 && (
-                <details className="srch__skipped">
-                  <summary>{currentRun.skipped.length} 条被跳过，看原因</summary>
-                  <ul>
-                    {currentRun.skipped.map((s, i) => (
-                      <li key={i}><span className="srch__skiphead">{s.headline}</span><span className="srch__skipwhy">{s.reason}</span></li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              <div className="srch__resultactions">
-                <Link className="srch__link" to="/console/manage">去看看这些内容<Icon name="arrow-right" size={13} /></Link>
-                {(currentRun.addedNewsIds.length + currentRun.addedStudyIds.length) > 0 && (
-                  <button type="button" className="srch__undo" onClick={() => setConfirmUndo(currentRun.id)}>
-                    <Icon name="refresh" size={13} />后悔了，撤销这次搜集
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </section>
-      )}
 
       {/* ------------------------------- settings ------------------------------- */}
       <Coverage />
@@ -324,73 +226,26 @@ export default function SearchPage(): JSX.Element {
         </div>
       </section>
 
+      {/*
+        * 这里原本是一个模型选择器：Qwen / Llama / Mistral / 自定义端点 / Claude。
+        *
+        * 它现在是假的。真正抓新闻、写中文总结的是 GitHub Actions 里的收集脚本，
+        * 用的模型由仓库的 ANTHROPIC_API_KEY 决定，跟这个页面上选了什么毫无关系。
+        * 一个点了没有任何作用的选择器，比没有这个选择器更糟——站长会以为自己
+        * 换了模型，然后困惑为什么输出没变。站长也已经定了：只用 Claude API。
+        *
+        * 所以选择器删掉，换成一句说明真实情况的话。
+        */}
       <section className="srch__block">
-        <h2 className="srch__blocktitle">用哪个 AI 去找和写</h2>
+        <h2 className="srch__blocktitle">用哪个模型</h2>
         <p className="srch__blocknote">
-          <strong>找链接和写总结都用你在这里选的模型</strong>——包括几百上千字的长总结。
-          这两件事是重复劳动，免费的开源模型就够，不用花钱。
-          除了这里，网站不会在别处调用任何 AI——你在这里选开源模型，就不会产生任何费用。
+          筛选、翻译和写总结都交给 <strong>Claude</strong>，模型在仓库的
+          Secrets 里设定（<code>ANTHROPIC_API_KEY</code>），不在这个页面上选。
+          每次收集跑完，Actions 的日志会报出这一轮用掉多少 token、大概多少钱。
         </p>
-        <div className="srch__engines">
-          {ENGINES.map((e) => (
-            <button
-              key={e.id}
-              type="button"
-              className={cx('srch__engine', cfg.engine === e.id && 'srch__engine--on')}
-              aria-pressed={cfg.engine === e.id}
-              onClick={() => setCfg({ engine: e.id })}
-            >
-              <span className="srch__enginetop">
-                <span className="srch__enginename">{e.name}</span>
-                <span className="srch__enginecost">{e.cost}</span>
-              </span>
-              <span className="srch__enginenote">{e.note}</span>
-            </button>
-          ))}
-        </div>
       </section>
 
-      {state.runs.length > 1 && (
-        <section className="srch__block">
-          <h2 className="srch__blocktitle">最近几次搜集</h2>
-          <ul className="srch__history">
-            {state.runs.slice(0, 6).map((r) => (
-              <li key={r.id} className="srch__histrow">
-                <span className="srch__histwhen">{fmtDateTime(r.startedAt)}</span>
-                <span className="srch__histn">+{r.addedNewsIds.length + r.addedStudyIds.length} 条</span>
-                <span className="srch__histcfg">{r.config.regions.length} 个地区 · {r.config.autoPublish ? '直接上线' : '存草稿'}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
-      <Modal
-        open={confirmUndo !== null}
-        onClose={() => setConfirmUndo(null)}
-        title="撤销这次搜集？"
-        subtitle="这次加进来的内容会被移除"
-        tone="danger"
-        footer={
-          <>
-            <button type="button" className="srch__mbtn" onClick={() => setConfirmUndo(null)}>算了</button>
-            <button
-              type="button"
-              className="srch__mbtn srch__mbtn--danger"
-              onClick={() => {
-                if (confirmUndo) dispatch({ type: 'run-undo', runId: confirmUndo, who })
-                setConfirmUndo(null)
-                toast('已撤销，这次加的内容都移除了。', 'info')
-              }}
-            >撤销</button>
-          </>
-        }
-      >
-        <p className="srch__mtext">
-          只会移除这一次搜集加进来的内容，之前的都不受影响。
-          如果你已经手动改过其中某条，改动也会一起消失。
-        </p>
-      </Modal>
     </div>
   )
 }

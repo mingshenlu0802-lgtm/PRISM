@@ -34,6 +34,27 @@ export function sortBy<T>(items: T[], key: (t: T) => number | string, dir: 'asc'
 
 /* ---------------------------------- dates --------------------------------- */
 
+/** 这个站的时区。站长在北京时间，每天早上六点那一批也是按这个时区发的。 */
+export const SITE_TZ = 'Asia/Shanghai'
+
+/**
+ * 今天，北京时间。
+ *
+ * 首页顶上那个日期本来一直显示 2026-08-31——它取的是演示数据里写死的常量。
+ * 一个每天更新的新闻站，日期停在某一天，读者第一眼就知道这站没人管。
+ *
+ * 用北京时间而不是读者本地时间：这是一份按北京时间每天早上六点出的日报，
+ * 「今天」应该是编辑部的今天。读者在伦敦打开，看到的该是同一期的日期，
+ * 而不是他自己那边的日历——否则同一批内容会在不同人屏幕上标着不同的日子。
+ *
+ * en-CA 给的就是 YYYY-MM-DD，不用自己拼。
+ */
+export function todayISO(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: SITE_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+}
+
 export function fmtDate(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso

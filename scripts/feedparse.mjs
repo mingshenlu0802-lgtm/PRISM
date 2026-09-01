@@ -64,6 +64,40 @@ export function imageOf(block, outlet) {
   }
 }
 
+/**
+ * 从报道页面自己的 HTML 里取社交预览图。
+ *
+ * 为什么要多这一步：feed 里的 `media:thumbnail` 常常是 150px 见方的列表缩略图，
+ * 放到首页大卡片上就是一团糊。站长的原话是「你没有给我高质量的标图」。
+ *
+ * 而 `og:image` 是媒体自己为社交平台准备的那一张——按 1200×630 做的，
+ * 是同一家媒体、同一篇报道、同一个编辑挑的图，只是尺寸对得上。
+ * 所以有 og:image 就优先用它，没有才退回 feed 里那张。
+ *
+ * 仍然**不描述图片内容**：alt 只说这是谁为哪篇报道配的图。
+ * 我没看过这张图，写「一群女性举着标语」就是编造。
+ */
+export function ogImage(html, outlet) {
+  const meta = (prop) => {
+    // property 和 content 的先后顺序在各家模板里都不一样，两种都认。
+    const a = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*content=["']([^"']+)["']`, 'i')
+    const b = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${prop}["']`, 'i')
+    return (html.match(a)?.[1] ?? html.match(b)?.[1] ?? '').trim()
+  }
+  const url = meta('og:image:secure_url') || meta('og:image') || meta('twitter:image') || meta('twitter:image:src')
+  if (!url || !/^https?:\/\//.test(url)) return null
+
+  // 1×1 计数像素、占位图、社交按钮图标——这些都不是配图。
+  if (/\b(1x1|pixel|spacer|blank|placeholder|logo|favicon|avatar|sprite)\b/i.test(url)) return null
+
+  const alt = meta('og:image:alt')
+  return {
+    url,
+    alt: alt || `${outlet} 为这条报道配发的图片`,
+    credit: outlet,
+  }
+}
+
 export function parseFeed(xml, outlet = '来源媒体') {
   const blocks = xml.match(/<(item|entry)(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi) ?? []
   return blocks.map((b) => ({

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { REGIONS } from '../../lib/regions'
-import { TOPICS, DEMO_NOTICE } from '../../lib/constants'
+import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
 import { takeAuthLinkError } from '../../lib/authlink'
@@ -176,24 +176,14 @@ export default function SiteLayout(): JSX.Element {
       )}
 
       {/*
-        * 只有真的在看演示数据时才说这句话。
+        * 这里原本有一条「演示数据」横幅，还有「关于」页上配套的一整节说明。
+        * 站长要求两个都去掉，理由很实在：他的站已经接上真实数据库了，
+        * 那条横幅只在还混着演示种子时才出现，对他就是一句多余的警告。
         *
-        * 这条横幅原来是无条件渲染的。站长接上自己的数据库、写完真实报道、
-        * 把链接发给朋友之后，每个朋友头顶还是会挂着「条目、媒体名称与链接均为虚构」
-        * ——网站在对读者否认自己刚发布的报道。对一个新闻站来说，
-        * 没有比这更伤的假话了。
-        *
-        * 按数据判断而不是按模式：演示种子里每一条都带 demo 标记，真实内容不带。
-        * 所以只要还混着演示条目它就留着，全换成真的就自己消失。
+        * 去掉不会让假链接冒充真链接——演示链接用的是保留域名 .invalid，
+        * isPlaceholderUrl() 认得它，页面上照旧渲染成不可点击的「示例」。
+        * 挡住误导的是那一层，不是这条横幅。
         */}
-      {(state.news.some((n) => n.demo) || state.studies.some((s) => s.demo)) && (
-        <div className="slyt__demo">
-          <div className="u-shell slyt__demoin">
-            <span className="slyt__demotag">演示数据</span>
-            <span>{DEMO_NOTICE}</span>
-          </div>
-        </div>
-      )}
 
       <main id="main" className="slyt__main">
         <Outlet />

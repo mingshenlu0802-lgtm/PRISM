@@ -33,7 +33,7 @@ const SHAPE = `
 items 的长度和顺序必须跟输入的候选**完全一致**，不符合方针的那条把 keep 设成 false
 （其余字段可以留空）。不要增删条目，不要改顺序。
 
-topics 只能从这些里选：rights violence repro trans hate equality displacement movement
+topics 只能从这些里选：violence children rights repro trans hate equality displacement movement
 regions 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
@@ -58,7 +58,7 @@ async function runBatch(batch, ownerNote) {
   return items
 }
 
-const TOPICS = new Set(['rights', 'violence', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'])
+const TOPICS = new Set(['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'])
 const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
 
 /**
@@ -130,4 +130,109 @@ export async function rewriteAll(picked, ownerNote = '') {
     console.log('   上面每一批的错误原文就是答案，照着看。')
   }
   return out
+}
+
+/* ------------------------------------------------------------------ *
+ * 研究与数据
+ *
+ * 站长要每天 30 条新闻**加 3 项研究**。研究不是短新闻，不能套同一套提示词：
+ * 新闻回答「发生了什么」，研究要回答「这个数字撑得起什么结论、撑不起什么」。
+ *
+ * 所以多要两样东西：
+ *   - limitation：这份研究**做不到**什么。研究页会把它印在数字旁边。
+ *     一个不写局限的数据站，是在帮读者过度解读。
+ *   - figures：最多三个关键数字，每个都必须带一句「它没说什么」。
+ *
+ * 一天只要 3 项，所以一批发完，不分批。
+ * ------------------------------------------------------------------ */
+
+const STUDY_SHAPE = `
+只返回 JSON，形如：
+{"items":[{
+  "keep": true,
+  "title": "中文标题",
+  "publisher": "中文机构名",
+  "kind": "official-statistics",
+  "summary": "详细的中文总结，分段，用 \\n\\n 断段",
+  "limitation": "这份研究撑不起什么结论，一到两句",
+  "figures": [{"label":"指标名","value":"数字带单位","note":"这个数字没有说什么"}],
+  "topics": ["violence"],
+  "regions": ["global"]
+}]}
+
+items 的长度和顺序必须跟输入**完全一致**，不属于本站题目的把 keep 设成 false。
+
+kind 只能从这些里选：peer-reviewed systematic-review official-statistics dataset ngo-report preprint
+topics 只能从这些里选：violence children rights repro trans hate equality displacement movement
+regions 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global
+
+figures 里只放**原文里真的出现过的数字**。原文没给数字就返回空数组——
+编一个数字比没有数字糟糕得多。note 不能空着：每个数字都要说清它的边界。
+limitation 同理，宁可写「原文未说明抽样方法」，也不要编一个方法出来。`.trim()
+
+const KINDS = new Set(['peer-reviewed', 'systematic-review', 'official-statistics', 'dataset', 'ngo-report', 'preprint'])
+
+/** 校验一项研究。和新闻一样：模型编出来的字段不该悄悄进站。 */
+export function cleanStudy(raw, fallback) {
+  const topics = (Array.isArray(raw?.topics) ? raw.topics : []).filter((t) => TOPICS.has(t))
+  const regions = (Array.isArray(raw?.regions) ? raw.regions : []).filter((r) => REGIONS.has(r))
+  const figures = (Array.isArray(raw?.figures) ? raw.figures : [])
+    .filter((f) => f && String(f.value ?? '').trim() && String(f.note ?? '').trim())
+    .slice(0, 3)
+    .map((f) => ({
+      label: String(f.label ?? '').trim(),
+      value: String(f.value ?? '').trim(),
+      note: String(f.note ?? '').trim(),
+    }))
+  const summary = String(raw?.summary ?? '').trim()
+  return {
+    ...fallback,
+    title: String(raw?.title ?? '').trim() || fallback.title,
+    publisher: String(raw?.publisher ?? '').trim() || fallback.publisher,
+    // 模型没给或给了个不存在的类型，就退回这个源的默认类型，不要让研究页
+    // 出现一个显示不出可信度提示的空类别。
+    kind: KINDS.has(raw?.kind) ? raw.kind : fallback.kind,
+    summary: summary.length >= 80 ? summary : fallback.summary,
+    limitation: String(raw?.limitation ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
+    figures,
+    topics: topics.length ? topics : fallback.topics,
+    regions: regions.length ? regions : fallback.regions,
+  }
+}
+
+/** 把候选研究交给模型。返回保留下来的那些。 */
+export async function rewriteStudies(cands, ownerNote) {
+  if (cands.length === 0) return []
+  const input = cands.map((c, i) => ({
+    i,
+    publisher: c.feed.publisher,
+    defaultKind: c.feed.kind,
+    title: c.title,
+    excerpt: c.summary,
+    url: c.link,
+    date: c.at.slice(0, 10),
+  }))
+  console.log(`交给模型处理 ${cands.length} 项候选研究（${llmName()}）`)
+  try {
+    const out = await ask(
+      `${systemPrompt(ownerNote)}\n\n${STUDY_SHAPE}`,
+      `候选研究 ${input.length} 项：\n\n${JSON.stringify(input, null, 1)}`,
+    )
+    const items = Array.isArray(out?.items) ? out.items : []
+    if (items.length !== cands.length) {
+      throw new Error(`模型返回 ${items.length} 项，应当是 ${cands.length} 项`)
+    }
+    const kept = []
+    cands.forEach((c, i) => {
+      if (items[i]?.keep === false) return
+      kept.push(cleanStudy(items[i], c))
+    })
+    console.log(`模型留下 ${kept.length} 项，丢掉 ${cands.length - kept.length} 项`)
+    return kept
+  } catch (e) {
+    // 研究是「加分项」，不该因为它失败就把整轮新闻也拖掉。
+    console.log(`研究这一步失败了：${String(e.message ?? e).slice(0, 200)}`)
+    console.log('这一轮就不加研究了，新闻不受影响。')
+    return []
+  }
 }

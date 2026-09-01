@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import { REGIONS } from '../../lib/regions'
-import { TOPICS, DEMO_NOTICE } from '../../lib/constants'
+import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
-import { Icon, PrismMark } from '../../components/common'
+import { PrismMark } from '../../components/common'
 import './AboutPage.css'
 
 export default function AboutPage(): JSX.Element {
@@ -59,14 +59,6 @@ export default function AboutPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="about__demo" aria-labelledby="about-demo">
-        <h2 className="about__h2" id="about-demo"><Icon name="alert" size={16} /> 关于当前的演示数据</h2>
-        <p className="about__body">{DEMO_NOTICE}</p>
-        <p className="about__body">
-          演示链接位于 <code>demo.prism.invalid</code>——这是一个保留域名，永远不会解析，
-          所以它们在页面上显示为「示例」且不可点击。接入真实检索之后，链接会变成真实可点的外链。
-        </p>
-      </section>
 
       <p className="about__foot">{state.copy.footerNote}</p>
     </div>

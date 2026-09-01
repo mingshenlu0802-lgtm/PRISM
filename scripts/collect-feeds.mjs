@@ -19,10 +19,10 @@
  *   SUPABASE_URL=... SUPABASE_SERVICE_KEY=... node scripts/collect-feeds.mjs
  *   加 --dry 只看抓到什么，不写数据库。
  */
-import { FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor } from './feedparse.mjs'
+import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
+import { parseFeed, topicsOf, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, noticeFor, ogImage } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
-import { rewriteAll } from './rewrite.mjs'
+import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
 const DRY = process.argv.includes('--dry')
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '')
@@ -51,6 +51,13 @@ const AUTO = process.env.AUTO_PUBLISH !== '0'
  * 站长在控制端写「今天要 20 条」时，改的就是这个。
  */
 const MAX_ITEMS = Number(process.env.MAX_ITEMS ?? 30)
+/*
+ * 每天几项研究。站长要的是「30 条新闻，3 个研究」。
+ *
+ * 研究比新闻贵一点——每项都要模型多写局限和关键数字——但一天只有三项，
+ * 一次调用就够，占整轮成本的零头。
+ */
+const MAX_STUDIES = Number(process.env.MAX_STUDIES ?? 3)
 
 if (!DRY && (!SUPABASE_URL || !SERVICE_KEY)) {
   console.error('缺 SUPABASE_URL 或 SUPABASE_SERVICE_KEY。只想看抓到什么就加 --dry。')
@@ -167,7 +174,8 @@ for (const feed of FEEDS) {
  * 站长指定的报道重心。每个源都有条数上限，排在前面就意味着在额度里优先留下。
  */
 picked.sort((a, b) => {
-  const w = (p) => (p.topics.includes('violence') ? 0 : 1)
+  // 性犯罪第一，儿童第二——站长定的两个重心，其余按时间。
+  const w = (p) => (p.topics.includes('violence') ? 0 : p.topics.includes('children') ? 1 : 2)
   return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
 })
 
@@ -239,6 +247,68 @@ for (const p of picked) {
 const merged = groups.reduce((n, g) => n + g.also.length, 0)
 if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲过的事，合并成来源`)
 
+/* ------------------------------------------------------------------ *
+ * 配图
+ *
+ * 站长：「你没有给我高质量的标图。」他说得对——feed 里的 media:thumbnail
+ * 常常是 150px 的列表缩略图，铺到首页大卡片上就是一团糊。
+ *
+ * 报道页面自己的 og:image 是同一家媒体为社交平台准备的那张，按 1200×630 做的。
+ * 所以对**准备写进站的这几十条**去取一次页面，拿它换掉缩略图。
+ *
+ * 只对要写进去的取，不对抓到的全部取：三十次请求可以接受，两百次不行。
+ * 取不到就用 feed 那张，再取不到就没有图——不去别处找一张「看起来像」的图，
+ * 那是给真实事件配一张无关的照片。
+ * ------------------------------------------------------------------ */
+
+async function pageImage(url, outlet) {
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), 12000)
+  try {
+    const res = await fetch(url, {
+      signal: ctl.signal,
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'PRISM-collector/1.0 (+https://prism-daily.github.io/PRISM/)',
+        accept: 'text/html,application/xhtml+xml',
+      },
+    })
+    if (!res.ok) return null
+    const type = res.headers.get('content-type') ?? ''
+    if (!/html/i.test(type)) return null
+    // og 标签都在 <head> 里，没必要把整篇文章读进内存。
+    const html = (await res.text()).slice(0, 250000)
+    return ogImage(html, outlet)
+  } catch {
+    return null
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+/** 小并发地跑一批任务。串行太慢，全并发会被对方限流。 */
+async function inBatches(items, size, fn) {
+  const out = []
+  for (let i = 0; i < items.length; i += size) {
+    out.push(...await Promise.all(items.slice(i, i + size).map(fn)))
+  }
+  return out
+}
+
+async function upgradeImages(list) {
+  const before = list.filter((g) => g.image).length
+  const got = await inBatches(list, 6, (g) => pageImage(g.link, g.feed.outlet))
+  let better = 0
+  list.forEach((g, i) => {
+    if (!got[i]) return
+    if (!g.image) { g.image = got[i]; better += 1; return }
+    // feed 有图也换掉：og:image 基本总是更大的那张。
+    if (got[i].url !== g.image.url) { g.image = got[i]; better += 1 }
+  })
+  const after = list.filter((g) => g.image).length
+  console.log(`配图：feed 自带 ${before} 张，去报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
+}
+
 const have = await existingItems()
 
 const linkOf = (p, i, j) => ({
@@ -250,6 +320,13 @@ const linkOf = (p, i, j) => ({
   date: p.at.slice(0, 10),
   ...(p.feed.kind ? { kind: p.feed.kind } : {}),
 })
+
+// 先算出哪些是真要写进去的，只给它们取大图。
+const fresh = groups.filter((g) => {
+  if (have.items.some((it) => sameStory(it.key, g.key))) return false
+  return [g, ...g.also].some((p) => !have.urls.has(normUrl(p.link)))
+})
+if (fresh.length > 0) await upgradeImages(fresh)
 
 const toInsert = []
 const toAppend = []
@@ -314,6 +391,144 @@ const noticed = toInsert.filter((r) => r.content_notice).length
 console.log(AUTO
   ? `已上线 ${toInsert.length} 条${noticed ? `，其中 ${noticed} 条带内容提示` : ''}。`
   : `已写入 ${toInsert.length} 条，全部下架状态等你审核。`)
+
+/* ------------------------------------------------------------------ *
+ * 研究与数据
+ *
+ * 站长要的是每天「30 条新闻，3 个研究」。研究单独走一条线，因为它取的是
+ * 另一批来源：发布方自己的出版渠道，不是报道它的新闻。
+ *
+ * 放在新闻**之后**、并且自己吞掉所有异常，是有意的——研究是加分项，
+ * 它失败不该让已经写好的三十条新闻一起回滚。
+ * ------------------------------------------------------------------ */
+
+async function collectStudies() {
+  if (MAX_STUDIES <= 0) return
+  const cands = []
+  const seen = new Set()
+  const rep = []
+
+  for (const feed of STUDY_FEEDS) {
+    const r = await fetchFeed({ ...feed, outlet: feed.publisher })
+    if (!r.ok) { rep.push([feed, 0, 0, r.why]); continue }
+    let kept = 0
+    for (const e of r.entries) {
+      if (kept >= 3) break
+      if (!e.link || seen.has(e.link)) continue
+      const when = e.date ? Date.parse(e.date) : NaN
+      // 研究比新闻慢：一份报告发布一个月内都还算新。
+      if (Number.isFinite(when) && when < Date.now() - 45 * 864e5) continue
+      const topics = topicsOf(e)
+      if (!feed.topical && topics.length === 0) continue
+      seen.add(e.link)
+      kept += 1
+      cands.push({
+        feed,
+        title: e.title,
+        link: e.link,
+        summary: summaryOf(e),
+        topics: topics.length ? topics : ['equality'],
+        regions: regionsOf(e, feed),
+        kind: feed.kind,
+        publisher: feed.publisher,
+        limitation: '',
+        at: Number.isFinite(when) ? new Date(when).toISOString() : new Date().toISOString(),
+      })
+    }
+    rep.push([feed, r.entries.length, kept, ''])
+  }
+
+  console.log('')
+  console.log('研究与数据')
+  console.log('—'.repeat(76))
+  for (const [feed, total, kept, why] of rep) {
+    console.log(`  ${(feed.publisher + ' '.repeat(22)).slice(0, 22)} ${why ? `✗ ${why}` : `${kept}/${total}`}`)
+  }
+
+  if (cands.length === 0) { console.log('这一轮没有找到候选研究。'); return }
+
+  // 重心一致：性暴力与儿童优先，其余按新旧。
+  cands.sort((a, b) => {
+    const w = (c) => (c.topics.includes('violence') ? 0 : c.topics.includes('children') ? 1 : 2)
+    return w(a) - w(b) || Date.parse(b.at) - Date.parse(a.at)
+  })
+
+  // 站上已经有的不再来一遍。研究比新闻更容易重复——机构会反复推同一份报告。
+  let have = { slugs: new Set(), keys: [], urls: new Set() }
+  if (!DRY) {
+    const res = await db('studies?select=id,slug,title,links')
+    if (res.ok) {
+      for (const r of await res.json()) {
+        have.slugs.add(r.slug)
+        have.keys.push(tokens(r.title))
+        for (const l of (r.links ?? [])) if (l?.url) have.urls.add(normUrl(l.url))
+      }
+    }
+  }
+  const fresh = []
+  for (const c of cands) {
+    if (have.urls.has(normUrl(c.link))) continue
+    const key = tokens(c.title)
+    if (have.keys.some((k) => sameStory(k, key))) continue
+    if (fresh.some((f) => sameStory(tokens(f.title), key))) continue
+    fresh.push(c)
+    if (fresh.length >= MAX_STUDIES) break
+  }
+  if (fresh.length === 0) { console.log('候选研究站上都有了。'); return }
+
+  const kept = llmConfigured()
+    ? await rewriteStudies(fresh, await ownerNote())
+    : fresh.map((c) => ({ ...c, limitation: '原报告未说明方法与抽样，这里不代为推断。', figures: [] }))
+  if (kept.length === 0) { console.log('模型一项都没留下。'); return }
+
+  const rows = kept.map((c, i) => {
+    let slug = slugify(c.title) || `study-${i}`
+    while (have.slugs.has(slug)) slug = `${slug}-${Math.random().toString(36).slice(2, 6)}`
+    have.slugs.add(slug)
+    return {
+      id: `study-${Date.now().toString(36)}-${i}`,
+      slug,
+      title: c.title,
+      publisher: c.publisher,
+      kind: c.kind,
+      summary: c.summary,
+      limitation: c.limitation,
+      figures: c.figures ?? [],
+      regions: c.regions,
+      topics: c.topics,
+      links: [{
+        id: `sl-${Date.now().toString(36)}-${i}`,
+        outlet: c.publisher,
+        title: c.title,
+        url: c.link,
+        lang: c.feed?.lang ?? 'en',
+        date: c.at.slice(0, 10),
+        kind: 'official',
+      }],
+      dataset_url: null,
+      status: AUTO ? 'live' : 'hidden',
+      origin: 'auto',
+      demo: false,
+      date: c.at.slice(0, 10),
+      updated_at: new Date().toISOString(),
+    }
+  })
+
+  if (DRY) { console.log(`（演练）会加 ${rows.length} 项研究。`); return }
+  const res = await db('studies', { method: 'POST', body: JSON.stringify(rows), headers: { prefer: 'return=minimal' } })
+  if (!res.ok) {
+    console.error(`写研究失败：HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
+    return
+  }
+  console.log(`已加 ${rows.length} 项研究。`)
+}
+
+try {
+  await collectStudies()
+} catch (e) {
+  // 新闻已经写进去了，研究这一步再怎么坏也不能把整轮标成失败。
+  console.log(`研究这一步出错：${String(e.message ?? e).slice(0, 200)}`)
+}
 
 // 站长是拿自己的余额在跑。跑完报一次账，别让它悄悄花钱。
 const bill = spendReport()

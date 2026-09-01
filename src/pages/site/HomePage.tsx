@@ -50,10 +50,16 @@ export default function HomePage(): JSX.Element {
 
   return (
     <div className="home u-shell">
+      {/*
+        * 站长：这段标语和介绍「不需要在主页强调」。
+        *
+        * 于是首页开门见山就是日期——这本来就是这一页的身份：今天这一期。
+        * 标语没有删掉，只是挪到它该在的地方（页脚和「关于」），控制端也照旧能改。
+        * h1 留着而且换成日期，是因为一页不能没有标题：屏幕阅读器靠它定位，
+        * 搜索结果也靠它。把它做成一个空壳或者藏起来，只是把问题换个地方。
+        */}
       <section className="home__hero">
-        <p className="home__eyebrow">{fmtDate(state.today)}</p>
-        <h1 className="home__title">{state.copy.tagline}</h1>
-        <p className="home__intro">{state.copy.intro}</p>
+        <h1 className="home__title">{fmtDate(state.today)}</h1>
         <dl className="home__stats">
           <div><dt>今日条目</dt><dd>{live.length}</dd></div>
           <div><dt>覆盖地区</dt><dd>{coveredRegions.length}</dd></div>

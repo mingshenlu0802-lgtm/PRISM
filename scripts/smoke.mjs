@@ -28,7 +28,7 @@ const m = await import(pathToFileURL(bundle).href)
 const { buildInitialState, reducer, accessOf, collect, planSteps,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
-        parsePasted, friendly } = m
+        parsePasted, friendly, todayISO, TOPICS } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -647,6 +647,8 @@ await test('发信失败和额度用完不能混为一谈', () => {
 const feedparse = await import('./feedparse.mjs')
 const ed = await import('./editorial.mjs')
 const llm = await import('./llm.mjs')
+const rw = await import('./rewrite.mjs')
+const feeds = await import('./feeds.mjs')
 
 await test('RSS 和 Atom 都要认得出来', () => {
   const rss = `<rss><channel>
@@ -937,6 +939,109 @@ await test('探测脚本要说清楚缺的是哪一个', async () => {
   const out = run({})
   ok(out.includes('https://api.groq.com/openai/v1'), '要给出可以直接粘贴的端点')
   ok(out.includes('410'), '要写明 GitHub Models 已退役，免得又去试一遍')
+})
+
+await test('儿童议题要认出侵害，不要把儿科新闻也收进来', () => {
+  // 站长新加的议题，同时也是他抱怨的那件事的解药：「新闻题材不是全部女性主义」。
+  // 词表太宽，综合源会把儿童医院、儿童节、少儿节目全灌进来。
+  const has = (t) => feedparse.topicsOf({ title: t, summary: '' }).includes('children')
+  ok(has('Charity warns of rise in child marriage across the Sahel'), '童婚要算')
+  ok(has('Man charged over grooming of underage girls'), '未成年被诱骗要算')
+  ok(has('报告：拐卖儿童案件三年增两倍'), '拐卖儿童要算')
+  ok(has('印度女童失学率上升'), '女童失学要算')
+
+  // 反面才是重点：这两条以前会被裸的 child / 儿童 捞进来。
+  ok(!has("New children's hospital opens in Leeds"), '儿童医院不是本站题目')
+  ok(!has('儿童医院今天开张'), '中文按子串匹配，词越短误伤越大')
+})
+
+await test('议题清单要以性暴力开头，并且真的有儿童这一项', () => {
+  // 顺序不是装饰：它就是筛选栏和「关于」页上的排列顺序，而站长把性犯罪
+  // 定成了这个站的重心。
+  eq(TOPICS[0].key, 'violence', '性暴力排第一')
+  eq(TOPICS[1].key, 'children', '儿童排第二')
+  ok(TOPICS.some((t) => t.key === 'children'), '儿童议题必须存在')
+  ok(TOPICS.every((t) => t.zh && t.short && t.hue), '每一项都要有中文名、短名和颜色')
+
+  // 界面上的议题和抓取时能识别的议题必须是同一套，否则会出现一个
+  // 永远筛不出内容的标签。
+  const ui = TOPICS.map((t) => t.key).sort()
+  const collector = Object.keys(feeds.TOPIC_WORDS).sort()
+  eq(ui.join(','), collector.join(','), '界面议题和抓取议题必须对得上')
+})
+
+await test('研究里的数字不能是模型编的', () => {
+  // 研究页把数字印得很大。一个没有出处、没有边界说明的数字，
+  // 比不放这个数字糟糕得多。
+  const fallback = {
+    title: '原标题', publisher: '某机构', kind: 'ngo-report',
+    summary: '原摘要', topics: ['equality'], regions: ['global'],
+  }
+  const got = rw.cleanStudy({
+    title: '中文标题',
+    kind: '瞎编的类型',
+    summary: '这是一段足够长的中文总结'.repeat(6),
+    limitation: '',
+    figures: [
+      { label: '有说明的', value: '38%', note: '只统计了报案的案件' },
+      { label: '没说明的', value: '99%', note: '' },
+      { label: '没数字的', value: '', note: '有说明但没有数字' },
+    ],
+    topics: ['violence', '不存在的议题'],
+    regions: ['us', '火星'],
+  }, fallback)
+
+  eq(got.figures.length, 1, '没有边界说明、或者没有数字的都要丢掉')
+  eq(got.figures[0].value, '38%', '留下的必须是两样都齐的那个')
+  eq(got.kind, 'ngo-report', '类型不认识就退回这个源的默认，不要留空')
+  eq(got.topics.join(), 'violence', '不存在的议题要过滤掉')
+  eq(got.regions.join(), 'us', '不存在的地区要过滤掉')
+  ok(got.limitation.length > 0, '局限不能空着——空着等于默许读者过度解读')
+
+  // 太短的总结退回原文，而不是把一句话当成「详细总结」发出去。
+  const short = rw.cleanStudy({ summary: '很短' }, fallback)
+  eq(short.summary, '原摘要', '一句话不算总结')
+})
+
+await test('首页日期按北京时间，而且不是写死的', () => {
+  // 站长问「这个为什么是 8 月 31 日？」——因为它取的是演示数据里的常量。
+  const iso = todayISO()
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(iso), `要是 YYYY-MM-DD，实际 ${iso}`)
+
+  // 和北京时间的今天对上。用另一种算法算一遍，而不是把实现抄一遍——
+  // 抄一遍的测试只会证明代码等于它自己。
+  const bj = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
+  eq(iso, bj, '必须是北京时间的今天')
+
+  // 而且不能再是演示常量。
+  const state = fresh()
+  ok(state.today !== '2026-08-31' || bj === '2026-08-31', '不能停在演示数据那一天')
+  eq(state.today, iso, '初始状态里的今天就是真的今天')
+})
+
+await test('配图优先用报道页面的大图，而不是 feed 的缩略图', () => {
+  // 站长：「你没有给我高质量的标图。」feed 里的 media:thumbnail 常常是 150px，
+  // 铺到首页大卡片上就是一团糊；og:image 是媒体按 1200×630 做的那张。
+  const html = `<html><head>
+    <meta property="og:image" content="https://cdn.example.org/lead-1200x630.jpg">
+    <meta content="示威者在法院外" property="og:image:alt">
+  </head></html>`
+  const got = feedparse.ogImage(html, '卫报')
+  eq(got.url, 'https://cdn.example.org/lead-1200x630.jpg', '要取到 og:image')
+  eq(got.credit, '卫报', '署名是这家媒体')
+  // alt 用的是媒体自己写的图说，不是我编的——这和 feed 那条规则是同一条。
+  eq(got.alt, '示威者在法院外', '媒体给了图说就用它')
+
+  eq(feedparse.ogImage('<meta property="og:image" content="https://x.org/logo.png">', 'X'), null,
+    'logo、1x1 计数像素这类不是配图')
+  eq(feedparse.ogImage('<meta property="og:image" content="https://x.org/t/1x1.gif">', 'X'), null,
+    '计数像素要挡掉')
+  eq(feedparse.ogImage('<html><head></head></html>', 'X'), null, '没有就是没有，不要编一张')
+
+  // 没有图说时不能凭空描述画面——和 feed 那条规则必须一致。
+  const noAlt = feedparse.ogImage('<meta property="og:image" content="https://x.org/a.jpg">', '路透社')
+  ok(noAlt.alt.includes('路透社'), '替代文字要说明出处')
+  ok(!/protest|court|woman|女性|抗议/i.test(noAlt.alt), '不能凭空描述图片内容')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

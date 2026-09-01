@@ -7,9 +7,11 @@
 import type { PrismState } from '../types'
 import { DEFAULT_APPEARANCE, DEFAULT_COPY } from '../constants'
 import { PRIORITY_REGIONS } from '../regions'
+import { todayISO } from '../util'
 import { NEWS } from './news'
 import { STUDIES } from './studies'
 
+/** 演示条目自己的日期基准。真实的「今天」不能用它——见 today 那一行。 */
 export const TODAY = '2026-08-31'
 
 export function buildInitialState(): PrismState {
@@ -19,7 +21,7 @@ export function buildInitialState(): PrismState {
     runs: [],
     collect: {
       regions: [...PRIORITY_REGIONS],
-      topics: ['rights', 'violence', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'],
+      topics: ['violence', 'children', 'rights', 'repro', 'trans', 'hate', 'equality', 'displacement', 'movement'],
       mode: 'both',
       autoPublish: true,
       engine: 'qwen-open',
@@ -43,6 +45,7 @@ export function buildInitialState(): PrismState {
     copy: { ...DEFAULT_COPY },
     changes: [],
     publicOffline: false,
-    today: TODAY,
+    // 真实日期，不是 TODAY。演示条目可以停在 8-31，首页顶上的日期不行。
+    today: todayISO(),
   }
 }
