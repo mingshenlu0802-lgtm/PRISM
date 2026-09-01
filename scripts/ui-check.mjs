@@ -73,6 +73,8 @@ const ROUTES = [
   ['region-tw', '/region/tw'],
   ['topic', '/topic/violence'],
   ['studies', '/studies'],
+  // 研究详情页是新加的（站长要研究「可以点进去」）。种子里第一项的 slug。
+  ['study', '/study/cn-time-use-care-labour'],
   ['about', '/about'],
   // 朋友第一次登录会落在这一页，坏了就没人能被设成编辑。
   ['signin', '/signin'],
@@ -94,7 +96,18 @@ const rows = []
 let fontsOffline = false
 
 for (const [vpName, w, h] of VIEWPORTS) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 1 })
+  /*
+   * 手机和平板要真的当成触屏来开。
+   *
+   * `pointer: coarse` 那一整套点击目标的规则，只有 hasTouch 时才生效。
+   * 用桌面 Chromium 量手机版式，量到的是没打开的那一半样式——
+   * 它会报告一堆早已修好的小按钮，或者更糟：漏掉真的小按钮。
+   */
+  const touch = vpName !== 'desktop'
+  const ctx = await browser.newContext({
+    viewport: { width: w, height: h }, deviceScaleFactor: 1,
+    hasTouch: touch, isMobile: touch,
+  })
   const page = await ctx.newPage()
 
   const errors = []
@@ -135,6 +148,38 @@ for (const [vpName, w, h] of VIEWPORTS) {
           }
         }
       }
+      /*
+       * 触屏上的点击目标。
+       *
+       * 手指的接触面大约 9mm ≈ 44px。低于这个数就会点错，而在这个站上点错
+       * 意味着从一篇性暴力报道误触进另一篇——读者本来在小心地选择要不要读。
+       *
+       * 36px 是这里的下限而不是 44：标签这类元素撑到 44 会把卡片版式撑散，
+       * 32–36 已经比原来的 20px 好按得多。真正的按钮和链接要够 44，
+       * 所以只放过明确标成标签的那一类。
+       */
+      const tiny = []
+      if (matchMedia('(pointer: coarse)').matches) {
+        for (const el of document.querySelectorAll('a, button, input, select, [role="button"]')) {
+          const r = el.getBoundingClientRect()
+          if (r.width === 0 || r.height === 0) continue          // 收起来的菜单不算
+          if (el.closest('[hidden], [aria-hidden="true"]')) continue
+          /*
+           * 视觉上隐藏的原生控件不算。
+           *
+           * 勾选框常常是「把真正的 input 缩到 1×1 藏起来，用 label 画一个好看的
+           * 方块」——手指点的是那个 label，不是 input。把 input 报成「目标过小」
+           * 是假警报，而假警报会让人开始无视这份报告。
+           */
+          if (r.width <= 2 || r.height <= 2) continue
+          const isTag = el.classList.contains('tagx')
+          const floor = isTag ? 30 : 36
+          if (r.height < floor) {
+            tiny.push(`${el.tagName.toLowerCase()}.${(el.className || '').toString().trim().split(/\s+/)[0]} ${Math.round(r.width)}×${Math.round(r.height)}`)
+          }
+        }
+      }
+
       const iconOnly = [...document.querySelectorAll('button, a')].filter((el) => {
         const text = (el.textContent ?? '').trim()
         const label = el.getAttribute('aria-label') || el.getAttribute('title')
@@ -143,10 +188,12 @@ for (const [vpName, w, h] of VIEWPORTS) {
       return {
         text: (document.body.innerText ?? '').trim().length,
         overflow, worst,
+        tiny: tiny.slice(0, 6), tinyN: tiny.length,
         main: document.querySelectorAll('main').length,
         h1: document.querySelectorAll('h1').length,
         iconOnly,
         surface: document.querySelector('.slyt') ? '公众站' : document.querySelector('.clyt') ? '控制端' : '(未知)',
+        title: document.title,
       }
     })
 
@@ -156,7 +203,28 @@ for (const [vpName, w, h] of VIEWPORTS) {
 
     if (offline.length) fontsOffline = true
     if (errors.length) problems.push(`[${vpName}] ${route} 运行时错误: ${errors.slice(0, 3).join(' | ')}`)
-    if (info.text < 300) problems.push(`[${vpName}] ${route} 页面内容过少（${info.text} 字符），可能未渲染`)
+    /*
+     * 「渲染了吗」的下限。
+     *
+     * 300 是按原来那个长篇登录页定的。站长把登录简化成两个输入框之后，
+     * 那一页只剩 190 多个字符——**这是要求的结果，不是没渲染**。
+     * 所以下限跟着页面的性质走：以表单为主的页面看有没有输入框更准。
+     */
+    const min = route === '/signin' ? 120 : 300
+    if (info.text < min) problems.push(`[${vpName}] ${route} 页面内容过少（${info.text} 字符），可能未渲染`)
+    /*
+     * 每一页要有自己的标题。
+     *
+     * 这个站靠转发链接传播：一个人可能同时开好几个标签页，也会把某一条加书签。
+     * 所有页面都叫「PRISM 棱镜」的话，五个标签页长得一模一样，
+     * 书签里也看不出存的是哪一条。
+     */
+    if (vpName === 'desktop' && route !== '/' && info.title === 'PRISM 棱镜') {
+      problems.push(`[${vpName}] ${route} 标题还是站名，没有这一页自己的标题`)
+    }
+    if (info.tinyN > 0) {
+      problems.push(`[${vpName}] ${route} 触屏点击目标过小 ${info.tinyN} 个：${info.tiny.join('、')}`)
+    }
     if (vpName === 'phone' && info.overflow > 1) {
       problems.push(`[phone] ${route} 横向溢出 ${info.overflow}px${info.worst ? `，最宽元素 ${info.worst.sel} (${info.worst.w}px)` : ''}`)
     }

@@ -8,6 +8,7 @@
 export { Icon } from './Icon'
 export type { IconName, IconProps } from './Icon'
 
+export { SkipLink } from './SkipLink'
 export { Badge } from './Badge'
 export type { BadgeTone, BadgeProps } from './Badge'
 

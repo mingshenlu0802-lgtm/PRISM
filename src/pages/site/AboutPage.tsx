@@ -1,12 +1,14 @@
 import { Link } from 'react-router-dom'
 import { REGIONS } from '../../lib/regions'
-import { TOPICS, DEMO_NOTICE } from '../../lib/constants'
+import { TOPICS } from '../../lib/constants'
 import { usePrism } from '../../lib/store'
-import { Icon, PrismMark } from '../../components/common'
+import { usePageTitle } from '../../lib/title'
+import { PrismMark } from '../../components/common'
 import './AboutPage.css'
 
 export default function AboutPage(): JSX.Element {
   const { state } = usePrism()
+  usePageTitle('关于')
   return (
     <div className="about u-shell">
       <header className="about__head">
@@ -20,10 +22,18 @@ export default function AboutPage(): JSX.Element {
       <section className="about__how" aria-labelledby="about-how">
         <h2 className="about__h2" id="about-how">每条内容长什么样</h2>
         <ol className="about__steps">
-          <li><span className="about__stepn">1</span><div><strong>一段总结</strong>两到四句，说明发生了什么。不写长评论。</div></li>
+          <li><span className="about__stepn">1</span><div><strong>一篇中文报道</strong>一千五到三千字。先说发生了什么，再交代人物是谁、手里有什么权力，然后是经过、制度在哪一环失效，以及接下来会发生什么。</div></li>
           <li><span className="about__stepn">2</span><div><strong>几个要点</strong>把最容易被忽略的细节单独列出来。</div></li>
-          <li><span className="about__stepn">3</span><div><strong>媒体链接</strong>报道这件事的媒体列在下面，原始文件排在最前。你可以自己去读。</div></li>
+          <li><span className="about__stepn">3</span><div><strong>媒体链接</strong>我们读过的来源列在下面，原始文件排在最前。你可以自己去核对。</div></li>
         </ol>
+      </section>
+
+      <section className="about__how" aria-labelledby="about-source">
+        <h2 className="about__h2" id="about-when">什么时候更新</h2>
+        <p className="about__note">
+          每天两次，北京时间早上 6:00 和下午 2:00。
+          早上那一场同时收三项公开研究与数据。
+        </p>
       </section>
 
       <section className="about__how" aria-labelledby="about-source">
@@ -59,14 +69,6 @@ export default function AboutPage(): JSX.Element {
         </div>
       </section>
 
-      <section className="about__demo" aria-labelledby="about-demo">
-        <h2 className="about__h2" id="about-demo"><Icon name="alert" size={16} /> 关于当前的演示数据</h2>
-        <p className="about__body">{DEMO_NOTICE}</p>
-        <p className="about__body">
-          演示链接位于 <code>demo.prism.invalid</code>——这是一个保留域名，永远不会解析，
-          所以它们在页面上显示为「示例」且不可点击。接入真实检索之后，链接会变成真实可点的外链。
-        </p>
-      </section>
 
       <p className="about__foot">{state.copy.footerNote}</p>
     </div>

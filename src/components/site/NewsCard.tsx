@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom'
 import type { NewsItem } from '../../lib/types'
-import { cx, paragraphs, relTime, textLength } from '../../lib/util'
+import { cx, relTime, textLength } from '../../lib/util'
 import { Icon } from '../common'
 import { TagRow } from './Tags'
 import { LinkList } from './LinkList'
 import { Cover } from './Cover'
+import { Prose } from './Prose'
 import './NewsCard.css'
 
 /**
@@ -41,19 +42,20 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
             <Link to={`/news/${item.slug}`}>{item.headline}</Link>
           </h2>
         )}
+        {item.subhead && <p className="ncard__subhead">{item.subhead}</p>}
         <p className="ncard__when">
           <time dateTime={item.publishedAt}>{relTime(item.publishedAt, today)}</time>
           {item.editedByHuman && <span className="ncard__edited">· 站长已校订</span>}
         </p>
       </header>
 
-      {/* 内容提示永远排在图之前——读者要先有机会决定看不看。 */}
-      {item.contentNotice && (
-        <p className="ncard__notice">
-          <Icon name="shield" size={13} />
-          <span>{item.contentNotice}</span>
-        </p>
-      )}
+      {/*
+        * 内容提示（那条红色的警告带）去掉了。
+        *
+        * 站长的判断是对的：这个站**每一条**都是性别暴力相关的报道，
+        * 一个条条都挂的提示等于没有提示，只是在每张卡片顶上压了一条红带，
+        * 把注意力从新闻本身挪开。读者知道自己点开的是什么——标题就写着。
+        */}
 
       <Cover
         image={item.image}
@@ -64,7 +66,7 @@ export function NewsCard({ item, variant = 'feed', today }: NewsCardProps): JSX.
       />
 
       <div className={cx('ncard__summary', clamped && 'ncard__summary--clamp')}>
-        {paragraphs(item.summary).map((p, i) => <p key={i}>{p}</p>)}
+        <Prose text={item.summary} />
       </div>
 
       {clamped && (

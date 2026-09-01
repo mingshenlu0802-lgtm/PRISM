@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
-import { sendLink, signInWithPassword } from '../../lib/session'
+import { usePageTitle } from '../../lib/title'
+import { sendCode, signInWithPassword, verifyCode } from '../../lib/session'
 import { PrismMark, TextInput, ToastHost, toast } from '../common'
 import './SignInGate.css'
 
@@ -29,77 +30,49 @@ export function SignInGate(): JSX.Element {
  * 所以这一页的措辞很重要：不能让人以为「不登录就看不了」。
  */
 export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
-  const { state } = usePrism()
   const [email, setEmail] = useState('')
-  const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState('')
-  /*
-   * 密码登录默认收起来。
-   *
-   * 朋友要的是「不用记密码」那条路，把两个表单并排摆出来只会让人犹豫。
-   * 但站长需要一条**不经过邮件**的路：邮件服务会限流，配错了还会整个发不出去，
-   * 那时候他会被挡在自己的控制端外面——已经发生过，挡了两天。
-   */
-  const [pwOpen, setPwOpen] = useState(false)
-  const [password, setPassword] = useState('')
+  const [secret, setSecret] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
 
   async function send() {
-    if (sending) return
-    setSending(true)
-    const r = await sendLink(email)
-    setSending(false)
-    if (r.ok) { setSent(r.message); onDone?.() }
-    else toast(r.message, 'warn')
+    if (busy || !email.trim()) return
+    setBusy(true)
+    const r = await sendCode(email)
+    setBusy(false)
+    if (r.ok) { setSent(true); toast(r.message, 'go') } else toast(r.message, 'warn')
   }
 
-  async function byPassword() {
-    if (sending) return
-    setSending(true)
-    const r = await signInWithPassword(email, password)
-    setSending(false)
-    if (r.ok) {
-      toast('登录成功。', 'go')
-      onDone?.()
-      // 整个网站要按「已登录」重新起来——跟接上后端时一样，最干净的是重载。
-      window.location.reload()
-    } else {
-      toast(r.message, 'warn')
-    }
-  }
-
-  if (sent) {
-    return (
-      <div className="gate__inner">
-        <p className="gate__lede">信已经发出去了。</p>
-        <p className="gate__note">{sent}</p>
-        <p className="gate__note gate__note--small">
-          没收到？先看看垃圾邮件。还是没有的话，
-          <button type="button" className="gate__link" onClick={() => setSent('')}>换个地址再试一次</button>。
-        </p>
-      </div>
-    )
+  /*
+   * 一个输入框，两种凭据。
+   *
+   * 站长要的就是两格：邮箱和「密码输入」。所以这一格两样都收——
+   * 六位数字当验证码验，其余当密码试。分成两个框只会多一次「我该填哪个」的犹豫，
+   * 而这两样东西在使用者眼里本来就是同一件事：「证明我是我」。
+   */
+  async function enter() {
+    if (busy || !email.trim() || !secret.trim()) return
+    setBusy(true)
+    const code = secret.replace(/\s+/g, '')
+    const r = /^\d{6}$/.test(code)
+      ? await verifyCode(email, code)
+      : await signInWithPassword(email, secret)
+    setBusy(false)
+    if (!r.ok) { toast(r.message, 'warn'); return }
+    toast('登录成功。', 'go')
+    onDone?.()
+    // 整个网站要按「已登录」重新起来——跟接上后端时一样，最干净的是重载。
+    window.location.reload()
   }
 
   return (
     <div className="gate__inner">
-      <p className="gate__lede">用邮箱登录</p>
-      <p className="gate__note">
-        <strong>看内容不需要登录</strong>——你现在看到的就是全部，
-        直接关掉这一页继续读也完全可以。
-      </p>
-      <ul className="gate__why">
-        <li><strong>想收到更新通知</strong>：{state.copy.title}有新内容时给你发一封信。</li>
-        <li><strong>站长要给你编辑权限</strong>：登录一次之后，他才能在名单里找到你。</li>
-      </ul>
-      <ol className="gate__how">
-        <li>下面填你的邮箱，按<strong>发登录链接</strong>。</li>
-        <li>去邮箱收信（<strong>记得看垃圾邮件</strong>），点里面的链接。</li>
-        <li>自动跳回网站，就登录好了。<strong>不用设密码。</strong></li>
-      </ol>
+      <p className="gate__lede">登录</p>
+
       <div className="gate__row">
         <TextInput
           type="email"
-          placeholder="你的邮箱"
+          placeholder="邮箱"
           value={email}
           autoComplete="email"
           onChange={(e) => setEmail(e.currentTarget.value)}
@@ -107,48 +80,42 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
         />
         <button
           type="button"
-          className="gate__go"
+          className="gate__go gate__go--ghost"
           onClick={() => void send()}
-          disabled={sending || !email.trim()}
+          disabled={busy || !email.trim()}
         >
-          {sending ? '发送中…' : '发登录链接'}
+          {busy && !sent ? '发送中…' : sent ? '重发验证码' : '发送验证码'}
         </button>
       </div>
-      <p className="gate__note gate__note--small">
-        邮箱只用来登录和给你发站点通知。<strong>别的读者看不到你的地址</strong>——
-        成员名单在数据库里是锁着的，只有站长能看。
-      </p>
 
-      {pwOpen ? (
-        <div className="gate__pw">
-          <p className="gate__note gate__note--small">
-            <strong>用密码登录</strong>——给设过密码的人用，不发邮件。
-            没设过就用上面那条路。
-          </p>
-          <div className="gate__row">
-            <TextInput
-              type="password"
-              placeholder="密码"
-              value={password}
-              autoComplete="current-password"
-              onChange={(e) => { const v = e.currentTarget.value; setPassword(v) }}
-              onKeyDown={(e) => { if (e.key === 'Enter') void byPassword() }}
-            />
-            <button
-              type="button"
-              className="gate__go"
-              onClick={() => void byPassword()}
-              disabled={sending || !email.trim() || !password}
-            >
-              {sending ? '登录中…' : '登录'}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button type="button" className="gate__link gate__pwlink" onClick={() => setPwOpen(true)}>
-          有密码？用密码登录
+      <div className="gate__row">
+        <TextInput
+          type="password"
+          placeholder="验证码或密码"
+          value={secret}
+          autoComplete="current-password"
+          onChange={(e) => { const v = e.currentTarget.value; setSecret(v) }}
+          onKeyDown={(e) => { if (e.key === 'Enter') void enter() }}
+        />
+        <button
+          type="button"
+          className="gate__go"
+          onClick={() => void enter()}
+          disabled={busy || !email.trim() || !secret.trim()}
+        >
+          {busy ? '登录中…' : '进入'}
         </button>
-      )}
+      </div>
+
+      {/*
+        * 只留一句。原本这里有三段说明加一个分步清单，讲「看内容不需要登录」
+        * 和「链接会发到邮箱」——站长要求简化成两个输入框，那些话就该走。
+        * 唯一留下的是这句：不登录也能看。它防的是「以为要注册才能读」而直接关掉，
+        * 那是这个网站最不该发生的误会。
+        */}
+      <p className="gate__note gate__note--small">
+        看内容不需要登录。登录只是为了让站长认出你，或者给你编辑权限。
+      </p>
     </div>
   )
 }
@@ -164,6 +131,7 @@ export function SignInPanel({ onDone }: { onDone?: () => void }): JSX.Element {
  */
 export function SignInPage(): JSX.Element {
   const { state } = usePrism()
+  usePageTitle('登录')
   return (
     <div className="gate">
       <main className="gate__box">

@@ -45,7 +45,7 @@ const PRICES = [
 ]
 
 /** 这一轮累计用掉多少。ask() 每次加上去，跑完由 collect 打印。 */
-const spend = { calls: 0, inTokens: 0, outTokens: 0 }
+const spend = { calls: 0, inTokens: 0, outTokens: 0, cacheWrite: 0, cacheRead: 0 }
 
 export function resolveLlm() {
   const model = (process.env.LLM_MODEL ?? '').trim()
@@ -81,11 +81,18 @@ export function spendReport() {
   if (spend.calls === 0) return null
   const model = resolveLlm()?.model ?? ''
   const price = PRICES.find(([re]) => re.test(model))?.[1]
-  const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token`
+  const cache = spend.cacheWrite + spend.cacheRead
+    ? `，缓存写入 ${spend.cacheWrite.toLocaleString()} / 命中 ${spend.cacheRead.toLocaleString()}`
+    : ''
+  const line = `${spend.calls} 次调用，输入 ${spend.inTokens.toLocaleString()} token，输出 ${spend.outTokens.toLocaleString()} token${cache}`
   if (!price) return line
-  const usd = (spend.inTokens * price.in + spend.outTokens * price.out) / 1e6
-  const monthly = usd * 30
-  return `${line}\n估算花费 约 US$${usd.toFixed(4)}（按每天一轮算，一个月约 US$${monthly.toFixed(2)}；价目写在 scripts/llm.mjs，会变）`
+  // 缓存写入约为普通输入的 1.25 倍，命中约为十分之一。
+  const usd = (spend.inTokens * price.in
+    + spend.cacheWrite * price.in * 1.25
+    + spend.cacheRead * price.in * 0.1
+    + spend.outTokens * price.out) / 1e6
+  const daily = usd * 2 // 站长设的是一天两场
+  return `${line}\n估算花费 约 US$${usd.toFixed(4)}（一天两场约 US$${daily.toFixed(2)}，一个月约 US$${(daily * 30).toFixed(2)}；价目写在 scripts/llm.mjs，会变）`
 }
 
 export function llmConfigured() {
@@ -105,7 +112,23 @@ export function llmName() {
  * 不用流式：这是批处理，没人在等着看字一个个蹦出来，而一次拿到完整结果
  * 才好校验。超时给得长，因为一批几十条的长总结确实要跑一会儿。
  */
-export async function ask(system, user, { timeoutMs = 180000, maxTokens = 8000 } = {}) {
+/**
+ * 要一段纯文本回来。
+ *
+ * 长稿不走 JSON。理由在 scripts/blocks.mjs 的开头写着：一个真实换行就能
+ * 让整批作废，而这个站要的正是分段的长文。所以让模型写带分隔符的纯文本，
+ * 解析交给 blocks.mjs。
+ */
+export async function askText(system, user, opts = {}) {
+  return raw(system, user, opts)
+}
+
+/** 要一段 JSON 回来。短结构（初筛）仍然用它——那种输出不会有换行问题。 */
+export async function ask(system, user, opts = {}) {
+  return parseJson(await raw(system, user, opts))
+}
+
+async function raw(system, user, { timeoutMs = 180000, maxTokens = 8000 } = {}) {
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
   const ctl = new AbortController()
@@ -125,12 +148,26 @@ export async function ask(system, user, { timeoutMs = 180000, maxTokens = 8000 }
     spend.calls += 1
     spend.inTokens += u.input_tokens ?? u.prompt_tokens ?? 0
     spend.outTokens += u.output_tokens ?? u.completion_tokens ?? 0
+    // 缓存的读写单独记：它们的价钱和普通输入不一样，混在一起报账就不准了。
+    spend.cacheWrite += u.cache_creation_input_tokens ?? 0
+    spend.cacheRead += u.cache_read_input_tokens ?? 0
 
     const text = cfg.kind === 'anthropic'
       ? (data?.content ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('')
       : (data?.choices?.[0]?.message?.content ?? '')
-    if (!text) throw new Error('模型没有返回内容')
-    return parseJson(text)
+    if (!text) {
+      // 空回复最常见的原因是被 max_tokens 截断——尤其是会先想一段再写的型号。
+      // 说清楚是哪一种，比一句「没有返回内容」有用得多。
+      const why = (data?.stop_reason ?? data?.choices?.[0]?.finish_reason) === 'max_tokens'
+        ? `写到 max_tokens（${maxTokens}）就被截断了，一个字都没落地。把批次调小或者把 max_tokens 调大。`
+        : '模型没有返回内容'
+      throw new Error(why)
+    }
+    // 被截断的长稿要说出来：半篇稿子看起来像成功，其实结尾是断的。
+    if ((data?.stop_reason ?? data?.choices?.[0]?.finish_reason) === 'max_tokens') {
+      throw new Error(`写到 max_tokens（${maxTokens}）被截断，这一批不完整。把批次调小或把 max_tokens 调大。`)
+    }
+    return text
   } finally {
     clearTimeout(timer)
   }
@@ -152,12 +189,32 @@ function anthropicRequest(cfg, system, user, maxTokens) {
       'x-api-key': cfg.key,
       'anthropic-version': '2023-06-01',
     },
+    /*
+     * **不发 temperature。**
+     *
+     * 第一次真实收集全军覆没就是它：五批全部 HTTP 400，
+     *   `temperature` is deprecated for this model.
+     * 新一代的 Claude 不再接受这个参数，而我照着 OpenAI 那套习惯性地加上了。
+     *
+     * 不改成「按型号判断要不要发」，是因为那需要维护一张会过期的型号表。
+     * 这里本来也不需要它：默认采样对「按方针筛选 + 翻译 + 写总结」完全够用，
+     * 少发一个参数就少一处会随供应商变化而失效的地方。
+     */
     body: JSON.stringify({
       model: cfg.model,
-      system,
+      /*
+       * 系统提示词开缓存。
+       *
+       * 这一段是整份编辑方针，六千多 token，而它**每一批都一模一样**。
+       * 一轮收集要发十几批，等于把同一份方针重新买十几遍——第一次真实收集的
+       * 账单里，38k 输入 token 有九成是这个。
+       *
+       * 标上 cache_control 之后，第一次写入贵 25%，之后每次读只要十分之一。
+       * 批次越多越划算，而「批次多」正是长总结逼出来的结果。
+       */
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: user }],
       max_tokens: maxTokens,
-      temperature: 0.4,
     }),
   }
 }

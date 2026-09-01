@@ -64,6 +64,40 @@ export function imageOf(block, outlet) {
   }
 }
 
+/**
+ * 从报道页面自己的 HTML 里取社交预览图。
+ *
+ * 为什么要多这一步：feed 里的 `media:thumbnail` 常常是 150px 见方的列表缩略图，
+ * 放到首页大卡片上就是一团糊。站长的原话是「你没有给我高质量的标图」。
+ *
+ * 而 `og:image` 是媒体自己为社交平台准备的那一张——按 1200×630 做的，
+ * 是同一家媒体、同一篇报道、同一个编辑挑的图，只是尺寸对得上。
+ * 所以有 og:image 就优先用它，没有才退回 feed 里那张。
+ *
+ * 仍然**不描述图片内容**：alt 只说这是谁为哪篇报道配的图。
+ * 我没看过这张图，写「一群女性举着标语」就是编造。
+ */
+export function ogImage(html, outlet) {
+  const meta = (prop) => {
+    // property 和 content 的先后顺序在各家模板里都不一样，两种都认。
+    const a = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*content=["']([^"']+)["']`, 'i')
+    const b = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]*(?:property|name)=["']${prop}["']`, 'i')
+    return (html.match(a)?.[1] ?? html.match(b)?.[1] ?? '').trim()
+  }
+  const url = meta('og:image:secure_url') || meta('og:image') || meta('twitter:image') || meta('twitter:image:src')
+  if (!url || !/^https?:\/\//.test(url)) return null
+
+  // 1×1 计数像素、占位图、社交按钮图标——这些都不是配图。
+  if (/\b(1x1|pixel|spacer|blank|placeholder|logo|favicon|avatar|sprite)\b/i.test(url)) return null
+
+  const alt = meta('og:image:alt')
+  return {
+    url,
+    alt: alt || `${outlet} 为这条报道配发的图片`,
+    credit: outlet,
+  }
+}
+
 export function parseFeed(xml, outlet = '来源媒体') {
   const blocks = xml.match(/<(item|entry)(?:\s[^>]*)?>[\s\S]*?<\/\1>/gi) ?? []
   return blocks.map((b) => ({
@@ -232,16 +266,18 @@ const ACCUSATION = [
   '被控', '被指控', '指控', '否认', '否認', '起诉', '起訴', '被捕', '判刑', '定罪', '无罪', '無罪',
 ]
 
-/** 这条讲的是一桩具体案件吗——用来决定要不要加内容提示。 */
+/** 这条讲的是一桩具体案件吗。排序时用得上：司法进展优先。 */
 export function isCase(entry) {
   const h = hay(entry)
   return ACCUSATION.some((w) => matches(h, w))
 }
 
-/** 给读者的一句提示。不涉及案件就没有提示，别把提示变成噪音。 */
-export function noticeFor(entry, topics) {
-  if (!topics.includes('violence')) return null
-  return isCase(entry)
-    ? '本条涉及具体案件，摘要直接来自原报道，尚未经本站核实。案件进展以法院与原始报道为准。'
-    : '本条涉及性暴力相关内容。摘要直接来自原报道。'
-}
+/*
+ * 这里原本还有 noticeFor()：给性暴力类条目自动挂一句内容提示
+ * （「本条涉及具体案件，摘要直接来自原报道……」）。
+ *
+ * 站长要求去掉，理由成立：这个站**每一条**都是性别暴力相关的报道，
+ * 一个几乎条条都挂的提示等于没有提示——它只是在每张卡片顶上压了一条红带，
+ * 把注意力从新闻本身挪开，还让站点看起来像在替自己免责。
+ * 读者知道自己点开的是什么，标题就写着。
+ */

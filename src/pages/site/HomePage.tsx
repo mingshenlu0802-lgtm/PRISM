@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import type { TopicKey } from '../../lib/types'
 import type { RegionKey } from '../../lib/regions'
 import { usePrism } from '../../lib/store'
-import { byNewest, fmtDate, unique } from '../../lib/util'
+import { usePageTitle } from '../../lib/title'
+import { byNewest, fmtDate, unique, weightedShuffle } from '../../lib/util'
 import { EmptyState, Icon } from '../../components/common'
 import { NewsCard } from '../../components/site/NewsCard'
 import { StudyCard } from '../../components/site/StudyCard'
@@ -19,10 +20,26 @@ import './HomePage.css'
  */
 export default function HomePage(): JSX.Element {
   const { state, canEdit } = usePrism()
+  usePageTitle(fmtDate(state.today))
   const [regions, setRegions] = useState<RegionKey[]>([])
   const [topics, setTopics] = useState<TopicKey[]>([])
 
-  const live = useMemo(() => byNewest(state.news.filter((n) => n.status === 'live')), [state.news])
+  /*
+   * 每次打开，顺序都不一样。
+   *
+   * 站长要的：「每次打开界面对新闻的推送都是随机的（当然，最新的新闻更有
+   * 概率被推送）。」严格倒序的代价是第 20 条以后没人看得到，而它们和第 3 条
+   * 一样是挑过写过的。
+   *
+   * 种子只在**这一次访问**里取一次——放在 useState 的初始化里，重渲染不会重算。
+   * 否则筛一下地区、切一下主题，卡片就会在读者眼皮底下重新洗牌。
+   */
+  const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31))
+
+  const live = useMemo(
+    () => weightedShuffle(state.news.filter((n) => n.status === 'live'), (n) => n.publishedAt, seed),
+    [state.news, seed],
+  )
   const liveStudies = useMemo(() => byNewest(state.studies.filter((s) => s.status === 'live')), [state.studies])
 
   const counts = useMemo(() => {
@@ -43,6 +60,10 @@ export default function HomePage(): JSX.Element {
     return okR && okT
   }), [live, regions, topics])
 
+  /*
+   * 头条：站长钉过的永远优先——那是他的编辑判断，不该被随机顺序盖掉。
+   * 没钉过就取加权抽样的第一条，于是每次打开的头条也不一样。
+   */
   const lead = filtering ? undefined : (live.find((n) => n.featured) ?? live[0])
   const rest = lead ? shown.filter((n) => n.id !== lead.id) : shown
 
@@ -50,21 +71,30 @@ export default function HomePage(): JSX.Element {
 
   return (
     <div className="home u-shell">
+      {/*
+        * 报头，不是仪表盘。
+        *
+        * 站长两次说了：标语和那段介绍「在任何地方都不需要强调」。
+        * 于是首页开门见山就是日期——这本来就是这一页的身份：今天这一期。
+        *
+        * 四个数字方框也一并收掉了。它们看起来像后台的统计卡片，而读者不是来
+        * 看指标的；同样的信息压成一行小字，报头就干净了。
+        *
+        * h1 留着并且换成日期：一页不能没有标题，屏幕阅读器靠它定位。
+        */}
       <section className="home__hero">
-        <p className="home__eyebrow">{fmtDate(state.today)}</p>
-        <h1 className="home__title">{state.copy.tagline}</h1>
-        <p className="home__intro">{state.copy.intro}</p>
-        <dl className="home__stats">
-          <div><dt>今日条目</dt><dd>{live.length}</dd></div>
-          <div><dt>覆盖地区</dt><dd>{coveredRegions.length}</dd></div>
-          <div><dt>媒体链接</dt><dd>{live.reduce((n, i) => n + i.links.length, 0)}</dd></div>
-          <div><dt>研究与数据</dt><dd>{liveStudies.length}</dd></div>
-        </dl>
+        <p className="home__kicker">今日</p>
+        <h1 className="home__title">{fmtDate(state.today)}</h1>
+        <p className="home__meta">
+          {live.length} 条报道
+          {coveredRegions.length > 0 && <> · 覆盖 {coveredRegions.length} 个地区</>}
+          {liveStudies.length > 0 && <> · {liveStudies.length} 项研究与数据</>}
+        </p>
       </section>
 
       {lead && (
         <section className="home__lead" aria-label="头条">
-          <NewsCard item={lead} variant="lead" today={`${state.today}T23:59:00Z`} />
+          <NewsCard item={lead} variant="lead" />
         </section>
       )}
 
@@ -109,7 +139,7 @@ export default function HomePage(): JSX.Element {
       {/* 只有一条时它已经在头条位上了，下面不再开一个空列表。 */}
       {rest.length > 0 && (
         <div className="home__feed">
-          {rest.map((n) => <NewsCard key={n.id} item={n} today={`${state.today}T23:59:00Z`} />)}
+          {rest.map((n) => <NewsCard key={n.id} item={n} />)}
         </div>
       )}
 

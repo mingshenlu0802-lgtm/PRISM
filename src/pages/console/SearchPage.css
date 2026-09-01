@@ -89,7 +89,14 @@
 .srch__blockhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
 .srch__blocktitle { font-size: var(--fs-md); font-weight: 660; }
 .srch__blocknote { font-size: var(--fs-xs); line-height: 1.7; color: var(--fg-subtle); }
+/*
+ * 「全选」「只搜优先六个」是文字按钮，18px 高。触屏上用 padding 撑开，
+ * 负 margin 抵掉，免得把标题那一行推歪。
+ */
 .srch__quick { display: flex; gap: var(--s-3); }
+@media (pointer: coarse) {
+  .srch__quick button { padding-block: 13px; margin-block: -13px; }
+}
 .srch__quick button { font-size: var(--fs-2xs); color: var(--accent); }
 .srch__quick button:hover { text-decoration: underline; }
 

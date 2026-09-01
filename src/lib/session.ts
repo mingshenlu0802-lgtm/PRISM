@@ -45,7 +45,7 @@ export interface SendResult {
  * 第一次点链接时才会建账号。关掉它会让「已经在名单上却收不到信」变成一个
  * 没人看得懂的失败。
  */
-export async function sendLink(email: string): Promise<SendResult> {
+export async function sendCode(email: string): Promise<SendResult> {
   const db = await getClient()
   if (!db) return { ok: false, message: '这个网站还没有连上后端。' }
   const clean = email.trim().toLowerCase()
@@ -61,9 +61,42 @@ export async function sendLink(email: string): Promise<SendResult> {
       },
     })
     if (error) throw error
-    return { ok: true, message: `登录链接已发到 ${clean}。去邮箱点一下就好，链接一小时内有效。` }
+    return { ok: true, message: `验证码已发到 ${clean}，一小时内有效。` }
   } catch (e) {
     return { ok: false, message: friendly(e) }
+  }
+}
+
+/**
+ * 用邮件里的验证码登录。
+ *
+ * 站长要的是「在邮件里 confirm 数字就可以进入」，而不是点一条链接。理由很实在：
+ * 链接那条路已经坏过三次——额度用完、SMTP 配错、令牌被 HashRouter 吃掉。
+ * 验证码不经过跳转，也就绕过了最后那一类问题。
+ *
+ * **前提是邮件模板里有 `{{ .Token }}`。** Supabase 默认的模板只放链接，
+ * 不放数字；没有它，这封信里就没有码可填。所以下面的错误信息会指到那里去，
+ * 而不是让人对着一封没有数字的邮件反复重发。
+ */
+export async function verifyCode(email: string, code: string): Promise<SendResult> {
+  const db = await getClient()
+  if (!db) return { ok: false, message: '这个网站还没有连上后端。' }
+  const clean = email.trim().toLowerCase()
+  const token = code.replace(/\s+/g, '')
+  if (!clean) return { ok: false, message: '先填邮箱。' }
+  if (!token) return { ok: false, message: '把邮件里的验证码填进来。' }
+  try {
+    const { error } = await db.auth.verifyOtp({ email: clean, token, type: 'email' })
+    if (error) throw error
+    return { ok: true, message: '登录成功。' }
+  } catch (e) {
+    const msg = friendly(e)
+    return {
+      ok: false,
+      message: /invalid|expired|token/i.test(msg)
+        ? '验证码不对或已过期。如果邮件里根本没有数字，是 Supabase 的邮件模板里缺 {{ .Token }}——去 Authentication → Email Templates 加上。'
+        : msg,
+    }
   }
 }
 

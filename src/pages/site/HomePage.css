@@ -1,19 +1,29 @@
 .home { padding-block: var(--s-7) var(--s-9); display: grid; gap: var(--s-6); }
 
-.home__hero { display: grid; gap: var(--s-3); max-width: 72ch; }
-.home__eyebrow { font-size: var(--fs-2xs); font-weight: 660; letter-spacing: .12em; color: var(--fg-faint); }
-.home__title { font-size: var(--fs-3xl); line-height: 1.25; letter-spacing: -0.02em; }
-.home__intro { font-size: var(--fs-md); line-height: var(--lh-prose); color: var(--fg-muted); }
-:root[data-body="serif"] .home__intro { font-family: var(--font-serif); }
-
-.home__stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-3); margin-top: var(--s-3); }
-@media (min-width: 700px) { .home__stats { grid-template-columns: repeat(4, 1fr); } }
-.home__stats > div {
-  padding: var(--s-3) var(--s-4); border: var(--bw) solid var(--line);
-  border-radius: var(--r-md); background: var(--bg-raised);
+/*
+ * 报头。
+ *
+ * 从「大标语 + 四个数字方框」改成「日期 + 一行小字」。
+ * 方框那种排版属于后台仪表盘——读者打开一份日报，第一眼要看到的是
+ * 今天是哪一天、有几条，然后就该进入内容。
+ */
+.home__hero {
+  display: grid; gap: var(--s-1);
+  padding-bottom: var(--s-4);
+  border-bottom: var(--bw) solid var(--line);
 }
-.home__stats dt { font-size: var(--fs-2xs); color: var(--fg-subtle); }
-.home__stats dd { margin: 2px 0 0; font-size: var(--fs-xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+.home__kicker {
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .14em;
+  color: var(--accent); text-transform: uppercase;
+}
+.home__title {
+  font-size: var(--fs-2xl); line-height: 1.15; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; font-weight: 700;
+}
+.home__meta {
+  font-size: var(--fs-xs); color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
 
 .home__lead { display: grid; }
 
@@ -26,5 +36,7 @@
 .home__sechead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
 .home__sectitle { font-size: var(--fs-xl); }
 .home__seclink { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); font-weight: 600; }
+/* 触屏上撑开可点区域，负 margin 抵掉，免得把它和上面的小标题挤开。 */
+@media (pointer: coarse) { .home__seclink { padding-block: 12px; margin-block: -12px; } }
 .home__studygrid { display: grid; gap: var(--s-4); }
 @media (min-width: 1000px) { .home__studygrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

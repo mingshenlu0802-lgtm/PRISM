@@ -25,10 +25,11 @@ await build({
 })
 
 const m = await import(pathToFileURL(bundle).href)
-const { buildInitialState, reducer, accessOf, collect, planSteps,
+const { buildInitialState, reducer, accessOf,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
-        parsePasted, friendly } = m
+        parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight, Prose,
+        fmtDate, fmtDateTime } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -141,43 +142,6 @@ await test('换头条时，改动记录写清楚是哪一条让了位', () => {
 })
 
 /* ------------------------------ 取材规则 ------------------------------ */
-
-await test('打开「优先独立与境外媒体」后，官方媒体排在独立媒体后面', () => {
-  const s = fresh()
-  const r = collect({ ...s.collect, preferIndependent: true, regions: ['cn'], perRun: 10 }, [], [], 0)
-  for (const n of r.news) {
-    const kinds = n.links.map((l) => l.outletKind ?? 'independent')
-    const lastIndependent = kinds.lastIndexOf('independent')
-    const firstState = kinds.indexOf('state')
-    if (firstState >= 0 && lastIndependent >= 0) {
-      ok(firstState > lastIndependent, `「${n.headline}」里官方媒体排在了独立媒体前面`)
-    }
-  }
-})
-
-await test('原始文件永远排最前，不受取材规则影响', () => {
-  const s = fresh()
-  for (const pref of [true, false]) {
-    const r = collect({ ...s.collect, preferIndependent: pref, regions: ['cn'], perRun: 10 }, [], [], 0)
-    for (const n of r.news) {
-      const firstNonPrimary = n.links.findIndex((l) => !l.primary)
-      const lastPrimary = n.links.map((l) => Boolean(l.primary)).lastIndexOf(true)
-      if (firstNonPrimary >= 0 && lastPrimary >= 0) {
-        ok(lastPrimary < firstNonPrimary, `preferIndependent=${pref} 时原始文件没有排在最前`)
-      }
-    }
-  }
-})
-
-await test('官方媒体不会被丢掉，只是被标出来', () => {
-  const s = fresh()
-  const on = collect({ ...s.collect, preferIndependent: true, regions: ['cn'], perRun: 10 }, [], [], 0)
-  const off = collect({ ...s.collect, preferIndependent: false, regions: ['cn'], perRun: 10 }, [], [], 0)
-  const count = (r) => r.news.reduce((a, n) => a + n.links.length, 0)
-  eq(count(on), count(off), '开关不该改变链接总数——它只改顺序和标注')
-  const stateLinks = on.news.flatMap((n) => n.links).filter((l) => l.outletKind === 'state')
-  ok(stateLinks.length > 0, '演示数据里应当有官方媒体，否则这条规则没人验证得了')
-})
 
 await test('演示数据里的中国内地条目带得上境外或独立来源', () => {
   const cn = fresh().news.filter((n) => n.regions.includes('cn'))
@@ -348,72 +312,6 @@ await test('同一个邮箱不会被加两遍', () => {
 })
 
 /* ------------------------------ 搜集 ------------------------------ */
-
-await test('搜集不会凭空造链接：每条新闻都带得走的链接', () => {
-  const s = fresh()
-  const r = collect(s.collect, [], [], 0)
-  ok(r.news.length > 0, '应该搜到东西')
-  for (const n of r.news) ok(n.links.length > 0, `「${n.headline}」没有链接`)
-})
-
-await test('搜集尊重「找到就直接上线」这个开关', () => {
-  const s = fresh()
-  const on = collect({ ...s.collect, autoPublish: true }, [], [], 0)
-  const off = collect({ ...s.collect, autoPublish: false }, [], [], 0)
-  ok(on.news.every((n) => n.status === 'live'), '打开时应直接上线')
-  ok(off.news.every((n) => n.status === 'hidden'), '关掉时应存草稿')
-})
-
-await test('跳过重复的会说明原因，不会悄悄消失', () => {
-  const s = fresh()
-  const first = collect({ ...s.collect, dedupe: true }, [], [], 0)
-  const again = collect({ ...s.collect, dedupe: true }, first.news, first.studies, 0)
-  // 第二次可以带回新的，但绝不能把第一次那些再加一遍。
-  const seen = new Set(first.news.map((n) => n.headline))
-  ok(again.news.every((n) => !seen.has(n.headline)), '同一条不该被加第二遍')
-  ok(again.skipped.length > 0, '被跳过的应当有记录')
-  ok(again.skipped.every((x) => x.reason.trim().length > 0), '每条跳过都要写原因')
-  ok(again.skipped.some((x) => seen.has(x.headline)), '跳过的应当正是第一次已经收过的那些')
-})
-
-await test('关掉去重就真的不去重（开关是有用的）', () => {
-  const s = fresh()
-  const first = collect({ ...s.collect, dedupe: false }, [], [], 0)
-  const again = collect({ ...s.collect, dedupe: false }, first.news, first.studies, 0)
-  const seen = new Set(first.news.map((n) => n.headline))
-  ok(again.news.some((n) => seen.has(n.headline)), '关掉去重后应当允许重复')
-})
-
-await test('只选一个地区就只搜那个地区', () => {
-  const s = fresh()
-  const r = collect({ ...s.collect, regions: ['cn'], perRun: 10 }, [], [], 0)
-  ok(r.news.length > 0, '应该搜到东西')
-  ok(r.news.every((n) => n.regions.includes('cn')), '不该出现别的地区')
-})
-
-await test('撤销一次搜集，会把这次加的全部收回', () => {
-  const s0 = fresh()
-  const r = collect(s0.collect, s0.news, s0.studies, 1)
-  const run = {
-    id: 'run-test', startedAt: new Date().toISOString(),
-    config: s0.collect, steps: planSteps(s0.collect),
-    addedNewsIds: r.news.map((n) => n.id), addedStudyIds: r.studies.map((x) => x.id),
-    skipped: r.skipped, state: 'done',
-  }
-  let s = reducer(s0, { type: 'news-add', items: r.news, who: ME })
-  s = reducer(s, { type: 'study-add', items: r.studies, who: ME })
-  s = reducer(s, { type: 'run-start', run })
-  eq(s.news.length, s0.news.length + r.news.length, '加完之后的条数')
-  const back = reducer(s, { type: 'run-undo', runId: 'run-test', who: ME })
-  eq(back.news.length, s0.news.length, '撤销后应回到原来的条数')
-  eq(back.studies.length, s0.studies.length, '撤销后研究条数')
-})
-
-await test('搜集步骤是有名有姓的，不是一个转圈的图标', () => {
-  const steps = planSteps(fresh().collect)
-  ok(steps.length >= 4, '步骤太少，等待时看不出在干什么')
-  ok(steps.every((x) => x.label.trim() && x.detail.trim()), '每步都要有说明')
-})
 
 await test('调整外观不会碰到新闻内容', () => {
   const s0 = fresh()
@@ -647,6 +545,9 @@ await test('发信失败和额度用完不能混为一谈', () => {
 const feedparse = await import('./feedparse.mjs')
 const ed = await import('./editorial.mjs')
 const llm = await import('./llm.mjs')
+const rw = await import('./rewrite.mjs')
+const blk = await import('./blocks.mjs')
+const feeds = await import('./feeds.mjs')
 
 await test('RSS 和 Atom 都要认得出来', () => {
   const rss = `<rss><channel>
@@ -752,20 +653,14 @@ await test('比较网址之前要洗掉跟踪参数', () => {
   eq(a, b, '同一篇文章带不带 utm 参数，应当算同一个网址')
 })
 
-await test('涉及性暴力的条目要带内容提示，别的不要', () => {
-  /*
-   * 站长要求去掉「等他审核」那一层，包括针对公众人物的指控——那是他指定的
-   * 报道重心，这个决定是他的，抓到就上线。
-   *
-   * 留下的只是给读者的一句话，不影响任何一条是否发布。这个站本来就这么做：
-   * 演示数据里的原话是「本条涉及性骚扰案件的审理程序。总结不描述任何具体案情。」
-   */
-  const n = (title, topics) => feedparse.noticeFor({ title, summary: '' }, topics)
-
-  ok(n('Producer sentenced for sexual assault', ['violence']), '性暴力条目要有提示')
-  ok(n('Producer sentenced for sexual assault', ['violence']).includes('尚未经本站核实'),
-    '涉及具体案件时要说清楚摘要没经过本站核实')
-  ok(!n('Report on gender pay gap', ['equality']), '不相关的条目不该加提示——提示满天飞就没人看了')
+await test('不再给条目挂内容提示', () => {
+  // 这里原本测的是「性暴力条目要带内容提示」。站长要求去掉那条红色警告带，
+  // 理由成立：这个站每一条都是性别暴力相关的报道，条条都挂等于没挂。
+  //
+  // 留下 isCase()——它现在的用处是排序（司法进展优先），不再决定挂不挂提示。
+  ok(!('noticeFor' in feedparse), 'noticeFor 应该已经删掉，不要再有条目带提示')
+  ok(feedparse.isCase({ title: '检方起诉某教授', summary: '' }), '认得出司法进展，排序要用')
+  ok(!feedparse.isCase({ title: '一份关于育儿假的报告', summary: '' }), '不是案件就不是案件')
 })
 
 await test('用媒体自己配的图，并且署上它的名字', () => {
@@ -857,7 +752,10 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
       seen = { url, headers: init.headers, body: JSON.parse(init.body) }
       return new Response(JSON.stringify({
         content: [{ type: 'text', text: '{"ok":true}' }],
-        usage: { input_tokens: 120, output_tokens: 30 },
+        usage: {
+          input_tokens: 120, output_tokens: 30,
+          cache_creation_input_tokens: 6000, cache_read_input_tokens: 0,
+        },
       }), { status: 200 })
     }
 
@@ -867,15 +765,24 @@ await test('发给 Claude 的请求必须照它的规矩来', async () => {
     eq(seen.headers['x-api-key'], 'sk-ant-fake', '认证是 x-api-key，不是 Bearer')
     ok(!seen.headers.authorization, '不该再带 Authorization 头')
     eq(seen.headers['anthropic-version'], '2023-06-01', '少了版本号直接 400')
-    eq(seen.body.system, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
+    // system 是顶层字段（不是 messages 里的一条），而且带缓存标记：
+    // 整份编辑方针每批都一样，不缓存就是把同一段话重新买十几遍。
+    eq(seen.body.system[0].text, '这是编辑方针', 'system 是顶层字段，不是 messages 里的一条')
+    eq(seen.body.system[0].cache_control.type, 'ephemeral', '编辑方针要开缓存，否则每批重复计费')
     eq(seen.body.messages.length, 1, 'messages 里只该有用户那一条')
     ok(!JSON.stringify(seen.body).includes('response_format'),
       'response_format 是 OpenAI 的字段，发给 Claude 会报错')
+
+    // 第一次真实收集全军覆没就是这个：五批全部 400，
+    // `temperature` is deprecated for this model.
+    // 我照着 OpenAI 的习惯加了它，新一代 Claude 不再接受。
+    ok(!('temperature' in seen.body), 'temperature 不能发给 Claude——它会整批 400')
 
     // 记账：站长拿自己的余额在跑，花了多少不该靠猜。
     const bill = llm.spendReport()
     ok(bill.includes('120'), '要报出真实的输入 token 数')
     ok(bill.includes('30'), '要报出真实的输出 token 数')
+    ok(bill.includes('6,000'), '缓存写入要单独报——它和普通输入不同价')
     ok(/US\$/.test(bill), '要给一个钱的估算，否则数字对站长没有意义')
   } finally { process.env = keep; globalThis.fetch = realFetch }
 })
@@ -937,6 +844,265 @@ await test('探测脚本要说清楚缺的是哪一个', async () => {
   const out = run({})
   ok(out.includes('https://api.groq.com/openai/v1'), '要给出可以直接粘贴的端点')
   ok(out.includes('410'), '要写明 GitHub Models 已退役，免得又去试一遍')
+})
+
+await test('儿童议题要认出侵害，不要把儿科新闻也收进来', () => {
+  // 站长新加的议题，同时也是他抱怨的那件事的解药：「新闻题材不是全部女性主义」。
+  // 词表太宽，综合源会把儿童医院、儿童节、少儿节目全灌进来。
+  const has = (t) => feedparse.topicsOf({ title: t, summary: '' }).includes('children')
+  ok(has('Charity warns of rise in child marriage across the Sahel'), '童婚要算')
+  ok(has('Man charged over grooming of underage girls'), '未成年被诱骗要算')
+  ok(has('报告：拐卖儿童案件三年增两倍'), '拐卖儿童要算')
+  ok(has('印度女童失学率上升'), '女童失学要算')
+
+  // 反面才是重点：这两条以前会被裸的 child / 儿童 捞进来。
+  ok(!has("New children's hospital opens in Leeds"), '儿童医院不是本站题目')
+  ok(!has('儿童医院今天开张'), '中文按子串匹配，词越短误伤越大')
+})
+
+await test('议题清单要以性暴力开头，并且真的有儿童这一项', () => {
+  // 顺序不是装饰：它就是筛选栏和「关于」页上的排列顺序，而站长把性犯罪
+  // 定成了这个站的重心。
+  eq(TOPICS[0].key, 'violence', '性暴力排第一')
+  eq(TOPICS[1].key, 'children', '儿童排第二')
+  ok(TOPICS.some((t) => t.key === 'children'), '儿童议题必须存在')
+  ok(TOPICS.every((t) => t.zh && t.short && t.hue), '每一项都要有中文名、短名和颜色')
+
+  // 界面上的议题和抓取时能识别的议题必须是同一套，否则会出现一个
+  // 永远筛不出内容的标签。
+  const ui = TOPICS.map((t) => t.key).sort()
+  const collector = Object.keys(feeds.TOPIC_WORDS).sort()
+  eq(ui.join(','), collector.join(','), '界面议题和抓取议题必须对得上')
+})
+
+await test('长稿不能装在 JSON 里——一个换行就毁掉整批', () => {
+  /*
+   * 这是实测出来的：十批里四批报「模型返回的不是 JSON」。
+   * 原因不是模型偷懒，是 JSON 装不下带换行的长文——
+   * 字符串里出现一个真实换行就是 Bad control character，整个文档作废。
+   * 而这个站要的恰恰是分段的一两千字。
+   */
+  let jsonBroke = false
+  try { JSON.parse('{"s":"第一段\n\n第二段"}') } catch { jsonBroke = true }
+  ok(jsonBroke, '前提：JSON 字符串里的真实换行确实非法')
+
+  // 分隔符格式对同样的内容毫无问题。
+  const text = [
+    '===ITEM 0===',
+    'KEEP: yes',
+    'HEADLINE: 一个标题',
+    'SUBHEAD: 一句副标题',
+    'TOPICS: violence, children, 不存在的',
+    'REGIONS: us, 火星',
+    'BULLETS:',
+    '- 要点一',
+    '- 要点二',
+    'SUMMARY:',
+    '第一段。',
+    '',
+    '## 小标题',
+    '',
+    '第二段，带来源 [1]。',
+    '===END 0===',
+    '===ITEM 1===',
+    'KEEP: no',
+    '===END 1===',
+  ].join('\n')
+
+  const blocks = blk.splitBlocks(text)
+  eq(blocks.length, 2, '两个块都要认出来')
+  const f = blk.parseBlock(blocks[0].body, ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY'])
+  ok(f.SUMMARY.includes('\n\n'), '空行分段要原样保留')
+  ok(f.SUMMARY.includes('## 小标题'), '小标题要留在正文里')
+  ok(!f.SUMMARY.includes('===END'), '结束标记不能混进正文')
+  eq(blk.parseYes(f.KEEP), true, 'KEEP: yes 要读成真')
+  eq(blk.parseYes(blk.parseBlock(blocks[1].body, ['KEEP']).KEEP), false, 'KEEP: no 要读成假')
+  eq(blk.parseList(f.BULLETS).join(), '要点一,要点二', '列表要去掉短横线')
+  eq(blk.parseEnum(f.TOPICS, new Set(['violence', 'children'])).join(), 'violence,children',
+    '不存在的议题要过滤掉')
+  eq(blk.parseEnum(f.REGIONS, new Set(['us'])).join(), 'us', '不存在的地区要过滤掉')
+
+  // 模型漏写 ===END 是常事，不该让已经写好的稿子作废。
+  const noEnd = blk.splitBlocks('===ITEM 0===\nKEEP: yes\nSUMMARY:\n正文\n===ITEM 1===\nKEEP: no')
+  eq(noEnd.length, 2, '漏写结束标记也要能切开')
+})
+
+await test('研究里的数字不能是模型编的', () => {
+  // 研究页把数字印得很大。一个没有出处、没有边界说明的数字，
+  // 比不放这个数字糟糕得多。
+  const fallback = {
+    title: '原标题', publisher: '某机构', kind: 'ngo-report',
+    summary: '原摘要', topics: ['equality'], regions: ['global'],
+  }
+  const got = rw.cleanStudy({
+    KEEP: 'yes',
+    TITLE: '中文标题',
+    KIND: '瞎编的类型',
+    SUMMARY: '这是一段足够长的中文总结'.repeat(40),
+    LIMITATION: '',
+    FIGURES: ['- 有说明的 | 38% | 只统计了报案的案件',
+      '- 没说明的 | 99% |',
+      '- 没数字的 | | 有说明但没有数字'].join('\n'),
+    TOPICS: 'violence, 不存在的议题',
+    REGIONS: 'us, 火星',
+  }, fallback)
+
+  eq(got.figures.length, 1, '没有边界说明、或者没有数字的都要丢掉')
+  eq(got.figures[0].value, '38%', '留下的必须是两样都齐的那个')
+  eq(got.kind, 'ngo-report', '类型不认识就退回这个源的默认，不要留空')
+  eq(got.topics.join(), 'violence', '不存在的议题要过滤掉')
+  eq(got.regions.join(), 'us', '不存在的地区要过滤掉')
+  ok(got.limitation.length > 0, '局限不能空着——空着等于默许读者过度解读')
+
+  // 太短的总结退回原文，而不是把一句话当成「详细总结」发出去。
+  const short = rw.cleanStudy({ KEEP: 'yes', SUMMARY: '很短' }, fallback)
+  eq(short.summary, '原摘要', '一句话不算总结')
+})
+
+await test('首页日期按北京时间，而且不是写死的', () => {
+  // 站长问「这个为什么是 8 月 31 日？」——因为它取的是演示数据里的常量。
+  const iso = todayISO()
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(iso), `要是 YYYY-MM-DD，实际 ${iso}`)
+
+  // 和北京时间的今天对上。用另一种算法算一遍，而不是把实现抄一遍——
+  // 抄一遍的测试只会证明代码等于它自己。
+  const bj = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10)
+  eq(iso, bj, '必须是北京时间的今天')
+
+  // 而且不能再是演示常量。
+  const state = fresh()
+  ok(state.today !== '2026-08-31' || bj === '2026-08-31', '不能停在演示数据那一天')
+  eq(state.today, iso, '初始状态里的今天就是真的今天')
+})
+
+await test('配图优先用报道页面的大图，而不是 feed 的缩略图', () => {
+  // 站长：「你没有给我高质量的标图。」feed 里的 media:thumbnail 常常是 150px，
+  // 铺到首页大卡片上就是一团糊；og:image 是媒体按 1200×630 做的那张。
+  const html = `<html><head>
+    <meta property="og:image" content="https://cdn.example.org/lead-1200x630.jpg">
+    <meta content="示威者在法院外" property="og:image:alt">
+  </head></html>`
+  const got = feedparse.ogImage(html, '卫报')
+  eq(got.url, 'https://cdn.example.org/lead-1200x630.jpg', '要取到 og:image')
+  eq(got.credit, '卫报', '署名是这家媒体')
+  // alt 用的是媒体自己写的图说，不是我编的——这和 feed 那条规则是同一条。
+  eq(got.alt, '示威者在法院外', '媒体给了图说就用它')
+
+  eq(feedparse.ogImage('<meta property="og:image" content="https://x.org/logo.png">', 'X'), null,
+    'logo、1x1 计数像素这类不是配图')
+  eq(feedparse.ogImage('<meta property="og:image" content="https://x.org/t/1x1.gif">', 'X'), null,
+    '计数像素要挡掉')
+  eq(feedparse.ogImage('<html><head></head></html>', 'X'), null, '没有就是没有，不要编一张')
+
+  // 没有图说时不能凭空描述画面——和 feed 那条规则必须一致。
+  const noAlt = feedparse.ogImage('<meta property="og:image" content="https://x.org/a.jpg">', '路透社')
+  ok(noAlt.alt.includes('路透社'), '替代文字要说明出处')
+  ok(!/protest|court|woman|女性|抗议/i.test(noAlt.alt), '不能凭空描述图片内容')
+})
+
+await test('每次打开顺序都不同，但新的更容易排在前面', () => {
+  // 站长要的。严格倒序的代价是第 20 条以后几乎没人看得到，
+  // 而它们和第 3 条一样是挑过、写过的。
+  const now = Date.parse('2026-09-01T12:00:00Z')
+  const at = (days) => new Date(now - days * 864e5).toISOString()
+  const items = [0, 1, 3, 7, 14, 30].map((d) => ({ id: `d${d}`, publishedAt: at(d), age: d }))
+  const run = (seed) => weightedShuffle(items, (i) => i.publishedAt, seed, now)
+
+  // 1 同一个种子必须给出同一个顺序——否则读到一半会重排。
+  eq(run(7).map((i) => i.id).join(), run(7).map((i) => i.id).join(), '同种子同顺序')
+
+  // 2 不同种子要真的不一样，否则「每次打开都随机」是句空话。
+  const orders = new Set()
+  for (let s = 0; s < 60; s += 1) orders.add(run(s).map((i) => i.id).join())
+  ok(orders.size > 5, `顺序要真的会变，实际只有 ${orders.size} 种`)
+
+  // 3 每条都要在，一条不多一条不少。加权抽样最容易错的就是这里。
+  for (let s = 0; s < 40; s += 1) {
+    const out = run(s)
+    eq(out.length, items.length, '不能丢条目')
+    eq(new Set(out.map((i) => i.id)).size, items.length, '不能出现重复')
+  }
+
+  // 4 统计上，新的确实更容易打头——这是站长括号里那半句。
+  const firstAge = []
+  for (let s = 0; s < 3000; s += 1) firstAge.push(run(s)[0].age)
+  const share = (d) => firstAge.filter((a) => a === d).length / firstAge.length
+  ok(share(0) > share(7), '当天的比一周前的更容易排第一')
+  ok(share(7) > share(30), '一周前的比一个月前的更容易排第一')
+  // 但旧的不能是零——「更有概率」不是「只有它」。
+  ok(share(30) > 0, '一个月前的仍然要有机会露面')
+
+  // 5 日期坏掉的不能崩，也不能因此霸占第一。
+  const broken = weightedShuffle(
+    [{ id: 'bad', publishedAt: '不是日期' }, { id: 'ok', publishedAt: at(0) }],
+    (i) => i.publishedAt, 1, now,
+  )
+  eq(broken.length, 2, '坏日期不能让整个列表消失')
+  ok(recencyWeight('不是日期', now) < recencyWeight(at(0), now), '坏日期的权重要低于正常的')
+})
+
+await test('被截断的回复要说清楚是截断，不是「没有返回内容」', async () => {
+  // 空回复最常见的原因是 max_tokens 太小——会先想一段再写的型号尤其容易。
+  // 报「模型没有返回内容」会让人去查 key 和型号名，那是两个错误的方向。
+  const keep = { ...process.env }
+  const realFetch = globalThis.fetch
+  try {
+    delete process.env.LLM_BASE_URL
+    delete process.env.LLM_MODEL
+    delete process.env.LLM_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-fake'
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      content: [], stop_reason: 'max_tokens', usage: { input_tokens: 5, output_tokens: 24 },
+    }), { status: 200 })
+
+    let msg = ''
+    try { await llm.ask('s', 'u', { maxTokens: 24 }) } catch (e) { msg = e.message }
+    ok(msg.includes('截断'), `要说是被截断，实际「${msg}」`)
+    ok(msg.includes('24'), '要把那个上限报出来，人才知道调哪个数')
+  } finally { process.env = keep; globalThis.fetch = realFetch }
+})
+
+await test('正文里的小标题要变成真的结构，角标不再渲染', async () => {
+  // 总结是上千字的新闻稿：用「## 小标题」分节。这些如果原样显示，
+  // 读者看到的就是一堆井号。
+  //
+  // 角标（[1] [2]）取消了——站长要求不要 reference number，出处写进句子里。
+  // 万一模型还是写了，就原样显示：那是正文的一部分，悄悄删掉一段文字
+  // 比留着一个方括号更糟。
+  const { renderToStaticMarkup } = await import('react-dom/server')
+  const { createElement } = await import('react')
+  const html = renderToStaticMarkup(createElement(Prose, {
+    text: '## 最早的投诉\n\n据《卫报》报道，检方指称行为发生于 2019 年。\n\n这里有一个 **加粗** 的词。',
+  }))
+
+  ok(html.includes('<h3'), '「## 小标题」要变成 h3，不是正文里的井号')
+  ok(html.includes('最早的投诉'), '小标题的文字要留下')
+  ok(!html.includes('## '), '井号本身不该出现在页面上')
+  ok(html.includes('据《卫报》报道'), '出处写在句子里，照原样留着')
+
+  ok(html.includes('<strong>加粗</strong>'), '**加粗** 要变成 strong')
+  ok(!html.includes('**'), '星号不该留在页面上')
+
+  // 不再生成任何跳转按钮或锚点。
+  ok(!html.includes('prose__cite'), '不该再有角标')
+  ok(!html.includes('src-'), '不该再有来源锚点')
+})
+
+await test('时间按北京时间显示，不是 UTC', () => {
+  // 这是一份按北京时间每天两场的日报。早上六点那一场写进数据库的时间戳是
+  // 前一天的 22:00 UTC——按 UTC 渲染，页面上就写成「前一天晚上十点收录」。
+  eq(fmtDateTime('2026-08-31T22:10:00Z'), '2026年9月1日 06:10',
+    '前一天 22:10 UTC 就是北京时间当天早上 6:10')
+  eq(fmtDate('2026-08-31T22:10:00Z'), '2026年9月1日', '日期也要跟着走')
+
+  // 下午两点那一场：06:00 UTC。
+  eq(fmtDateTime('2026-09-01T06:00:00Z'), '2026年9月1日 14:00', '下午那一场是 14:00')
+
+  // 午夜要显示 00:00，不是 24:00——24 小时制下 formatToParts 会给 24。
+  eq(fmtDateTime('2026-09-01T16:00:00Z'), '2026年9月2日 00:00', '午夜是 00:00')
+
+  // 坏日期原样返回，不要抛异常把整页带下去。
+  eq(fmtDate('不是日期'), '不是日期', '坏日期不能让页面崩掉')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

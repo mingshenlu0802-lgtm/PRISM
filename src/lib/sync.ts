@@ -69,17 +69,6 @@ export async function mirror(
       await removeStudy(db, action.id)
       break
 
-    /* 撤销一次搜集：删掉这次加的全部 */
-    case 'run-undo': {
-      const run = prev.runs.find((r) => r.id === action.runId)
-      if (!run) break
-      await Promise.all([
-        ...run.addedNewsIds.map((id) => removeNews(db, id)),
-        ...run.addedStudyIds.map((id) => removeStudy(db, id)),
-      ])
-      break
-    }
-
     /* 站点设置 */
     case 'appearance':
       await saveSite(db, { appearance: next.appearance })
@@ -109,10 +98,6 @@ export async function mirror(
     case 'signout':
     case 'github':
     case 'collect-config':
-    case 'run-start':
-    case 'run-step':
-    case 'run-finish':
-    case 'run-stop':
       return
   }
 

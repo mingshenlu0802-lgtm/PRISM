@@ -73,6 +73,7 @@ create table if not exists public.news (
   id           text primary key,
   slug         text not null unique,
   headline     text not null,
+  subhead      text,
   summary      text not null default '',
   bullets      jsonb not null default '[]'::jsonb,
   regions      jsonb not null default '[]'::jsonb,
@@ -89,6 +90,11 @@ create table if not exists public.news (
   published_at timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+
+-- 已经建过库的要补这一列。
+-- create table if not exists 对已存在的表什么都不做，所以新增字段必须单独写。
+-- 这一句可以反复执行。
+alter table public.news add column if not exists subhead text;
 
 create table if not exists public.studies (
   id           text primary key,

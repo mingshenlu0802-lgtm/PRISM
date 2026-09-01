@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { usePrism } from '../../lib/store'
 import { cx, fmtDate } from '../../lib/util'
 import { signOut } from '../../lib/session'
-import { Icon, PrismMark, ToastHost } from '../common'
+import { Icon, PrismMark, SkipLink, ToastHost } from '../common'
 import { AppearanceMenu } from '../site/AppearanceMenu'
 import './ConsoleLayout.css'
 
@@ -22,7 +22,7 @@ export default function ConsoleLayout(): JSX.Element {
 
   return (
     <div className="clyt">
-      <a className="u-skip" href="#cmain">跳到正文</a>
+      <SkipLink to="cmain" />
 
       <header className="clyt__bar">
         <div className="u-shell-wide clyt__barin">
@@ -103,7 +103,7 @@ export default function ConsoleLayout(): JSX.Element {
         </div>
       )}
 
-      <main id="cmain" className="clyt__main" data-scroll-root>
+      <main id="cmain" tabIndex={-1} className="clyt__main" data-scroll-root>
         <div className="u-shell-wide clyt__mainin">
           <Outlet />
         </div>

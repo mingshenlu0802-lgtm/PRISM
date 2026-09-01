@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
 import type {
-  Account, Appearance, ChangeEntry, ChangeKind, CollectConfig, CollectRun,
+  Account, Appearance, ChangeEntry, ChangeKind, CollectConfig,
   GitHubConfig, ID, MediaLink, NewsItem, PrismState, Role, SiteCopy, StudyItem,
 } from './types'
 
@@ -39,11 +39,6 @@ export type Action =
   | { type: 'study-delete'; id: ID; who: string }
   /* collection */
   | { type: 'collect-config'; patch: Partial<CollectConfig> }
-  | { type: 'run-start'; run: CollectRun }
-  | { type: 'run-step'; runId: ID; index: number }
-  | { type: 'run-finish'; runId: ID; addedNews: ID[]; addedStudies: ID[]; skipped: CollectRun['skipped'] }
-  | { type: 'run-stop'; runId: ID }
-  | { type: 'run-undo'; runId: ID; who: string }
   /* appearance & copy */
   | { type: 'appearance'; patch: Partial<Appearance>; who: string }
   | { type: 'copy'; patch: Partial<SiteCopy>; who: string }
@@ -248,47 +243,6 @@ export function reducer(state: PrismState, action: Action): PrismState {
 
     case 'collect-config':
       return { ...state, collect: { ...state.collect, ...action.patch } }
-
-    case 'run-start':
-      return { ...state, runs: [action.run, ...state.runs].slice(0, 20) }
-
-    case 'run-step':
-      return {
-        ...state,
-        runs: state.runs.map((r) => (r.id === action.runId
-          ? { ...r, steps: r.steps.map((s, i) => (i <= action.index ? { ...s, done: true } : s)) }
-          : r)),
-      }
-
-    case 'run-finish':
-      return {
-        ...state,
-        runs: state.runs.map((r) => (r.id === action.runId
-          ? { ...r, state: 'done', finishedAt: nowIso(), addedNewsIds: action.addedNews, addedStudyIds: action.addedStudies, skipped: action.skipped }
-          : r)),
-      }
-
-    case 'run-stop':
-      return {
-        ...state,
-        runs: state.runs.map((r) => (r.id === action.runId ? { ...r, state: 'stopped', finishedAt: nowIso() } : r)),
-      }
-
-    case 'run-undo': {
-      const run = state.runs.find((r) => r.id === action.runId)
-      if (!run) return state
-      const n = new Set(run.addedNewsIds)
-      const s = new Set(run.addedStudyIds)
-      return {
-        ...state,
-        news: state.news.filter((x) => !n.has(x.id)),
-        studies: state.studies.filter((x) => !s.has(x.id)),
-        runs: state.runs.map((r) => (r.id === action.runId ? { ...r, addedNewsIds: [], addedStudyIds: [] } : r)),
-        changes: log(state, action.who, 'deleted', `撤销了一次搜集，移除 ${n.size + s.size} 条内容`),
-      }
-    }
-
-    /* --------------------------- appearance ----------------------------- */
 
     case 'appearance':
       return {

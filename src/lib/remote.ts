@@ -46,6 +46,9 @@ function toNews(r: Row): NewsItem {
     id: str(r.id),
     slug: str(r.slug),
     headline: str(r.headline),
+    // 旧库里没有这一列（schema.sql 里有一句 add column if not exists 会补上）。
+    // 读不到就当没有副标题，不要让整条新闻因此读不出来。
+    subhead: (r.subhead ?? null) as string | null,
     summary: str(r.summary),
     bullets: arr<string>(r.bullets),
     regions: arr<RegionKey>(r.regions),
@@ -66,7 +69,8 @@ function toNews(r: Row): NewsItem {
 
 function fromNews(n: NewsItem): Row {
   return {
-    id: n.id, slug: n.slug, headline: n.headline, summary: n.summary,
+    id: n.id, slug: n.slug, headline: n.headline, subhead: n.subhead ?? null,
+    summary: n.summary,
     bullets: n.bullets, regions: n.regions, topics: n.topics, links: n.links,
     image: n.image ?? null,
     status: n.status, origin: n.origin,

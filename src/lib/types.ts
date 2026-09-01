@@ -22,15 +22,20 @@ export type ISODateTime = string  // 'YYYY-MM-DDTHH:mm:ssZ'
  * Topics — a story can carry several
  * ------------------------------------------------------------------ */
 
+/*
+ * 议题。顺序有意义——它就是筛选栏和标签的排列顺序，而站长把性犯罪
+ * 定为这个站的报道重心，儿童受害紧随其后。所以这两项在最前面。
+ */
 export type TopicKey =
+  | 'violence'      // 性暴力与性犯罪（本站重心）
+  | 'children'      // 儿童与未成年人受害
   | 'rights'        // 女性主义与 LGBTQIA+ 权利
-  | 'violence'      // 性暴力、家庭暴力与性骚扰
-  | 'repro'         // 生育权与身体自主权
+  | 'repro'         // 生育权与身体自主
   | 'trans'         // 跨性别权利与医疗
   | 'hate'          // 仇恨犯罪与网络暴力
-  | 'equality'      // 法律、政治、教育、医疗与职场平等
-  | 'displacement'  // 战争、移民及交叉边缘群体
-  | 'movement'      // 运动内部的重要争议
+  | 'equality'      // 教育、职场与制度平等
+  | 'displacement'  // 战争、移民与边缘处境
+  | 'movement'      // 运动内部的争议
 
 export interface Topic {
   key: TopicKey
@@ -104,6 +109,13 @@ export interface NewsItem {
   bullets: string[]
   regions: RegionKey[]
   topics: TopicKey[]
+  /**
+   * 副标题。
+   *
+   * 站长要的「主标题＋副标题」：主标题给核心事件，副标题给案件范围、
+   * 证据变化或制度意义。旧条目没有这一项，所以是可选的。
+   */
+  subhead?: string | null
   publishedAt: ISODateTime
   updatedAt: ISODateTime
   status: ItemStatus
@@ -210,20 +222,6 @@ export interface RunStep {
   label: string
   detail: string
   done: boolean
-}
-
-export interface CollectRun {
-  id: ID
-  startedAt: ISODateTime
-  finishedAt?: ISODateTime
-  config: CollectConfig
-  steps: RunStep[]
-  /** Ids added by this run, so a run can be undone in one action. */
-  addedNewsIds: ID[]
-  addedStudyIds: ID[]
-  /** Headlines the run skipped, with the reason. Nothing vanishes silently. */
-  skipped: { headline: string; reason: string }[]
-  state: 'running' | 'done' | 'stopped'
 }
 
 /* ------------------------------------------------------------------ *
@@ -349,7 +347,6 @@ export interface ChangeEntry {
 export interface PrismState {
   news: NewsItem[]
   studies: StudyItem[]
-  runs: CollectRun[]
   collect: CollectConfig
   appearance: Appearance
   auth: AuthState

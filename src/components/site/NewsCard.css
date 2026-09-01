@@ -113,3 +113,28 @@
   .ncard { padding: var(--s-5); }
   .ncard--full { padding: 0; }
 }
+
+/*
+ * 副标题。站长要的「主标题＋副标题」——主标题给核心事件，副标题给案件范围、
+ * 证据变化或制度意义。比标题小、比正文大，灰一档，让人一眼看出它是标题的一部分
+ * 而不是正文第一段。
+ */
+.ncard__subhead {
+  font-size: var(--fs-md); line-height: 1.45; color: var(--fg-muted);
+  font-weight: 500;
+}
+:root[data-body="serif"] .ncard__subhead { font-family: var(--font-serif); }
+
+/*
+ * 长文的行宽。
+ *
+ * 实测详情页正文一行 43 个汉字。中文的舒适行宽是 30–40 字——再长，
+ * 眼睛从行尾跳回行首时容易串行，而这个站的正文现在是一两千字，
+ * 串一次行就要重读一段。
+ *
+ * 用 em 而不是 ch：ch 是「0」的宽度，对汉字没有意义；
+ * 一个汉字差不多正好是 1em，所以 36em ≈ 36 个字。
+ * 只收窄详情页——信息流里的卡片在两栏网格里，本来就不宽。
+ */
+.ncard--full .ncard__summary,
+.ncard--full .ncard__bullets { max-width: 36em; }

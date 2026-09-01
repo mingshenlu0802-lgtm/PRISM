@@ -44,3 +44,26 @@
 .scard__links { padding-top: var(--s-3); border-top: var(--bw) solid var(--line-soft); }
 
 @media (max-width: 600px) { .scard { padding: var(--s-5); } }
+
+/*
+ * 列表里把长总结收起来。
+ *
+ * 研究的总结现在是上千字的新闻稿（站长要的），整篇摊在列表页上，
+ * 三项就占满一屏，读者只能一路往下滚，反而看不到第四项。
+ * 收起来 + 「读全文」和新闻卡是同一套行为，读者不用学两遍。
+ */
+.scard__summary { display: grid; gap: var(--s-3); line-height: var(--lh-prose); }
+.scard__summary--clamp {
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.scard__more {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--accent);
+}
+.scard__more:hover { text-decoration: underline; }
+.scard--full .scard__title { font-size: var(--fs-2xl); line-height: 1.25; }
+a:hover > .scard__title, .scard__title a:hover { color: var(--accent); }
+
+/* 研究详情页同理，见 NewsCard.css 里那段说明。 */
+.scard--full .scard__summary { max-width: 36em; }

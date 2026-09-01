@@ -33,7 +33,7 @@ export function BackendSetup(): JSX.Element {
   /*
    * 这个网站自己的地址，也就是登录链接该跳回来的地方。
    *
-   * 跟 session.ts 里 sendLink() 传给 emailRedirectTo 的是同一个值——必须一致，
+   * 跟 session.ts 里 sendCode() 传给 emailRedirectTo 的是同一个值——必须一致，
    * 否则填进 Supabase 的白名单是另一串，照样不管用。
    */
   const siteUrl = typeof document === 'undefined' ? '' : new URL('.', document.baseURI).href
