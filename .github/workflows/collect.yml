@@ -59,6 +59,10 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # 默认是六小时。这个 job 正常跑二十分钟上下，卡住的话没有理由让它
+    # 占着 runner 烧一整个上午的额度——而且下一场定时收集会被 concurrency
+    # 挡在门外，等于一次卡死连累后面几场。
+    timeout-minutes: 120
     # 这个 job 只读代码、往 Supabase 写。给它的 token 就不该有别的权力。
     permissions:
       contents: read

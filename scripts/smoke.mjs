@@ -1311,6 +1311,50 @@ await test('「关于」页上的来源数字不能自己变旧', () => {
   }
 })
 
+await test('等模型的时间要跟着要写的字数走', async () => {
+  /*
+   * 上限一度写死三分钟。那是 maxTokens 还是 8000 时定的。
+   * 站长后来要求正文写到三千字，写稿这一路把 maxTokens 提到 24000——
+   * 一批两条、每条三千汉字，六千到九千个输出 token，生成本来就要好几分钟，
+   * 上限却没动。
+   *
+   * 这种失败长得像成功：fetch 被 abort，写稿那边捕获异常、记一行
+   * 「第 N 批失败」、接着写下一批。没有报错、没有非零退出码，当天只是
+   * 少了两条——而且**写得最长的那两条最容易中招**。
+   *
+   * 所以这里盯住两件事：上限确实跟着 maxTokens 走，以及超时说的是人话。
+   */
+  const src = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
+  ok(/timeoutFor\s*=\s*\(maxTokens\)/.test(src), '超时应当由 maxTokens 算出来，不是一个定数')
+  ok(!/timeoutMs = 180000, maxTokens/.test(src), '不该再把 180 秒写死在参数默认值上')
+
+  // 真的发一次请求，对着一台永不回话的服务器，确认它会中断并说清楚。
+  const { createServer } = await import('node:http')
+  const server = createServer(() => {})
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  const port = server.address().port
+  const saved = { base: process.env.LLM_BASE_URL, key: process.env.LLM_API_KEY,
+                  model: process.env.LLM_MODEL, ant: process.env.ANTHROPIC_API_KEY }
+  process.env.LLM_BASE_URL = `http://127.0.0.1:${port}`
+  process.env.LLM_API_KEY = 'x'
+  process.env.LLM_MODEL = 'x'
+  delete process.env.ANTHROPIC_API_KEY
+  try {
+    const llm = await import('./llm.mjs')
+    let msg = ''
+    try { await llm.askText('s', 'u', { maxTokens: 2000, timeoutMs: 900 }) }
+    catch (e) { msg = e.message }
+    ok(/超过 \d+ 秒/.test(msg), `超时要说是超时，实际说的是「${msg}」`)
+    ok(/max_tokens/.test(msg), '超时还要带上 max_tokens，否则不知道该调哪个数')
+  } finally {
+    server.close()
+    for (const [k, v] of [['LLM_BASE_URL', saved.base], ['LLM_API_KEY', saved.key],
+                          ['LLM_MODEL', saved.model], ['ANTHROPIC_API_KEY', saved.ant]]) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v
+    }
+  }
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)
