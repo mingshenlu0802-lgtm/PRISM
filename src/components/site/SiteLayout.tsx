@@ -193,10 +193,11 @@ export default function SiteLayout(): JSX.Element {
         <div className="u-shell slyt__footin">
           <div className="slyt__footbrand">
             <PrismMark size={24} />
-            <div>
-              <p className="slyt__footword">{state.copy.title}</p>
-              <p className="slyt__foottag">{state.copy.tagline}</p>
-            </div>
+            {/*
+              * 页脚只留站名。站长说标语「在任何地方都不需要强调」，
+              * 页脚也是「任何地方」。
+              */}
+            <p className="slyt__footword">{state.copy.title}</p>
           </div>
           <p className="slyt__footnote">{state.copy.footerNote}</p>
           <p className="slyt__footmeta">
