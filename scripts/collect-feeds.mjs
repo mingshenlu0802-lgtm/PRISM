@@ -226,26 +226,17 @@ async function ownerNote() {
   } catch { return '' }
 }
 
-const poolSize = MAX_ITEMS * POOL
-if (picked.length > poolSize) {
-  console.log(`按优先级备 ${poolSize} 条候选，目标上线 ${MAX_ITEMS} 条（共 ${picked.length} 条）`)
-  picked = picked.slice(0, poolSize)
-}
-
-if (llmConfigured()) {
-  const note = await ownerNote()
-  if (note) console.log(`站长本次指示：${note}`)
-  picked = await rewriteAll(picked, note, MAX_ITEMS, { onPicked: hydrate })
-} else {
-  console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
-  console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
-  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译成中文。')
-}
-
 /* ------------------------------------------------------------------ *
- * 合并
+ * 合并——**在交给模型之前**
  *
- * 先在这一批里把讲同一件事的合成一条（多个来源），再拿去跟数据库里已有的比。
+ * 顺序改过一次，理由是站长的要求：「读完若干个 reference，然后总结就 ok 了。」
+ *
+ * 原来是先写、后合并：模型每次只看到一家的报道，写完之后才把讲同一件事的
+ * 另外两家挂成「来源」。读者看到三个来源，但稿子其实只依据其中一家——
+ * 另外两家补充的细节从来没进过正文。
+ *
+ * 现在先合并，再把这一组的**每一篇原文**都取回来交给模型。
+ * 路透社写了法庭文件，卫报采访到了当事人，两边的细节都能落进同一篇稿子。
  * ------------------------------------------------------------------ */
 
 const groups = []
@@ -257,6 +248,24 @@ for (const p of picked) {
 }
 const merged = groups.reduce((n, g) => n + g.also.length, 0)
 if (merged) console.log(`同一批里有 ${merged} 条讲的是别人已经讲过的事，合并成来源`)
+
+let picked2 = groups
+const poolSize = MAX_ITEMS * POOL
+if (picked2.length > poolSize) {
+  console.log(`按优先级备 ${poolSize} 条候选，目标上线 ${MAX_ITEMS} 条（共 ${picked2.length} 条）`)
+  picked2 = picked2.slice(0, poolSize)
+}
+
+if (llmConfigured()) {
+  const note = await ownerNote()
+  if (note) console.log(`站长本次指示：${note}`)
+  picked2 = await rewriteAll(picked2, note, MAX_ITEMS, { onPicked: hydrate })
+} else {
+  console.log('没有配置模型：加一个 ANTHROPIC_API_KEY 就走 Claude，')
+  console.log('或者 LLM_BASE_URL / LLM_MODEL / LLM_API_KEY 三个配齐走别家。')
+  console.log('这次用英文原摘要和关键词筛选——不会按编辑方针挑，也不会翻译成中文。')
+}
+picked = picked2
 
 /* ------------------------------------------------------------------ *
  * 配图
@@ -315,24 +324,43 @@ async function inBatches(items, size, fn) {
  * 一次请求同时解决配图和正文，所以这一步比原来只取图并不更贵。
  */
 async function hydrate(list) {
-  const before = list.filter((g) => g.image).length
-  const got = await inBatches(list, 6, (g) => pageInfo(g.link, g.feed.outlet))
+  /*
+   * 一组里的**每一篇**都要取。
+   *
+   * 站长：「读完若干个 reference，然后总结就 ok 了。」路透社写了法庭文件，
+   * 卫报采访到了当事人——两边的细节要落进同一篇稿子，就得两边都读过。
+   * 每组最多取三篇：再多的边际收益很小，而请求数是按篇算的。
+   */
+  const jobs = []
+  for (const g of list) {
+    for (const src of [g, ...g.also].slice(0, 3)) {
+      jobs.push({ group: g, src, main: src === g })
+    }
+  }
+
+  const got = await inBatches(jobs, 6, (j) => pageInfo(j.src.link, j.src.feed.outlet))
+
   let better = 0
-  let texts = 0
-  let chars = 0
-  list.forEach((g, i) => {
+  const before = list.filter((g) => g.image).length
+  jobs.forEach((j, i) => {
     const info = got[i]
     if (!info) return
-    if (info.image && (!g.image || info.image.url !== g.image.url)) { g.image = info.image; better += 1 }
+    // 配图只用主来源那一篇的：一组里混用不同报道的图，图和标题会对不上。
+    if (j.main && info.image && (!j.group.image || info.image.url !== j.group.image.url)) {
+      j.group.image = info.image
+      better += 1
+    }
     // 太短就当没取到——一两句话还不如 feed 的摘要，塞进去只会添乱。
-    if (info.text && info.text.length > 400) { g.body = info.text; texts += 1; chars += info.text.length }
-
-    // 合并进来的其他来源也取一遍：同一件事，第二家往往补上第一家没写的细节。
-    // 这也是站长要的「读若干个 reference 然后总结」。
+    if (info.text && info.text.length > 400) {
+      ;(j.group.bodies ??= []).push({ outlet: j.src.feed.outlet, text: info.text })
+    }
   })
+
+  const withText = list.filter((g) => g.bodies?.length).length
+  const totalSrc = list.reduce((n, g) => n + (g.bodies?.length ?? 0), 0)
   const after = list.filter((g) => g.image).length
   console.log(`配图：feed 自带 ${before} 张，报道页取到更好的 ${better} 张，最终 ${after}/${list.length} 条有图`)
-  console.log(`正文：取到 ${texts}/${list.length} 篇，平均 ${texts ? Math.round(chars / texts) : 0} 字`)
+  console.log(`原文：${withText}/${list.length} 条拿到正文，共 ${totalSrc} 篇（一条新闻可能读了不止一家）`)
 }
 
 const have = await existingItems()
@@ -354,7 +382,7 @@ const linkOf = (p, i, j) => ({
 const toInsert = []
 const toAppend = []
 
-groups.forEach((g, i) => {
+picked.forEach((g, i) => {
   const sources = [g, ...g.also]
   const links = sources
     .filter((p) => !have.urls.has(normUrl(p.link)))

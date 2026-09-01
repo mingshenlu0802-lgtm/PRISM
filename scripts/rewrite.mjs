@@ -61,10 +61,14 @@ async function runBatch(batch, ownerNote) {
   const input = batch.map((p, i) => ({
     i,
     title: p.title,
-    // 原文正文。这是模型写长稿的**材料**——没有它，1500 字只能靠车轱辘话凑。
-    // 取不到就退回 feed 摘要，并且下面的提示词会告诉模型「材料只有这些」。
-    article: p.body || undefined,
-    excerpt: p.body ? undefined : p.summary,
+    /*
+     * 原文正文，可能不止一篇——同一件事被两三家报道时，每一家都取回来了。
+     * 这是模型写长稿的**材料**：没有它，1500 字只能靠车轱辘话凑；
+     * 有了好几家，细节还能互相补上（这家有法庭文件，那家采访到了当事人）。
+     * 一篇都没取到才退回 feed 摘要。
+     */
+    articles: p.bodies?.length ? p.bodies : undefined,
+    excerpt: p.bodies?.length ? undefined : p.summary,
     date: p.at.slice(0, 10),
     /*
      * 来源按 [1] [2] 编号交给模型，让它在正文里标角标。
@@ -77,7 +81,9 @@ async function runBatch(batch, ownerNote) {
   }))
   const text = await askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
-    `候选新闻 ${input.length} 条。**article 是原报道的正文**，写的时候以它为材料；\n`
+    `候选新闻 ${input.length} 条。\n`
+    + `**articles 是原报道的正文**，可能有好几篇——都是同一件事的不同来源。\n`
+    + `全部读完，写成**一篇**稿子：细节该谁补谁补，不要写成「A 媒体说……B 媒体说……」。\n`
     + `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n\n`
     + `${JSON.stringify(input, null, 1)}`,
     { maxTokens: 24000 },
