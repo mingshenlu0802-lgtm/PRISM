@@ -17,9 +17,15 @@ on:
     # cron 按 UTC 走，所以要减八小时。早上 6:00 落在前一天的 22:00 UTC，
     # 下午 2:00 落在当天的 06:00 UTC。
     #
+    # **为什么是 17 分，不是整点。** 定时任务在 GitHub 上是尽力而为的：
+    # 负载高的时候会延迟，也会**整场丢掉**，而整点是全世界最挤的那一格。
+    # 这个仓库到现在为止，定时触发一次都没有真的跑起来（Actions 里只有
+    # 手动触发的记录）——错开几分钟是这件事最常见也最有效的办法。
+    # 北京时间因此是 06:17 和 14:17，跟站长要的差十几分钟，不差一场新闻。
+    #
     # 定时触发没法带 inputs，所以下面用 github.event.schedule 分辨是哪一场。
-    - cron: '0 22 * * *'
-    - cron: '0 6 * * *'
+    - cron: '17 22 * * *'
+    - cron: '17 6 * * *'
   workflow_dispatch:
     inputs:
       max:
@@ -147,5 +153,5 @@ jobs:
           LLM_EFFORT: ${{ inputs.effort || 'high' }}
           # 研究只在早上那一场收。下午那场（06:00 UTC）设成 0——
           # 发布方一天不会出两批报告，第二次去抓只会抓到同样的东西再被去重掉。
-          MAX_STUDIES: ${{ inputs.studies || (github.event.schedule == '0 6 * * *' && '0' || '3') }}
+          MAX_STUDIES: ${{ inputs.studies || (github.event.schedule == '17 6 * * *' && '0' || '3') }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}
