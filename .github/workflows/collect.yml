@@ -50,6 +50,14 @@ on:
         description: '想试的型号名，空格分隔（留空则试它列出来的前几个）'
         type: string
         default: ''
+      search:
+        description: '联网二次搜索，给每条新闻补到 3-5 个来源（花钱，但站长要求的就是这个）'
+        type: boolean
+        default: true
+      effort:
+        description: '模型下多大力气：low / medium / high / xhigh / max'
+        type: string
+        default: 'high'
 
 # 同时只跑一个，免得两次收集互相写重复条目。
 concurrency:
@@ -72,6 +80,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      # 收集脚本现在用官方的 @anthropic-ai/sdk（联网搜索是它的服务端工具）。
+      # --omit=dev 把 playwright 那几百兆挡在外面：那是给界面检查用的，
+      # 这个 job 一行都不碰。
+      - name: 装依赖
+        run: npm ci --omit=dev
 
       # 没配密钥就只做一次演练，并且把该配什么说清楚。
       # 这样第一次运行不需要任何准备，就能知道 27 个源里哪些还活着。
@@ -126,6 +141,10 @@ jobs:
           LLM_MODEL: ${{ secrets.LLM_MODEL }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           MAX_ITEMS: ${{ inputs.max || '15' }}
+          # 联网找来源。站长要「加上 3-5 个 sources，看完 sources，进行总结」，
+          # 所以默认开着；勾掉 search 就是 0，只用 RSS 里已有的来源。
+          LLM_SEARCH: ${{ inputs.search == false && '0' || '1' }}
+          LLM_EFFORT: ${{ inputs.effort || 'high' }}
           # 研究只在早上那一场收。下午那场（06:00 UTC）设成 0——
           # 发布方一天不会出两批报告，第二次去抓只会抓到同样的东西再被去重掉。
           MAX_STUDIES: ${{ inputs.studies || (github.event.schedule == '0 6 * * *' && '0' || '3') }}

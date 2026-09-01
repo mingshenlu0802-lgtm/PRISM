@@ -27,6 +27,32 @@ import { systemPrompt, triagePrompt } from './editorial.mjs'
  */
 const BATCH = Number(process.env.LLM_BATCH ?? 2)
 
+/*
+ * 联网找来源，默认开着。
+ *
+ * 站长明确要求「加上 3-5 个 sources，看完 sources，进行总结」。
+ * 它只在 Claude 那条路上有（是 Anthropic 的服务端工具），而且要花钱：
+ * 每次搜索一美分。要关掉就设 LLM_SEARCH=0。
+ */
+const SEARCH = process.env.LLM_SEARCH !== '0'
+const anthropicBacked = () => Boolean((process.env.ANTHROPIC_API_KEY ?? '').trim())
+
+/*
+ * **一轮里有几条走联网搜索。**
+ *
+ * 实测：搜过的一条 0.69 美元，没搜的大约 0.19。站长设的是一天两场、
+ * 每场 15 条——三十条全搜，一个月约 625 美元，而他账上是 20 美元，
+ * 也就是**不到一天就会用完，然后每一场都失败**。
+ *
+ * 所以默认只给排在最前面的几条：它们是当天的头条，是读者真正会点进去
+ * 读完的那几条，也是「三到五个来源」最值钱的地方。排在后面的仍然会写，
+ * 用我们自己抓回来的原文，一千五百字上下。
+ *
+ * 这是**成本上的取舍，不是我替站长做的判断**——LLM_SEARCH_TOP 调成
+ * 15 就是全都搜，调成 0 就是都不搜。日志里会写清楚这一轮搜了几条。
+ */
+const SEARCH_TOP = Number(process.env.LLM_SEARCH_TOP ?? 5)
+
 const SHAPE = `
 每一条候选写成一个块，**不要用 JSON**，照下面的格式：
 
@@ -57,6 +83,9 @@ SUMMARY:
 - REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
+/** 这一轮还能搜几条。runBatch 每写一条搜过的就减一。 */
+const searchBudget = { left: 0 }
+
 async function runBatch(batch, ownerNote) {
   const input = batch.map((p, i) => ({
     i,
@@ -79,27 +108,75 @@ async function runBatch(batch, ownerNote) {
     sources: [{ n: 1, outlet: p.feed.outlet, lang: p.feed.lang, url: p.link },
       ...(p.also ?? []).map((o, k) => ({ n: k + 2, outlet: o.feed.outlet, lang: o.feed.lang, url: o.link }))],
   }))
-  const text = await askText(
+  /*
+   * **开着联网搜索的时候，一次只写一条。**
+   *
+   * 站长：「你怎么只搜索一个 source？我希望你找到新闻后，抽取新闻标题进行
+   * 二次搜索，然后加上 3-5 个 sources，看完 sources，进行总结。」
+   *
+   * 一批两条时，模型的搜索结果是混在同一个回合里的：两条新闻的搜索、抓取、
+   * 正文交错着出现，谁的来源是谁的就分不清了——挂错来源比没有来源更糟。
+   * 一条一条写，found 就明确属于这一条。
+   */
+  const ask1 = (items, searching) => askText(
     `${systemPrompt(ownerNote)}\n\n${SHAPE}`,
-    `候选新闻 ${input.length} 条。\n`
+    `候选新闻 ${items.length} 条。\n`
     + `**articles 是原报道的正文**，可能有好几篇——都是同一件事的不同来源。\n`
     + `全部读完，写成**一篇**稿子：细节该谁补谁补，不要写成「A 媒体说……B 媒体说……」。\n`
-    + `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n`
-    + `**两家以上报道的，出处要在正文里分别点名**（据 X 报道 / Y 查阅的文件显示），\n`
-    + `读者才看得出这件事不止一家在讲。\n\n`
-    + `${JSON.stringify(input, null, 1)}`,
-    { maxTokens: 24000 },
+    + (searching
+      ? `\n**先补来源，再动笔。** 用 web_search 拿这条新闻的关键信息（人名、地点、\n`
+        + `机构、案件）去搜同一件事的其他报道——不要照抄标题去搜，标题里的\n`
+        + `修辞词会把搜索带偏。找到之后用 web_fetch 把值得读的那几篇抓回来读完，\n`
+        + `**总共凑够三到五个来源**（手上已有的算在内），再开始写。\n`
+        + `优先找：通讯社与大报的同题报道、法院或政府的原始文件、当地媒体的细节。\n`
+        + `搜不到就照手上的材料写，不要为了凑数把不相干的报道算成来源。\n`
+        + `正文里出处要分别点名（据《卫报》报道 / 路透社查阅的法庭文件显示）。\n`
+      : `只有 excerpt 的那几条材料很少，就写短一点，不要靠重复凑字数。\n`
+        + `**两家以上报道的，出处要在正文里分别点名**（据 X 报道 / Y 查阅的文件显示），\n`
+        + `读者才看得出这件事不止一家在讲。\n`)
+    + `\n${JSON.stringify(items, null, 1)}`,
+    { maxTokens: 24000, search: searching },
   )
+
+  /*
+   * 预算是**按条**花的，不是按批。
+   *
+   * 第一版把「这一批要不要搜」在批的开头算一次——预算只剩 1 条时，
+   * 一批两条会两条都搜，悄悄超支。预算是拿站长的钱定的，不能这样漏。
+   */
+  if (searchBudget.left <= 0) {
+    const { text } = await ask1(input, false)
+    return matchBack(batch, text)
+  }
+
+  // 一条一条来，各自带回自己搜到的来源。
+  const out = []
+  for (let i = 0; i < input.length; i += 1) {
+    const searching = searchBudget.left > 0
+    try {
+      if (searching) searchBudget.left -= 1
+      const { text, found } = await ask1([{ ...input[i], i: 0 }], searching)
+      const [item] = matchBack([batch[i]], text)
+      if (item && searching) item.__found = found
+      out.push(item)
+    } catch (e) {
+      console.log(`  第 ${i + 1} 条写失败：${String(e.message ?? e).slice(0, 120)}`)
+      out.push(null)
+    }
+  }
+  return out
+}
+
+/** 按编号把块对回候选，而不是按出现顺序——模型偶尔会漏掉一整块。 */
+function matchBack(batch, text) {
   const blocks = splitBlocks(text)
   if (blocks.length === 0) {
     throw new Error(`没找到 ===ITEM=== 块：${text.slice(0, 200)}`)
   }
-  // 按编号对回去，而不是按出现顺序——模型偶尔会漏掉一整块（那一条就当没留下）。
-  const items = batch.map((_, i) => {
+  return batch.map((_, i) => {
     const b = blocks.find((x) => x.i === i)
     return b ? parseBlock(b.body, FIELDS) : null
   })
-  return items
 }
 
 const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY']
@@ -128,6 +205,8 @@ export function clean(raw, fallback) {
     bullets: parseList(raw.BULLETS).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
+    // 联网搜到、并且真的被读过的那几篇。collect 会把它们挂成额外来源。
+    found: Array.isArray(raw.__found) ? raw.__found : [],
   }
 }
 
@@ -168,7 +247,15 @@ async function triage(cands, ownerNote, target) {
           batch.map((c, k) => ({ i: k, source: c.feed.outlet, title: c.title, excerpt: String(c.summary).slice(0, 300) })),
           null, 1,
         )}`,
-        { maxTokens: 2000 },
+        /*
+         * 初筛用便宜的型号，力气也给小的。
+         *
+         * 这一步的输出是一个布尔值加十个字的理由——**让 Opus 来做，
+         * 是在为一件它的判断力派不上用场的事付钱，还慢**。写稿那一路
+         * 才需要最好的模型。站长在 Secrets 里指定过 LLM_MODEL 的话，
+         * 那是他的选择，两边都听他的。
+         */
+        { maxTokens: 2000, model: process.env.LLM_MODEL || 'claude-sonnet-5', effort: 'low' },
       )
       const picks = Array.isArray(out?.picks) ? out.picks : []
       for (const p of picks) {
@@ -238,7 +325,12 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity, 
   const tier = (p) => (p.topics.includes('sexual') ? 0 : p.topics.includes('domestic') ? 1 : p.topics.includes('children') ? 2 : 3)
   picked.sort((a, b) => tier(a) - tier(b) || (a.bodies?.length ? 0 : 1) - (b.bodies?.length ? 0 : 1))
 
-  console.log(`  开始写（每批 ${BATCH} 条）`)
+  searchBudget.left = SEARCH && anthropicBacked() ? Math.min(SEARCH_TOP, picked.length) : 0
+  if (searchBudget.left > 0) {
+    console.log(`  开始写：前 ${searchBudget.left} 条联网找来源，其余用手上的材料`)
+  } else {
+    console.log(`  开始写（每批 ${BATCH} 条）`)
+  }
   const out = []
   let dropped = 0
   let failed = 0

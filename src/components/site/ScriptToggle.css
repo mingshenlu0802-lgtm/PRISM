@@ -1,0 +1,43 @@
+/*
+ * 简 / 繁 开关。
+ *
+ * 做成一个两格的小段落，不是两个独立按钮：读者要看出这是**一个**选择的
+ * 两面，而不是两个可以各自按下的东西。
+ */
+.sct {
+  display: inline-flex;
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  background: var(--bg);
+}
+.sct__btn {
+  min-width: 34px; min-height: 32px;
+  padding: 0 var(--s-2);
+  border: 0; background: transparent;
+  font-size: var(--fs-xs); font-weight: 600;
+  color: var(--fg-muted); cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+}
+.sct__btn:hover { color: var(--fg); }
+.sct__btn--on { background: var(--fg); color: var(--bg); }
+
+@media (pointer: coarse) {
+  .sct__btn { min-height: 36px; min-width: 40px; }
+}
+
+/*
+ * 手机上只留一个键。
+ *
+ * 两格的开关在 390px 的顶栏里要 82px，把站名挤成了「PRI…」——一个把自己
+ * 名字挤没了的网站，第一眼就显得没做完。
+ *
+ * 所以窄屏上只显示**当前没选中的那一个**：现在是简体，就显示「繁」，
+ * 按下去换过去；换过去之后它变成「简」。少了 40px，而且更贴近站长要的
+ * 「一键」——本来就是一下的事。
+ */
+@media (max-width: 520px) {
+  .sct { border-radius: var(--r-md); }
+  .sct__btn--on { display: none; }
+  .sct__btn { min-width: 38px; }
+}

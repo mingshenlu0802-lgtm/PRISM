@@ -551,6 +551,21 @@ async function hydrate(list) {
   }
 }
 
+/**
+ * 拿网址当媒体名用。
+ *
+ * 联网搜来的来源没有「媒体名」这个字段，只有网址。域名去掉 www 和后缀，
+ * 首字母大写——theguardian.com 变成 Theguardian，不完美，但比空着强，
+ * 而且读者一眼看得出是谁。站长在控制端可以改。
+ */
+function hostName(url) {
+  try {
+    const h = new URL(url).hostname.replace(/^www\./, '')
+    const core = h.split('.').slice(0, -1).join('.') || h
+    return core.charAt(0).toUpperCase() + core.slice(1)
+  } catch { return '来源' }
+}
+
 const have = await existingItems()
 
 const linkOf = (p, i, j) => ({
@@ -577,6 +592,35 @@ picked.forEach((g, i) => {
   const links = sources
     .filter((p) => !have.urls.has(normUrl(p.link)))
     .map((p, j) => linkOf(p, i, j))
+
+  /*
+   * 模型联网搜到、并且读过的那几篇，也挂成来源。
+   *
+   * 站长要「3-5 个 sources」，而 RSS 里同一件事往往只有一家。这些是模型
+   * 拿着案件的关键信息去搜、抓回来读完之后真正用到的报道——写进正文的
+   * 细节有一部分就来自它们，那就该让读者点得到。
+   *
+   * 去重按规范化的网址：搜出来的很可能就是我们已经有的那一篇。
+   * 一条最多补四个，够到站长说的五个，也不至于把卡片撑成一张链接表。
+   */
+  const known = new Set([...sources.map((p) => normUrl(p.link)), ...have.urls])
+  for (const f of (g.found ?? [])) {
+    if (links.length >= 5) break
+    const u = normUrl(f.url)
+    if (!u || known.has(u)) continue
+    known.add(u)
+    links.push({
+      id: `l-${Date.now().toString(36)}-${i}-w${links.length}`,
+      outlet: hostName(f.url),
+      title: String(f.title || '').slice(0, 200) || hostName(f.url),
+      url: f.url,
+      lang: 'en',
+      date: g.at.slice(0, 10),
+      kind: undefined,
+      primary: false,
+    })
+  }
+
   if (links.length === 0) return // 每一个来源都已经在站上了
 
   // 本站提到过这件事吗？提过就把新来源挂上去，不新开一条。
@@ -633,6 +677,35 @@ if (toInsert.length > 0) {
   const avg = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0)
   console.log(`  篇幅 中位 ${mid} 字（最短 ${lens[0]}，最长 ${lens[lens.length - 1]}）`)
   console.log(`  两家以上媒体报道的 ${multi}/${toInsert.length} 条`)
+  /*
+   * 抄一段出来给人看。
+   *
+   * 站长说了五次「语言不够好」，而我一直在**猜**哪里不好——日志里只有条数和
+   * 字数，没有一个字是稿子本身。改哪一版提示词、换哪一个模型有没有用，
+   * 靠数字是判断不出来的：一千五百字的空话和一千五百字的好稿，
+   * 在「中位 1135 字」这一行里长得一模一样。
+   *
+   * 所以每轮抄一条最长的出来，标题、副标题、开头六百字。这是要上线的公开
+   * 内容，不是私密数据；而有了它，「这批写得怎么样」才是一个能回答的问题。
+   */
+  const sample = [...toInsert].sort((a, b) => len(b.summary) - len(a.summary))[0]
+  if (sample) {
+    console.log('')
+    console.log('这一轮写成什么样（最长的一条，开头六百字）：')
+    console.log('—'.repeat(76))
+    console.log(`  标题：${sample.headline}`)
+    if (sample.subhead) console.log(`  副题：${sample.subhead}`)
+    console.log(`  来源：${sample.links.map((l) => l.outlet).join('、')}`)
+    console.log('')
+    for (const para of String(sample.summary).split(/\n+/).slice(0, 8)) {
+      if (!para.trim()) continue
+      console.log(`  ${para.slice(0, 300)}`)
+      console.log('')
+    }
+    console.log('—'.repeat(76))
+    console.log('')
+  }
+
   if (withText.length && withText.length < toInsert.length) {
     const a = avg(withText.map((n) => len(n.summary)))
     const b = avg(toInsert.filter((n) => !hydrated.has(n.slug)).map((n) => len(n.summary)))

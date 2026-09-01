@@ -12,6 +12,7 @@ import { cx, fmtDate } from '../../lib/util'
 import { takeAuthLinkError } from '../../lib/authlink'
 import { Icon, PrismMark, SkipLink, ToastHost, toast } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
+import { ScriptToggle } from './ScriptToggle'
 import { AccountMenu } from './AccountMenu'
 import { SignInGate } from './SignInGate'
 import { SignInInvite } from './SignInInvite'
@@ -168,6 +169,8 @@ export default function SiteLayout(): JSX.Element {
           </nav>
 
           <div className="slyt__tools">
+            {/* 站长要「一键繁简转换」，所以它在顶栏上，不在设置菜单里面。 */}
+            <ScriptToggle />
             <AppearanceMenu />
             <AccountMenu />
             <button

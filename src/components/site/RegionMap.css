@@ -1,95 +1,74 @@
 /*
- * 格子地图。
+ * 世界地图。
  *
- * 六列固定，因为格子的位置是按经纬度排的——列数一变，
- * 「欧洲在中上、拉美在左下」这层空间关系就散了。
- * 手机上不改列数，只缩小格子和字号。
+ * 路径数据在 src/lib/worldmap.ts，由 scripts/build-map.mjs 生成。
+ * 这里只负责上色和交互。
  */
-.rmap { display: grid; gap: var(--s-3); }
+.rmap { display: grid; gap: var(--s-4); }
 
-/*
- * 行高写死，**不用 aspect-ratio**。
- *
- * 上一版每格是正方形。桌面上正文宽约 1200px，六列就是每格 190px，
- * 五行下来地图有一千多像素高——首页最上面摆着一块比头条还高的导航，
- * 新闻被推到屏幕外面去了。地图是用来跳转的，不是今天的内容。
- *
- * 现在按行高算：六行加上间距，桌面上约 380px，手机上约 300px。
- * 一眼看得完，下面就是新闻。
- */
-.rmap__grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  grid-auto-rows: 40px;
-  gap: 5px;
+.rmap__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* 海。比页面底色深一点点，陆地才浮得出来；不用蓝色——这不是地理课本，
+     一片蓝会把注意力从「哪里有新闻」上引开。 */
+  background: var(--bg-sunken);
+  border-radius: var(--r-md);
 }
-@media (min-width: 700px) { .rmap__grid { grid-auto-rows: 50px; gap: 7px; } }
-@media (min-width: 1000px) { .rmap__grid { grid-auto-rows: 56px; } }
 
-.rmap__tile {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px;
-  padding: 4px;
-  border-radius: var(--r-sm);
-  text-align: center;
-  line-height: 1.2;
-  /*
-   * 有内容的地区上色重一些。这样地图会「亮」在今天真的发生了事情的地方，
-   * 那一眼本身就是信息——而不只是一张彩色的导航表。
-   */
-  background: color-mix(in srgb, var(--tile) 30%, transparent);
-  color: var(--fg);
-  border: var(--bw) solid transparent;
-  transition: background .12s ease, color .12s ease, border-color .12s ease;
+/* 没有对应地区的陆地：灰的，点不动。 */
+.rmap__rest {
+  fill: var(--fg-faint);
+  opacity: .18;
+  pointer-events: none;
 }
-.rmap__tile:hover, .rmap__tile:focus-visible {
-  background: color-mix(in srgb, var(--tile) 52%, transparent);
-  border-color: var(--tile);
+
+.rmap__area {
+  fill: var(--tile);
+  fill-opacity: .72;
+  stroke: var(--bg);
+  stroke-width: .8;
+  cursor: pointer;
+  transition: fill-opacity .12s ease;
 }
+.rmap__area:hover { fill-opacity: 1; }
 
 /* 今天没有内容的地区：压淡，但照样可以点——那一页会说清楚今天这里没有内容。 */
-.rmap__tile--bare {
-  background: color-mix(in srgb, var(--tile) 10%, transparent);
-  color: var(--fg-faint);
-}
-.rmap__tile--bare:hover, .rmap__tile--bare:focus-visible {
-  background: color-mix(in srgb, var(--tile) 26%, transparent);
-  color: var(--fg-muted);
-}
+.rmap__area--bare { fill-opacity: .26; }
+.rmap__area--bare:hover { fill-opacity: .5; }
 
-.rmap__name { font-size: var(--fs-2xs); font-weight: 640; }
+/*
+ * 地图底下的地区链接。
+ *
+ * 这一排才是正经的导航：地图整块 aria-hidden，键盘和读屏走的是这里，
+ * 手指点台湾和香港也是点这里——它们在地图上只有几个像素。
+ */
+.rmap__list {
+  list-style: none;
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.rmap__chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 36px;
+  padding: 6px var(--s-3);
+  border-radius: var(--r-pill);
+  border: var(--bw) solid var(--line);
+  background: var(--bg);
+  font-size: var(--fs-xs); font-weight: 560;
+  color: var(--fg); text-decoration: none;
+  transition: border-color .12s ease, background .12s ease;
+}
+.rmap__chip:hover { border-color: var(--accent); background: var(--bg-sunken); }
+.rmap__chip--bare { color: var(--fg-faint); }
+.rmap__chip--bare:hover { color: var(--fg-muted); }
+
+.rmap__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .rmap__n {
   font-size: var(--fs-2xs); font-weight: 700;
-  color: inherit; opacity: .75;
+  color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.rmap__global {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: var(--fs-xs); color: var(--fg-muted);
-}
-.rmap__global:hover { color: var(--fg); }
-.rmap__dot { width: 8px; height: 8px; border-radius: 50%; }
-
-@media (min-width: 700px) {
-  .rmap__name { font-size: var(--fs-xs); }
-}
-
-/*
- * 触屏。单行的那几块（日韩、台湾、香港、南亚）在手机上高 40px，
- * 差 44px 那条线一点，所以触屏上把行高补回 44px——只在真的用手指点的
- * 设备上补，桌面仍然是紧凑的 40px。
- */
 @media (pointer: coarse) {
-  .rmap__grid { grid-auto-rows: 44px; }
-}
-@media (pointer: coarse) and (max-width: 420px) {
-  .rmap__grid { gap: 4px; }
-}
-
-@media (pointer: coarse) {
-  /* 「跨区域」是一行文字链接，21px 高按不准。撑开可点区域，
-     负 margin 抵掉，免得把它和上面的地图推开。 */
-  .rmap__global { padding-block: 12px; margin-block: -12px; }
+  .rmap__chip { min-height: 40px; padding-inline: var(--s-4); }
 }
