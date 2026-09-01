@@ -150,7 +150,7 @@ const TRIAGE_SHAPE = `
 picks 必须覆盖输入里的每一个 i，不要增删。why 写十个字以内，只是给日志看的。`.trim()
 
 /** 先挑一遍。返回留下来的候选，顺序不变。 */
-async function triage(cands, ownerNote) {
+async function triage(cands, ownerNote, target) {
   const kept = []
   let looked = 0
   for (let i = 0; i < cands.length; i += TRIAGE_BATCH) {
@@ -159,7 +159,10 @@ async function triage(cands, ownerNote) {
     try {
       const out = await ask(
         `${triagePrompt(ownerNote)}\n\n${TRIAGE_SHAPE}`,
-        `候选 ${batch.length} 条：\n\n${JSON.stringify(
+        `今天要上线 ${target} 条，这是第 ${Math.floor(i / TRIAGE_BATCH) + 1} 批候选（共 ${cands.length} 条）。\n`
+        + `符合方针的都留下——**宁可多留几条**：后面写的时候还会再筛一次，\n`
+        + `而留得太少的话，今天就凑不够 ${target} 条。\n\n`
+        + `候选 ${batch.length} 条：\n\n${JSON.stringify(
           batch.map((c, k) => ({ i: k, source: c.feed.outlet, title: c.title, excerpt: String(c.summary).slice(0, 300) })),
           null, 1,
         )}`,
@@ -203,7 +206,7 @@ export async function rewriteAll(candidates, ownerNote = '', target = Infinity, 
    * 只有一批的时候不值得多跑一次调用，直接写。
    */
   const picked = candidates.length > BATCH * 2
-    ? await triage(candidates, ownerNote)
+    ? await triage(candidates, ownerNote, target === Infinity ? candidates.length : target)
     : candidates
   if (picked.length === 0) {
     console.log('  初筛之后一条都不剩。今天的候选里没有符合方针的。')
