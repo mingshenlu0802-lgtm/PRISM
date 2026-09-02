@@ -38,6 +38,71 @@ const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'CODE'
 
 type Marked = Text & { __zhFrom?: string; __zhTo?: string }
 
+/**
+ * 这几个属性也是给人看的，只是不在正文里。
+ *
+ * 漏掉它们的后果是「一半的界面没跟着转」，而且漏掉的正好是最看不见的那一半：
+ * 读屏用户听到的全部是 aria-label，图片加载失败时留在页面上的是 alt，
+ * 输入框里那行灰字是 placeholder。这些人不会来报这个 bug——他们只会觉得
+ * 这个网站的繁体做得半吊子。
+ *
+ * 只转这四个。`value` 不在里面，那是用户打的字，碰不得。
+ */
+const ATTRS = ['aria-label', 'alt', 'placeholder', 'title'] as const
+
+interface Orig { from: string; to: string }
+/** 每个元素改过哪些属性、原文是什么。WeakMap：元素从 DOM 上掉了就一起回收。 */
+const attrMemo = new WeakMap<Element, Map<string, Orig>>()
+let titleMemo: Orig | null = null
+
+function convertAttrs(convert: ((s: string) => string) | null): void {
+  const sel = ATTRS.map((a) => `[${a}]`).join(',')
+  for (const el of document.body.querySelectorAll(sel)) {
+    if (el.closest('[data-nozh]')) continue
+    const memo = attrMemo.get(el)
+    for (const a of ATTRS) {
+      const now = el.getAttribute(a)
+      if (now === null) continue
+      const was = memo?.get(a)
+
+      if (!convert) {
+        if (was && now === was.to) el.setAttribute(a, was.from)
+        continue
+      }
+      if (was && now === was.to) continue
+      if (!/[一-鿿]/.test(now)) continue
+      const done = convert(now)
+      if (done === now) continue
+      el.setAttribute(a, done)
+      const box = memo ?? new Map<string, Orig>()
+      box.set(a, { from: now, to: done })
+      if (!memo) attrMemo.set(el, box)
+    }
+  }
+}
+
+/**
+ * 标签页上的标题。
+ *
+ * 它不在 body 里，遍历文本节点碰不到它——于是会出现「整页是繁体、
+ * 标签页和书签是简体」。转发链接是这个站的主要传播方式，标题恰恰是
+ * 对方在聊天窗口里唯一先看到的那一行。
+ */
+function convertTitle(convert: ((s: string) => string) | null): void {
+  const now = document.title
+  if (!convert) {
+    if (titleMemo && now === titleMemo.to) document.title = titleMemo.from
+    titleMemo = null
+    return
+  }
+  if (titleMemo && now === titleMemo.to) return
+  if (!/[一-鿿]/.test(now)) return
+  const done = convert(now)
+  if (done === now) return
+  document.title = done
+  titleMemo = { from: now, to: done }
+}
+
 function walk(root: Node, convert: ((s: string) => string) | null): void {
   const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -131,7 +196,12 @@ export function ZhProvider({ children }: { children: React.ReactNode }): JSX.Ele
     const target = script === 'hant' ? convert : null
 
     if (!target) {
-      if (touched.current) { walk(document.body, null); touched.current = false }
+      if (touched.current) {
+        walk(document.body, null)
+        convertAttrs(null)
+        convertTitle(null)
+        touched.current = false
+      }
       return
     }
     touched.current = true
@@ -146,10 +216,16 @@ export function ZhProvider({ children }: { children: React.ReactNode }): JSX.Ele
         if (alive) pass()
       })
     })
-    const watch = { childList: true, characterData: true, subtree: true }
+    // 属性也要盯：React 重渲染会把 aria-label 写回简体。
+    const watch = {
+      childList: true, characterData: true, subtree: true,
+      attributes: true, attributeFilter: [...ATTRS],
+    }
     const pass = (): void => {
       obs.disconnect()
       walk(document.body, target)
+      convertAttrs(target)
+      convertTitle(target)
       if (alive) obs.observe(document.body, watch)
     }
 

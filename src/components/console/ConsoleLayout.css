@@ -122,3 +122,6 @@
   font-size: var(--fs-xs); line-height: 1.7;
 }
 .clyt__syncerr svg { flex: none; margin-top: 2px; color: var(--danger); }
+
+/* 认清身份之前的占位。见 ConsoleLayout 里那段注释。 */
+.clyt__wait { padding: var(--s-9) var(--s-5); text-align: center; color: var(--fg-faint); font-size: var(--fs-sm); }

@@ -15,8 +15,18 @@ import './ConsoleLayout.css'
  * 不是管理员的人到这里看到的是一扇门，不是一个处处按不动的控制端。
  */
 export default function ConsoleLayout(): JSX.Element {
-  const { state, isAdmin, isOwner, consoleOpen, mode, syncError } = usePrism()
+  const { state, isAdmin, isOwner, consoleOpen, mode, syncError, ready } = usePrism()
   const email = state.auth.email
+
+  /*
+   * 还没弄清是本地还是共享之前，不给任何人开门。
+   *
+   * mode 的初值是 'local'，而本地模式里「谁打开谁就是站长」——于是共享模式
+   * 认出来之前的那两三百毫秒，任何一个直接打开 #/console 的人都会看到
+   * 一个完整的控制端，连站长的改动记录和成员名单一起。写是写不进去的
+   * （RLS 挡着），但那一眼本来就不该有。
+   */
+  if (!ready) return <p className="clyt__wait">正在打开控制端…</p>
 
   if (!consoleOpen) return <Gate />
 

@@ -14,7 +14,7 @@ import { Icon, PrismMark, SkipLink, ToastHost, toast } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
 import { ScriptToggle } from './ScriptToggle'
 import { AccountMenu } from './AccountMenu'
-import { SignInGate } from './SignInGate'
+import { LoadFailed, Paused, SignInGate } from './SignInGate'
 import { SignInInvite } from './SignInInvite'
 import './SiteLayout.css'
 
@@ -25,7 +25,7 @@ import './SiteLayout.css'
  * 各有十几个——把它们平铺在顶部会把导航挤成一堵墙。
  */
 export default function SiteLayout(): JSX.Element {
-  const { state, consoleOpen, mode, ready } = usePrism()
+  const { state, consoleOpen, mode, ready, syncError, refresh, canEdit } = usePrism()
   const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'kind' | 'mobile'>('none')
   const loc = useLocation()
 
@@ -52,9 +52,44 @@ export default function SiteLayout(): JSX.Element {
 
   const liveNews = state.news.filter((n) => n.status === 'live').length
 
-  // 内容谁都能读，不需要登录——有链接就能看。这里只等第一次取数完成，
-  // 免得先闪一下空列表再跳出内容。
-  if (mode === 'shared' && !ready) return <SignInGate />
+  /*
+   * 内容谁都能读，不需要登录——有链接就能看。这里只等「第一次取数完成」，
+   * 免得先闪一下空列表再跳出内容。
+   *
+   * 条件里**不能**带 `mode === 'shared'`。mode 的初值是 'local'，而它要等
+   * 读完 prism-config.json 才知道到底是哪一种；带上这个条件，那段空档里
+   * 门是开着的，读者会看到一整屏演示数据——十二条虚构的判决和机构，
+   * 排版和真新闻一模一样。虽然只有两三百毫秒，但那正是别人点开链接
+   * 看到的第一眼，而且截图下来是假的。
+   *
+   * 本地模式下 ready 也很快：getClient() 认出没有配置就立刻置位，
+   * 代价是一瞬间的「正在打开…」——比一瞬间的假新闻便宜得多。
+   */
+  if (!ready) return <SignInGate />
+
+  /*
+   * 取数失败、而且一条内容都没有——那就明说，别装作今天没有新闻。
+   *
+   * `ready` 在 finally 里置位，成功失败都会放行渲染。于是读不到数据库的时候，
+   * 读者拿到的是一张排版完好的首页，上面写着「今日 0 条报道」。
+   * 这句话读起来完全正常，也完全是假的：内容好好地在库里，只是这台设备
+   * 现在够不着。对一份日报来说，这是最坏的一种坏法——它不像坏了。
+   *
+   * 手里还有上一次的内容就不拦（陈旧胜过空白）；一条都没有才顶上来。
+   */
+  const nothing = state.news.length === 0 && state.studies.length === 0
+  if (mode === 'shared' && syncError && nothing) return <LoadFailed onRetry={refresh} />
+
+  /*
+   * 「暂停对外显示」得真的暂停。
+   *
+   * 这里原来只有下面那条横幅——横幅底下，全部内容照旧给所有人看。而控制端上
+   * 写的是「现在别人打开网站看不到内容」。一个说话不算数的紧急开关比没有更糟：
+   * 站长以为关掉了，于是不再做别的处置，内容其实一条没少地挂在公网上。
+   *
+   * 编辑不受影响——他们要能看着内容决定什么时候恢复，横幅照旧提醒着状态。
+   */
+  if (state.publicOffline && !canEdit) return <Paused />
 
   return (
     <div className="slyt">

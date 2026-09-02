@@ -118,6 +118,7 @@ export async function mirror(
     /* 这些只影响本机，不进数据库 */
     case 'reset':
     case 'hydrate':
+    case 'demo-clear':
     case 'signin':
     case 'signout':
     case 'github':

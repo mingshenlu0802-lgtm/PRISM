@@ -29,7 +29,7 @@ const { buildInitialState, reducer, accessOf,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
         parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight, Prose,
-        fmtDate, fmtDateTime } = m
+        fmtDate, fmtDateTime, fetchAll } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -1812,6 +1812,150 @@ await test('联网搜来的来源要有个像样的名字', () => {
   // 可注册域名本身
   eq(feedparse.registrableHost('https://www.abc.net.au/news/x'), 'abc.net.au', 'net.au 也是两段')
   eq(feedparse.registrableHost('https://apnews.com/a'), 'apnews.com', '普通的两段域名不动它')
+})
+
+await test('数据库读不出来的时候，不能把首页当成「今天没有新闻」', async () => {
+  /*
+   * 这是一份日报最难看的一种坏法：网络抖一下，首页变成「今日 0 条报道」，
+   * 而数据库里十五条好好地存着，界面上没有任何一处说过为什么。
+   *
+   * supabase-js 遇到断网、项目暂停、key 过期，都不抛异常——它把错误放进
+   * 返回值里，`data` 是 null。fetchAll 原来写的是 `news.data ?? []`，
+   * 于是「读失败」和「库是空的」变成同一件事。再往下：pull() 拿着空快照
+   * 照样 hydrate，把内存里的内容清掉，persist 再把这份空的写进 localStorage
+   * ——缓存被写脏，下次打开连旧内容都没有。
+   *
+   * 所以内容表读失败必须抛出去，让 pull() 的 catch 接住、**不要** hydrate。
+   */
+  const table = (data, error = null) => ({ data, error })
+  const db = (over = {}) => ({
+    from: (t) => {
+      const r = { news: table([]), studies: table([]), site: table(null),
+                  changes: table([]), members: table([]), ...over }[t]
+      const chain = {
+        select: () => chain, order: () => chain, eq: () => chain, limit: () => chain,
+        maybeSingle: () => Promise.resolve(r), then: (f, g) => Promise.resolve(r).then(f, g),
+      }
+      return chain
+    },
+  })
+
+  let threw = ''
+  await fetchAll(db({ news: table(null, { message: 'TypeError: Failed to fetch' }) }))
+    .catch((e) => { threw = String(e.message) })
+  ok(threw.includes('Failed to fetch'), '新闻读失败要抛出来，而且带上原因', threw)
+
+  threw = ''
+  await fetchAll(db({ studies: table(null, { message: 'project is paused' }) }))
+    .catch((e) => { threw = String(e.message) })
+  ok(threw.includes('paused'), '研究读失败也一样')
+
+  /*
+   * members 和 changes 被拒绝是**设计如此**：它们的 RLS 只放行编辑。
+   * 把这两条也当故障，等于让每一个没登录的读者都读不到东西
+   * ——同一个 bug 换个方向再犯一次。
+   */
+  const snap = await fetchAll(db({
+    members: table(null, { message: 'permission denied for table members' }),
+    changes: table(null, { message: 'permission denied for table changes' }),
+  }))
+  eq(snap.members.length, 0, '名单被 RLS 挡回来不算故障')
+  eq(snap.changes.length, 0, '日志被 RLS 挡回来不算故障')
+
+  // 库真的是空的（没有 error），那就是空的——这两件事必须分得开。
+  const empty = await fetchAll(db())
+  eq(empty.news.length, 0, '库确实是空的时候，照常返回空')
+})
+
+await test('外部字体不能挡住首屏——这个站有一半读者在墙内', () => {
+  /*
+   * <head> 里一张没下完的样式表，会同时挡住渲染和后面 script 的执行。
+   * 在能连上 Google 的地方那是几十毫秒；在连不上的地方，那是**挂着等超时**。
+   *
+   * 这个站的读者有很大一部分在中国大陆，而 fonts.googleapis.com 在那里连不上。
+   * 实测在一个没有出网的环境里，首屏因此空白了十三秒——十三秒里一个字都没有，
+   * 而内容本来就在本地，随时可以画。为了字形扣住内容，这笔账怎么算都不对。
+   *
+   * `media="print"` + onload 换回 all：照下不误，但不挡路。连不上就一直用
+   * 平台字体栈，那本来就是设计里写好的后备。
+   */
+  const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
+  const sheets = [...html.matchAll(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gs)]
+  ok(sheets.length > 0, '至少还有那张字体表——没有的话这条测试就白写了')
+  for (const [tag] of sheets) {
+    if (!/https?:/.test(tag)) continue
+    ok(/media=["']print["']/.test(tag) && /onload=/.test(tag),
+      `外部样式表必须写成不挡渲染的那种（media="print" + onload）：${tag.slice(0, 60)}`)
+  }
+})
+
+await test('还没弄清是本地还是共享之前，一条演示新闻都不能露出来', () => {
+  /*
+   * 演示数据在本地模式下是功能，在共享模式下是**假新闻**：虚构的法院、
+   * 虚构的机构，链接指向 .invalid。而 mode 的初值是 'local'，要等读完
+   * prism-config.json 才知道真相。
+   *
+   * 所以公众站那道门不能写成 `mode === 'shared' && !ready`——那段空档里
+   * 门是开的，读者第一眼看到的是一整屏排版精良的虚构新闻。只有两三百毫秒，
+   * 但那正是别人点开分享链接看到的第一眼，截图下来是假的。
+   *
+   * 同样地，一旦认出共享模式就要**立刻**把演示条目扔掉，不能等取数——
+   * 取数要是失败了，就永远等不到那一下。
+   */
+  const layout = readFileSync(join(process.cwd(), 'src/components/site/SiteLayout.tsx'), 'utf8')
+  ok(/if \(!ready\) return <SignInGate \/>/.test(layout),
+    '首屏那道门只看 ready，不能再带上 mode === \'shared\'')
+
+  const store = readFileSync(join(process.cwd(), 'src/lib/store.tsx'), 'utf8')
+  const shared = store.indexOf("setMode('shared')")
+  const clear = store.indexOf("rawDispatch({ type: 'demo-clear' })")
+  ok(shared > 0 && clear > shared && clear - shared < 400,
+    '认出共享模式之后要紧接着清掉演示条目，不能等第一次取数')
+  ok(/case 'demo-clear'/.test(store), 'reducer 里得真有这个 case')
+})
+
+await test('数据库连不上的时候，首屏不能一直停在「正在打开…」', () => {
+  /*
+   * ready 只在 pull() 的 finally 里置位。原来 pull() 的 try 是从 fetchAll
+   * 才开始的，前面 `getClient()` 的早退和 `currentWho()` 的抛错都落在外面
+   * ——两条路都到不了 finally，公众站就永远停在「正在打开…」，
+   * 一个字的解释都没有。这不是罕见路径：currentWho() 要连 Supabase 的
+   * auth 端点，墙内连不上就是这个下场。
+   *
+   * 还有一种更难缠的：不是失败，是**不回**。连不上的域名往往不立刻拒绝，
+   * 而是挂着等 TCP 超时，几十秒。所以除了 try/finally，还要一个看门狗。
+   */
+  const store = readFileSync(join(process.cwd(), 'src/lib/store.tsx'), 'utf8')
+  const pull = store.slice(store.indexOf('const pull = useCallback'),
+    store.indexOf('useEffect(() => {', store.indexOf('const pull = useCallback')))
+  const tryAt = pull.indexOf('try {')
+  ok(tryAt > 0 && tryAt < pull.indexOf('await getClient()'),
+    'getClient() 必须在 try 里面——它早退的时候 finally 才跑得到')
+  ok(/finally \{\s*setReady\(true\)/.test(pull), 'ready 要在 finally 里置位')
+  ok(/currentWho\(\)\.catch/.test(pull), '认不出身份不该挡着读内容')
+  ok(/completeLinkSignIn\(db\)\.catch/.test(store), '登录接续失败不该把取数整个跳过')
+  ok(/setTimeout\(\(\) => \{[\s\S]{0,200}setReady\(true\)/.test(store),
+    '要有看门狗：网络不回的时候也得把首屏放出来')
+})
+
+await test('「暂停对外显示」必须真的把内容挡住，不能只挂一条横幅', () => {
+  /*
+   * 控制端上写着「现在别人打开网站看不到内容，只有登录的你能看到」，
+   * 而代码里只画了一条横幅——横幅底下，全部内容照旧摆给所有人看。
+   *
+   * 一个说话不算数的紧急开关比没有这个开关更危险：站长以为已经关掉了，
+   * 于是不再采取别的处置，内容其实一条没少地挂在公网上。这个站报道的是
+   * 性暴力、跨性别权利这类题目，读者有一部分在墙内，「立刻关掉」必须真的发生。
+   */
+  const layout = readFileSync(join(process.cwd(), 'src/components/site/SiteLayout.tsx'), 'utf8')
+  ok(/if \(state\.publicOffline && !canEdit\) return <Paused \/>/.test(layout),
+    '公众站要在 publicOffline 时对非编辑直接返回「暂停」页')
+
+  // 编辑仍然要看得见——他们得看着内容决定什么时候恢复。
+  ok(/!canEdit/.test(layout), '编辑不受影响')
+
+  const copy = readFileSync(join(process.cwd(), 'src/pages/console/ManagePage.tsx'), 'utf8')
+  ok(/别人打开网站看不到内容/.test(copy), '控制端的说明和实际行为要对得上')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

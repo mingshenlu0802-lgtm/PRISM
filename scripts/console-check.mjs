@@ -83,6 +83,9 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
  *   只放行这个测试用的假域名，真实域名的 WebSocket 报错照样要算。
  */
 const external = (t) => /fonts\.(googleapis|gstatic)\.com|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED/.test(t)
+  // 沙箱的出网代理拒绝时给的是这个，而且报错里不带域名。本地资源永远走不到
+  // 代理，所以这条只可能来自外部资源。
+  || /ERR_TUNNEL_CONNECTION_FAILED|ERR_PROXY_CONNECTION_FAILED/.test(t)
   || /test\.supabase\.co\/realtime/.test(t)
 const errors = []
 /* 第 6 节会故意让数据库拒绝 members / changes，那几条 401 是预期内的。 */
@@ -367,9 +370,20 @@ await run('登录回调', async () => {
    * 于是 main.tsx 不再执行，takeAuthFromHash() 根本没机会跑，测出来的就是假的。
    * （这正是这个 PR 在修的那一类问题，写测试时自己也踩了一次。）
    */
+  /*
+   * 等 `domcontentloaded`，不等 `load`。
+   *
+   * `load` 要等页面上每一个外部资源都有结果，包括那张 Google 字体表。
+   * 沙箱里出不了网，那一下要挂十几秒才超时——而这里要验的提示是个
+   * 四秒半自己消失的 toast：应用零点几秒就起来了，toast 弹出来、又消失，
+   * 全都发生在 `load` 之前，等到 `load` 回来再去找，什么都找不到。
+   *
+   * 也就是说，用 `load` 的话，这条测试测的是「字体加载得快不快」，
+   * 而不是「过期链接会不会说明原因」。
+   */
   const land = async (hash) => {
     await page.goto('about:blank')
-    await page.goto(`${base.slice(0, -1)}${hash}`, { waitUntil: 'load' })
+    await page.goto(`${base.slice(0, -1)}${hash}`, { waitUntil: 'domcontentloaded' })
   }
 
   // 过期的链接必须说出来。这条路径是看得见的，所以拿它验「抢在路由前面」这件事：
