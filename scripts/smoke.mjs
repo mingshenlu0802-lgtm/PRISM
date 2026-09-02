@@ -1780,6 +1780,40 @@ await test('两场定时收集：时间对得上，研究只在早上收', () =>
     `分辨场次的那句话对不上真的 cron：写的是「${m[1]}」`)
 })
 
+await test('联网搜来的来源要有个像样的名字', () => {
+  /*
+   * 搜来的来源只有网址，没有名字。第一版直接把域名当名字用，结果是这样：
+   *
+   *   www.theguardian.com → Theguardian     www.bbc.co.uk → Bbc.co
+   *   news.un.org         → News.un         m.thepaper.cn → M.thepaper
+   *
+   * 这几个字会印在每一条新闻底下。「Theguardian」不是《卫报》的名字。
+   */
+  const F = feeds.FEEDS
+  const name = (u) => feedparse.outletFor(u, F)
+
+  eq(name('https://www.reuters.com/world/x'), '路透社', '大通讯社要用中文名，和站上其余来源一致')
+  eq(name('https://www.bbc.co.uk/news/y'), 'BBC', 'co.uk 是两段后缀，不能切成 Bbc.co')
+  eq(name('https://m.thepaper.cn/z'), '澎湃新闻', 'm. 这类前缀要去掉')
+  eq(name('https://thewitnesshk.com/a'), '法庭線', '我们自己订的源，用清单里的名字')
+
+  /*
+   * un.org 这一条是**先查表再查清单**的理由：我们订的是联合国新闻的
+   * 「妇女」专题，域名同样是 un.org。反过来的话，一条人权或气候的链接
+   * 会被标成「联合国新闻 · 妇女」——域名只到可注册那一层，分不出栏目。
+   */
+  eq(name('https://news.un.org/en/story/human-rights'), '联合国',
+    'un.org 要给中性的名字，不能套上某个专题的名字')
+
+  // 不认得的站也要清理干净，不能留下 www 和后缀。
+  eq(name('https://some-local-paper.example/q'), 'Some Local Paper', '不认得的也要像个名字')
+  eq(name('不是网址'), '来源', '网址坏了不能抛异常')
+
+  // 可注册域名本身
+  eq(feedparse.registrableHost('https://www.abc.net.au/news/x'), 'abc.net.au', 'net.au 也是两段')
+  eq(feedparse.registrableHost('https://apnews.com/a'), 'apnews.com', '普通的两段域名不动它')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

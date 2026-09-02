@@ -20,7 +20,7 @@
  *   加 --dry 只看抓到什么，不写数据库。
  */
 import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
-import { parseFeed, topicsOf, matchedWords, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
+import { parseFeed, topicsOf, matchedWords, outletFor, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
 
@@ -551,21 +551,6 @@ async function hydrate(list) {
   }
 }
 
-/**
- * 拿网址当媒体名用。
- *
- * 联网搜来的来源没有「媒体名」这个字段，只有网址。域名去掉 www 和后缀，
- * 首字母大写——theguardian.com 变成 Theguardian，不完美，但比空着强，
- * 而且读者一眼看得出是谁。站长在控制端可以改。
- */
-function hostName(url) {
-  try {
-    const h = new URL(url).hostname.replace(/^www\./, '')
-    const core = h.split('.').slice(0, -1).join('.') || h
-    return core.charAt(0).toUpperCase() + core.slice(1)
-  } catch { return '来源' }
-}
-
 const have = await existingItems()
 
 const linkOf = (p, i, j) => ({
@@ -611,8 +596,8 @@ picked.forEach((g, i) => {
     known.add(u)
     links.push({
       id: `l-${Date.now().toString(36)}-${i}-w${links.length}`,
-      outlet: hostName(f.url),
-      title: String(f.title || '').slice(0, 200) || hostName(f.url),
+      outlet: outletFor(f.url, FEEDS),
+      title: String(f.title || '').slice(0, 200) || outletFor(f.url, FEEDS),
       url: f.url,
       lang: 'en',
       date: g.at.slice(0, 10),

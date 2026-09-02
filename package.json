@@ -18,7 +18,8 @@
     "single": "npm run build:single && node scripts/build-single-file.mjs",
     "artifact": "npm run build:single && node scripts/build-artifact.mjs",
     "build:single": "PRISM_ONE_FILE=1 vite build",
-    "privacy": "node scripts/check-privacy.mjs"
+    "privacy": "node scripts/check-privacy.mjs",
+    "crawl-check": "node scripts/crawl-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
