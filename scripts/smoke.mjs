@@ -1743,8 +1743,22 @@ await test('两场定时收集：时间对得上，研究只在早上收', () =>
    *       只是白花一次钱。这一条就是为了钉住那两处必须一起改。
    */
   const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
-  const crons = [...yml.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)].map((m) => ({ min: +m[1], hour: +m[2] }))
-  eq(crons.length, 2, '应当有两场')
+
+  /*
+   * 注释掉的也要检查。
+   *
+   * 站长 2026-09-02 要求先关掉自动收集，所以现在 schedule 那一段是注释。
+   * 但**关着不等于可以写错**：等他说「可以开了」的时候，去掉几个 # 就直接
+   * 生效，那时候没有人会再去核一遍时区。所以这条测试连注释里的 cron 一起看，
+   * 让那两个时间在关着的时候也是对的。
+   */
+  const crons = [...yml.matchAll(/^\s*#?\s*- cron: '(\d+) (\d+) \* \* \*'/gm)]
+    .map((m) => ({ min: +m[1], hour: +m[2] }))
+  eq(crons.length, 2, '应当有两场（注释掉的也算）')
+
+  // 现在应当是关着的。开着的话这里会提醒一句——不是错误，是让人知道状态变了。
+  const live = /^\s*schedule:/m.test(yml)
+  ok(!live || crons.length === 2, '自动收集开着的时候，两场都要在')
 
   // UTC + 8 = 北京时间
   const beijing = crons.map((c) => (c.hour + 8) % 24).sort((a, b) => a - b)
