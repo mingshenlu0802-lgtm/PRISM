@@ -116,7 +116,8 @@ const manage = async () => {
   await page.goto(`${base}/console/manage`, { waitUntil: 'load' })
   await page.waitForTimeout(700)
   // 回到同一个地址不会重新挂载，标签可能还停在上一次的位置——明确切回「内容」。
-  await page.getByRole('tab', { name: '内容' }).first().click()
+  // 名字写成两种写法：这个 helper 在繁体模式下也会被调用，那时它叫「內容」。
+  await page.getByRole('tab', { name: /[内內]容/ }).first().click()
   await page.waitForTimeout(250)
 }
 
@@ -256,6 +257,59 @@ await nCard.locator('input[id^="h-"]').fill('自己写的一条新闻')
 await nCard.locator('textarea[id^="s-"]').fill('正文。')
 await page.waitForTimeout(250)
 check(!(await crashed()), '给新闻写标题和正文不会把控制端打崩')
+
+/*
+ * 副标题这一栏是后加的，而且加之前它是**只写不读**的：收集会写、
+ * 文章页会显示，站长却改不了也加不了。所以这里从头走一遍——
+ * 在控制端填、保存、上线，再去读者那一侧看它有没有真的出现。
+ */
+await nCard.locator('input[id^="sh-"]').fill('这是副标题，说明案件范围')
+await page.waitForTimeout(200)
+check(!(await crashed()), '填副标题不会把控制端打崩')
+await nCard.getByRole('button', { name: '保存' }).click()
+await page.waitForTimeout(350)
+check(await nCard.locator('input[id^="sh-"]').inputValue() === '这是副标题，说明案件范围',
+  '保存之后副标题还在框里')
+
+// 正文框要够高：稿子现在动辄两三千字，十四行是个舷窗。
+const rows = await nCard.locator('textarea[id^="s-"]').getAttribute('rows')
+check(Number(rows) >= 20, `正文框至少 20 行（现在 ${rows} 行）——稿子有两三千字`)
+
+await nCard.getByRole('button', { name: /重新上线|上线/ }).first().click().catch(() => {})
+await page.waitForTimeout(400)
+})
+
+/* ------------------------------------------------------------------ *
+ * 3.5 繁简开关不能把控制端搅坏
+ *
+ * 这个开关会遍历页面上**每一个**文字节点去改它。站长编辑的时候如果开着繁体，
+ * 最坏的情况是它去动输入框里的内容——那会把他正在打的字改掉，而且是静悄悄地。
+ * 输入框的值不是文字节点，理论上碰不到，但这件事值得当场验一次而不是推理。
+ * ------------------------------------------------------------------ */
+await run('繁简开关：开着的时候控制端照常能用', async () => {
+  await page.goto(`${base}/`, { waitUntil: 'networkidle' })
+  await page.locator('.sct__btn:not([aria-pressed="true"])').click()
+  await page.waitForTimeout(2500)
+
+  await manage()
+  await page.getByRole('button', { name: /新[闻聞]/ }).first().click()
+  await page.waitForTimeout(400)
+
+  const card = page.locator('.nedit').first()
+  const typed = '繁体模式下打的字：简体应当原样留着'
+  await card.locator('textarea[id^="s-"]').fill(typed)
+  await page.waitForTimeout(600)
+  check(await card.locator('textarea[id^="s-"]').inputValue() === typed,
+    '开着繁体时，输入框里的字不能被转换器改掉')
+  check(!(await crashed()), '开着繁体时控制端不会崩')
+
+  // 标签这类界面文字应当跟着转，说明开关在控制端也是生效的。
+  const tabs = await page.locator('.clyt, body').first().innerText()
+  check(/[內數據項與繁]/.test(tabs), '控制端的界面文字也跟着转成繁体')
+
+  await page.goto(`${base}/`, { waitUntil: 'networkidle' })
+  await page.locator('.sct__btn:not([aria-pressed="true"])').click()
+  await page.waitForTimeout(400)
 })
 
 /* ------------------------------------------------------------------ *

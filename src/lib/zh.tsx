@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * 一键繁简转换。
@@ -19,9 +19,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
  * 繁→简（那会把原文里本来就是繁体的部分，比如法庭線的标题，也一起改掉）。
  * 数据库里存的永远是模型写的那一份。
  *
- * **三、每次渲染之后都跑一遍。** React 重渲染会把文本节点写回原文，
- * 所以这个 effect 不带依赖数组——每次渲染后都过一遍。为了不变成性能问题，
- * 已经转过的节点记着自己转成了什么，再遇到就直接跳过。
+ * **三、盯 DOM，不盯渲染。** React 重渲染会把文本节点写回原文，换路由、
+ * 懒加载的页面到货、稿子从数据库读回来，也都会凭空长出新的文字。这些事
+ * 都不经过这个组件，所以只能用 MutationObserver 接。为了不变成性能问题，
+ * 已经转过的节点记着自己转成了什么，再遇到就直接跳过；简体模式下根本不装。
  */
 
 type Script = 'hans' | 'hant'
@@ -79,6 +80,8 @@ export function ZhProvider({ children }: { children: React.ReactNode }): JSX.Ele
   })
   const [convert, setConvert] = useState<((s: string) => string) | null>(null)
   const [busy, setBusy] = useState(false)
+  /** 转过一次之后才需要「还原」这一趟；没转过就别白走一遍 DOM。 */
+  const touched = useRef(false)
 
   // 要繁体、而字典还没到，就去取一次。取回来放进 state，下面的 effect 会用上。
   useEffect(() => {
@@ -103,18 +106,60 @@ export function ZhProvider({ children }: { children: React.ReactNode }): JSX.Ele
     return () => { alive = false }
   }, [script, convert])
 
+  useEffect(() => {
+    document.documentElement.lang = script === 'hant' ? 'zh-Hant' : 'zh-Hans'
+  }, [script])
+
   /*
-   * 没有依赖数组：每次渲染之后都过一遍。
-   * React 重渲染会把文本节点写回原文，只在切换时转一次是不够的。
+   * 盯着 DOM，而不是盯着 React 的渲染。
+   *
+   * 这里原来是一个不带依赖数组的 effect，想的是「每次渲染后都过一遍」。
+   * 那是错的：不带依赖数组只保证 **ZhProvider 自己** 每次渲染后跑一遍，
+   * 而 ZhProvider 挂在最外面、状态只有 script 和 convert——换路由、
+   * 懒加载的控制端到货、稿子从数据库读回来，这些都不会让它重新渲染。
+   * 结果就是：首页按下「繁」当场是好的，一进控制端就全变回简体，
+   * 而且看起来像是「控制端不支持」。
+   *
+   * 改成 MutationObserver：页面上任何地方冒出新文字都会被接住。
+   * 自己改的那一下会再触发一次 observer，所以走之前先 disconnect——
+   * 不然就是自己追自己。攒一帧再跑，因为 React 一次更新会发几十条 mutation。
+   *
+   * 简体模式下不装 observer：绝大多数读者一辈子不碰这个开关，
+   * 不该为一个他们没用的功能付一整棵 DOM 的监听成本。
    */
   useEffect(() => {
-    walk(document.body, script === 'hant' ? convert : null)
-  })
+    const target = script === 'hant' ? convert : null
+
+    if (!target) {
+      if (touched.current) { walk(document.body, null); touched.current = false }
+      return
+    }
+    touched.current = true
+
+    let alive = true
+    let queued = false
+    const obs = new MutationObserver(() => {
+      if (queued || !alive) return
+      queued = true
+      requestAnimationFrame(() => {
+        queued = false
+        if (alive) pass()
+      })
+    })
+    const watch = { childList: true, characterData: true, subtree: true }
+    const pass = (): void => {
+      obs.disconnect()
+      walk(document.body, target)
+      if (alive) obs.observe(document.body, watch)
+    }
+
+    pass()
+    return () => { alive = false; obs.disconnect() }
+  }, [script, convert])
 
   const setScript = useCallback((s: Script) => {
     setScriptState(s)
     try { localStorage.setItem(KEY, s) } catch { /* 无痕模式：这一次有效，下次重来 */ }
-    document.documentElement.lang = s === 'hant' ? 'zh-Hant' : 'zh-Hans'
   }, [])
 
   const value = useMemo(() => ({ script, setScript, busy }), [script, setScript, busy])
