@@ -109,7 +109,28 @@ export default function AtlasPage(): JSX.Element {
         </span>
       </p>
 
-      {world.length > 0 && (
+      {/*
+        * 南极洲到此为止。
+        *
+        * 那里没有主权国家，也没有可比的人口数据——给它一个指标下拉、
+        * 一个「按人数/按比例」的切换、一张空地图和一份空国家列表，
+        * 是把一整套界面摆出来假装还有东西可看。说清楚就结束。
+        */}
+      {here === 'antarctica' ? (
+        <p className="atlas__empty">
+          南极洲无主权国家及可比人口数据，因此这一层没有内容。
+        </p>
+      ) : (
+        <>
+
+      {/*
+        * 全球那几个数字只在全球视图上出现。
+        *
+        * 它原来每一层都跟着，于是七个洲的页面顶上印着同样五张卡片——
+        * 读者点进「亚洲」，先看到的还是全球的数字，要划过一屏才到亚洲。
+        * 点进一个洲就是想看那个洲。
+        */}
+      {!here && world.length > 0 && (
         <section className="atlas__global" aria-label="全球数字">
           <h2 className="atlas__h2">全球</h2>
           <ul className="atlas__globallist">
@@ -193,6 +214,9 @@ export default function AtlasPage(): JSX.Element {
         {mode === 'count' && <span className="atlas__legenditem"><i className="atlas__bubble" />圆点大小 = 受影响人数</span>}
       </div>
 
+      </>
+      )}
+
       <nav className="atlas__conts" aria-label="按洲看">
         <Link className={cx('atlas__cont', !here && 'atlas__cont--on')} to="/data">全球</Link>
         {CONTINENTS.map((c) => (
@@ -202,10 +226,7 @@ export default function AtlasPage(): JSX.Element {
         ))}
       </nav>
 
-      {here === 'antarctica' && (
-        <p className="atlas__empty">南极洲无主权国家及可比人口数据。</p>
-      )}
-
+      {here !== 'antarctica' && (
       <section className="atlas__list" aria-labelledby="atlas-list">
         <div className="atlas__listhead">
           <h2 className="atlas__h2" id="atlas-list">
@@ -260,6 +281,7 @@ export default function AtlasPage(): JSX.Element {
           <p className="atlas__noresult">没有匹配「{q.trim()}」的国家。</p>
         )}
       </section>
+      )}
     </div>
   )
 }

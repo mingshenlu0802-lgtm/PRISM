@@ -70,10 +70,25 @@ ${brief}
     maxSearches: Number(process.env.SEEK_SEARCHES ?? 8),
   })
 
+  return { items: parseSeek(text, feeds), found: Array.isArray(found) ? found : [] }
+}
+
+/**
+ * 把模型回的块解析成候选。
+ *
+ * 单独拿出来是为了**能测**。第一版把这段揉在上面那个 async 函数里，
+ * 里面有一个把 `{i, body}` 当字符串用的错误，跑起来必然抛
+ * `body.split is not a function`——而调用方 catch 掉了它，日志里只留下
+ * 一行「联网找选题失败」。那一轮的八次搜索照付了 0.42 美元，一条没进来。
+ *
+ * 一个只在花过钱之后才会暴露的错误，必须有一条不花钱的测试盯着。
+ */
+export function parseSeek(text, feeds = []) {
+  const FIELDS = ['TITLE', 'URL', 'OUTLET', 'DATE', 'WHY']
   const out = []
   const seen = new Set()
   for (const block of splitBlocks(text)) {
-    const raw = parseBlock(block)
+    const raw = parseBlock(block.body, FIELDS)
     const url = String(raw.URL ?? '').trim()
     const title = String(raw.TITLE ?? '').trim()
     if (!/^https?:\/\//.test(url) || !title) continue
@@ -105,5 +120,5 @@ ${brief}
     })
   }
 
-  return { items: out, found: Array.isArray(found) ? found : [] }
+  return out
 }

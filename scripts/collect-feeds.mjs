@@ -402,8 +402,16 @@ if (SEEK && !DRY) {
     for (const it of fresh.slice(0, 8)) console.log(`    · ${it.feed.outlet}：${it.title.slice(0, 40)}`)
     picked.unshift(...fresh)
   } catch (e) {
-    // 搜不到不该让整轮收集失败——订阅那一半照常往下走。
-    console.log(`  联网找选题失败：${e instanceof Error ? e.message : String(e)}`)
+    /*
+     * 搜不到不该让整轮收集失败——订阅那一半照常往下走。
+     *
+     * 但要**喊得响一点**。第一版这里只打一行「联网找选题失败」，
+     * 而那一轮的八次搜索已经花掉 0.42 美元。一个吞掉钱又不显眼的错误，
+     * 会一直跑下去没有人发现。::error:: 让它在 Actions 的摘要上就能看到。
+     */
+    const why = e instanceof Error ? e.message : String(e)
+    console.log(`::error::联网找选题失败（这一轮的搜索费用已经花掉了）：${why}`)
+    if (e instanceof Error && e.stack) console.log(e.stack.split('\n').slice(0, 4).join('\n'))
   }
 }
 

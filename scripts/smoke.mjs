@@ -14,6 +14,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { stripSelfVoice, isSelfVoice, cleanLine } from './voice.mjs'
+import { parseSeek } from './seek.mjs'
 
 const out = join(process.cwd(), 'node_modules', '.cache', 'prism-smoke')
 mkdirSync(out, { recursive: true })
@@ -2206,6 +2207,53 @@ await test('订阅覆盖不到的地区，要能按题目主动去搜', () => {
   // 找选题要比写稿多搜几轮：一个题目往往要换三四种说法才问得出东西。
   const llm = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
   ok(/searchTools = \(maxSearches\)/.test(llm), '搜索次数要能按调用方来，不能只有一个全局值')
+})
+
+await test('搜来的选题要解析得出来——这个错只在花过钱之后才暴露', () => {
+  /*
+   * 第一版把 splitBlocks 返回的 `{i, body}` 整个传给了 parseBlock，
+   * 而它要的是正文字符串。跑起来必然抛 `body.split is not a function`，
+   * 但调用方 catch 掉了它，日志里只有一行「联网找选题失败」——
+   * 那一轮八次搜索照付了 0.42 美元，一条也没进来。
+   *
+   * 一个只在真的联网、真的花钱之后才会暴露的错误，必须有一条不花钱的
+   * 测试盯着。所以解析那一段单独拿出来，在这里喂它一段假的回复。
+   */
+  const text = [
+    '===ITEM 0===',
+    'TITLE: 某地法院就一起职场性骚扰案作出一审判决',
+    'URL: https://www.thepaper.cn/newsDetail_forward_123',
+    'OUTLET: 澎湃新闻',
+    'DATE: 2026-08-30',
+    'WHY: 内地法院的性骚扰判决',
+    '===END 0===',
+    '===ITEM 1===',
+    'TITLE: 没有网址的一条',
+    'OUTLET: 某报',
+    '===END 1===',
+    '===ITEM 2===',
+    'TITLE: 网址重复的一条',
+    'URL: https://www.thepaper.cn/newsDetail_forward_123',
+    'OUTLET: 澎湃新闻',
+    '===END 2===',
+    '===ITEM 3===',
+    'TITLE: 网址不是 http 的',
+    'URL: 见搜索结果',
+    'OUTLET: 某报',
+    '===END 3===',
+  ].join('\n')
+
+  const out = parseSeek(text)
+  eq(out.length, 1, '只有第一条是完整可用的')
+  eq(out[0].feed.outlet, '澎湃新闻', '媒体名要取到')
+  eq(out[0].link, 'https://www.thepaper.cn/newsDetail_forward_123', '网址要取到')
+  eq(out[0].at.slice(0, 10), '2026-08-30', '日期要解析成 ISO')
+  ok(out[0].seeked, '要标出「这条是搜来的」，日志里才分得清来路')
+  ok(out[0].feed.topical, '按题目搜来的已经过了一次筛，不该再被关键词那一关刷掉')
+
+  // 空回复不能炸。
+  eq(parseSeek('').length, 0, '空的就是空的')
+  eq(parseSeek('模型什么都没找到。').length, 0, '不成块的文字也不能炸')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
