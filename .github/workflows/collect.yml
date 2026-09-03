@@ -70,6 +70,10 @@ on:
         description: '模型下多大力气：low / medium / high / xhigh / max'
         type: string
         default: 'high'
+      note:
+        description: '这一轮的临时指示（留空则用控制端里那句长期方针）'
+        type: string
+        default: ''
 
 # 同时只跑一个，免得两次收集互相写重复条目。
 concurrency:
@@ -160,4 +164,7 @@ jobs:
           # 研究只在早上那一场收。下午那场（06:00 UTC）设成 0——
           # 发布方一天不会出两批报告，第二次去抓只会抓到同样的东西再被去重掉。
           MAX_STUDIES: ${{ inputs.studies || (github.event.schedule == '17 6 * * *' && '0' || '3') }}
+          # 这一轮的临时指示。留空的话脚本会去读控制端里那句长期方针。
+          # 分开是为了不让一次性的要求（「这轮只要中国大陆」）变成永久方针。
+          COLLECT_NOTE: ${{ inputs.note }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}

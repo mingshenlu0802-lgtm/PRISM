@@ -335,8 +335,19 @@ if (DRY) {
  * 以为方针生效了其实没有。
  * ------------------------------------------------------------------ */
 
-/** 站长在控制端写下的本次指示。存在 site.copy.collectNote 里。 */
+/**
+ * 站长在控制端写下的本次指示。存在 site.copy.collectNote 里。
+ *
+ * `COLLECT_NOTE` 环境变量可以就这一轮盖过它。
+ *
+ * 加这个口子是因为：控制端里那句指示是**长期**方针，站长写一次管很久；
+ * 而有时候要的是一次性的（「这一轮只要中国大陆」）。让他为了跑一轮
+ * 特殊的收集去改一句长期方针、跑完再改回来，迟早会忘记改回来，
+ * 于是那句临时的话变成了永久的方针。所以临时的走临时的路。
+ */
 async function ownerNote() {
+  const once = String(process.env.COLLECT_NOTE ?? '').trim()
+  if (once) return once
   try {
     const res = await db('site?select=copy&id=eq.site')
     if (!res.ok) return ''
