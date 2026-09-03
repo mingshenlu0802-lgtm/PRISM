@@ -102,7 +102,7 @@ export const NEWS: NewsItem[] = [
       '申诉期限延长至两年，权势性骚扰三年',
       '配套办法须于六个月内订定',
     ],
-    regions: ['tw'],
+    regions: ['jpkr'],
     topics: ['rights', 'sexual'],
     publishedAt: '2026-08-30T14:20:00Z',
     updatedAt: '2026-08-30T14:20:00Z',

@@ -20,7 +20,7 @@ export default function NewsPage(): JSX.Element {
           title="找不到这条"
           hint="它可能已经被下架或删除了。"
           icon="search"
-          action={<Link className="npage__back" to="/">回到今日</Link>}
+          action={<Link className="npage__back" to="/">回到首页</Link>}
         />
       </div>
     )
@@ -34,7 +34,7 @@ export default function NewsPage(): JSX.Element {
 
   return (
     <div className="npage u-shell">
-      <Link className="npage__back" to="/"><Icon name="chevron-left" size={14} />回到今日</Link>
+      <Link className="npage__back" to="/"><Icon name="chevron-left" size={14} />回到首页</Link>
 
       <div className="npage__body">
         <NewsCard item={item} variant="full" />

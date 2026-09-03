@@ -30,6 +30,52 @@
 .apm__title:first-child { margin-top: 0; }
 .apm__row { display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* ------------------------------------------------------------------ *
+ * 字号：一根滑杆，五格
+ *
+ * 原来是五个并排的按钮，面板宽度放不下，折成两行——「特大」孤零零掉在
+ * 下一行，看着像另一组设置。五个刻度本来就是一根轴上的五个点。
+ * ------------------------------------------------------------------ */
+.apm__fshead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.apm__fsnow { font-size: var(--fs-2xs); font-weight: 640; color: var(--fg); }
+
+.apm__fs { display: flex; align-items: center; gap: var(--s-3); }
+.apm__fsend { color: var(--fg-subtle); line-height: 1; font-size: 0.72rem; }
+.apm__fsend--big { font-size: 1.05rem; }
+
+.apm__range {
+  flex: 1; min-width: 0; margin: 0;
+  /* 轨道自己画，各家浏览器的默认样式差得太远。 */
+  appearance: none; -webkit-appearance: none;
+  height: 22px; background: transparent; cursor: pointer;
+}
+.apm__range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px; background: var(--line-strong, var(--line));
+}
+.apm__range::-moz-range-track {
+  height: 4px; border-radius: 2px; background: var(--line-strong, var(--line));
+}
+.apm__range::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none;
+  width: 16px; height: 16px; margin-top: -6px;
+  border-radius: 50%; border: var(--bw) solid var(--bg-raised);
+  background: var(--accent); box-shadow: var(--shadow-sm);
+}
+.apm__range::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%; border: var(--bw) solid var(--bg-raised);
+  background: var(--accent); box-shadow: var(--shadow-sm);
+}
+/* 键盘走到它身上要看得见——这是唯一一个不靠 :focus-visible 描边的控件。 */
+.apm__range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+
+/* 手指要按得住：轨道细，但可按区域不能细。 */
+@media (pointer: coarse) {
+  .apm__range { height: 34px; }
+  .apm__range::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9px; }
+  .apm__range::-moz-range-thumb { width: 22px; height: 22px; }
+}
+
 .apm__chip {
   display: inline-flex; align-items: baseline; gap: 5px;
   padding: 5px 10px;

@@ -14,9 +14,17 @@ import './Toll.css'
  */
 export function Toll(): JSX.Element {
   return (
-    <section className="toll" aria-labelledby="toll-h">
-      <h2 className="toll__h" id="toll-h">这是我们每天报道的事情的规模</h2>
-
+    /*
+     * 没有可见的标题。
+     *
+     * 原来这里挂着一句「这是我们每天报道的事情的规模」。站长要求去掉——
+     * 一来这个站不是媒体，不该用「我们」自述；二来这几个数字自己就说清了
+     * 是什么，上面再压一句解说词，反而把它们变成了配图。
+     *
+     * 但一个区域不能没有名字：读屏软件靠它知道自己进了哪一块。所以名字
+     * 移到 aria-label 上——听得到，看不见，也不再有那个「我们」。
+     */
+    <section className="toll" aria-label="全球数据">
       <ul className="toll__list">
         {FIGURES.map((f) => (
           <li key={f.label} className="toll__item">

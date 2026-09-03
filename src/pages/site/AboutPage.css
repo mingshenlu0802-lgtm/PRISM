@@ -3,7 +3,6 @@
 .about__title { font-size: var(--fs-3xl); letter-spacing: -0.02em; }
 .about__lead { font-size: var(--fs-lg); line-height: 1.7; color: var(--fg); font-weight: 560; }
 .about__body { font-size: var(--fs-md); line-height: var(--lh-prose); color: var(--fg-muted); }
-:root[data-body="serif"] .about__body { font-family: var(--font-serif); }
 .about__body code { padding: 1px 5px; border-radius: var(--r-xs); background: var(--bg-sunken); font-size: .92em; }
 
 .about__h2 { font-size: var(--fs-lg); display: flex; align-items: center; gap: var(--s-2); }

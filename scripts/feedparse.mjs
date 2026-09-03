@@ -298,6 +298,88 @@ export function regionsOf(entry, feed) {
   return hit.length ? hit.slice(0, 3) : feed.regions
 }
 
+/* ------------------------------------------------------------------ *
+ * 网址 → 媒体名
+ *
+ * 联网搜来的来源只有网址，没有名字。第一版直接拿域名当名字，结果是：
+ *
+ *   www.theguardian.com  →  Theguardian
+ *   www.bbc.co.uk        →  Bbc.co
+ *   news.un.org          →  News.un
+ *   m.thepaper.cn        →  M.thepaper
+ *
+ * 这些会印在每一条新闻底下给读者看。「Theguardian」不是《卫报》的名字，
+ * 「Bbc.co」谁都不是。
+ * ------------------------------------------------------------------ */
+
+/** 常见的两段后缀。不认得它们，bbc.co.uk 会被切成「Bbc.co」。 */
+const TWO_PART_TLD = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'net.au', 'org.au',
+  'co.jp', 'or.jp', 'co.kr', 'or.kr', 'com.hk', 'org.hk', 'com.tw', 'org.tw',
+  'com.cn', 'org.cn', 'net.cn', 'com.sg', 'com.my', 'co.id', 'co.th',
+  'com.br', 'com.mx', 'com.ar', 'co.za', 'co.nz', 'com.ng', 'co.in', 'com.pk',
+])
+
+/** 搜索常会搜到、但我们没有订阅的几家。写出来比让读者猜好。 */
+const KNOWN = {
+  'reuters.com': '路透社', 'apnews.com': '美联社', 'bbc.co.uk': 'BBC', 'bbc.com': 'BBC',
+  'theguardian.com': '卫报', 'nytimes.com': '纽约时报', 'washingtonpost.com': '华盛顿邮报',
+  'aljazeera.com': '半岛电视台', 'france24.com': 'France 24', 'npr.org': 'NPR',
+  'cnn.com': 'CNN', 'abc.net.au': 'ABC（澳）', 'cbc.ca': 'CBC（加）', 'dw.com': '德国之声',
+  'rfi.fr': '法广', 'scmp.com': '南华早报', 'japantimes.co.jp': '日本时报',
+  'koreaherald.com': '韩国先驱报', 'straitstimes.com': '海峡时报',
+  'un.org': '联合国', 'who.int': '世界卫生组织', 'unwomen.org': '联合国妇女署',
+  'unicef.org': '联合国儿童基金会', 'ohchr.org': '联合国人权高专办',
+  'hrw.org': '人权观察', 'amnesty.org': '国际特赦组织',
+  'thepaper.cn': '澎湃新闻', 'caixin.com': '财新', 'thewitnesshk.com': '法庭線',
+  'inmediahk.net': '獨立媒體', 'twreporter.org': '报导者', 'theinitium.com': '端传媒',
+}
+
+/** 去掉 www / m / amp / news 这类前缀之后，可以注册的那一段域名。 */
+export function registrableHost(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^(www|m|amp|mobile)\./, '')
+    const parts = host.split('.')
+    if (parts.length <= 2) return host
+    const lastTwo = parts.slice(-2).join('.')
+    return TWO_PART_TLD.has(lastTwo) ? parts.slice(-3).join('.') : lastTwo
+  } catch { return '' }
+}
+
+/**
+ * 这个网址是哪一家。
+ *
+ * 顺序：先问我们自己的源清单（那里的名字是中文的，和站上其余来源一致），
+ * 再查上面那张常见媒体表，都没有才回退到域名——而且回退也要清理干净：
+ * 去掉后缀、把中划线换成空格、首字母大写。theguardian.com 至少变成
+ * 「Theguardian」而不是「Www.theguardian.com」，reuters.com 直接是「路透社」。
+ */
+export function outletFor(url, feeds = []) {
+  const host = registrableHost(url)
+  if (!host) return '来源'
+
+  /*
+   * **先查这张表，再查源清单。**
+   *
+   * 反过来会出这种错：我们订的是联合国新闻的「妇女」专题，域名是 un.org；
+   * 于是任何一条 un.org 的链接——包括人权、气候、安理会——都会被标成
+   * 「联合国新闻 · 妇女」。域名只到可注册那一层，分不出站内的栏目。
+   * 大站按这张表给一个中性的名字（「联合国」），小站再交给源清单，
+   * 那里一个域名就是一家媒体，不会认错。
+   */
+  if (KNOWN[host]) return KNOWN[host]
+
+  for (const f of feeds) {
+    const urls = Array.isArray(f.url) ? f.url : [f.url]
+    if (urls.some((u) => registrableHost(u) === host)) return f.outlet ?? f.publisher ?? host
+  }
+
+  const core = host.slice(0, host.lastIndexOf('.')) || host
+  return core.split(/[-.]/).filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
+
 export const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9一-鿿]+/g, '-')
   .replace(/^-+|-+$/g, '').slice(0, 60)
 

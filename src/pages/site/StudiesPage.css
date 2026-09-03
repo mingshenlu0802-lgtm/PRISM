@@ -2,7 +2,6 @@
 .spage__head { display: grid; gap: var(--s-3); max-width: 68ch; }
 .spage__title { font-size: var(--fs-2xl); letter-spacing: -0.015em; }
 .spage__intro { font-size: var(--fs-md); line-height: var(--lh-prose); color: var(--fg-muted); }
-:root[data-body="serif"] .spage__intro { font-family: var(--font-serif); }
 .spage__intro strong { color: var(--fg); font-weight: 660; }
 .spage__count { font-size: var(--fs-xs); color: var(--fg-subtle); }
 

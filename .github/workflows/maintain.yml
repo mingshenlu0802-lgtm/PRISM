@@ -1,0 +1,81 @@
+# 维护动作：在**有网的地方**跑那些沙箱里跑不了的事情。
+#
+# 写这个 workflow 的直接原因：生成这个站的环境出网被组织策略挡住了，
+# who.int、data.unwomen.org、Supabase 全都连不上。而这几件事本身
+# 需要网络，所以让 runner 去做——它有网，也有密钥。
+#
+# 每一项都**默认只看不动手**，要真的写才勾 write。
+name: 维护
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: '做哪一件'
+        type: choice
+        default: 'clean-voice'
+        options:
+          - clean-voice   # 把已发布新闻里的「本站自述」句子删掉
+          - atlas-fetch   # 抓各国数据，提交成 CSV
+      write:
+        description: '真的写回去（不勾就只打印会改什么）'
+        type: boolean
+        default: false
+
+concurrency:
+  group: maintain
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --omit=dev
+
+      # ------------------------------------------------------------------
+      # 一、把稿子里的「PRISM 将持续关注」这类句子删掉。
+      #
+      # 站长：「我们不是媒体，不要再以 PRISM 自述。」提示词和收集流程都已经
+      # 改好了，管的是以后；库里已经写进去的那些要靠这一步。
+      # 只删句子，不改写，也不叫模型——同样的输入永远得到同样的输出。
+      # ------------------------------------------------------------------
+      - name: 清掉稿子里的本站自述
+        if: inputs.job == 'clean-voice'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: node scripts/clean-voice.mjs ${{ inputs.write && '--write' || '' }}
+
+      # ------------------------------------------------------------------
+      # 二、抓各国数据。
+      #
+      # 现在地图底层用的是转录进来的世界卫生组织国家估计（见
+      # scripts/seed-atlas-who.mjs 开头那段说明）。这一步在有网的地方
+      # 去拿原始文件，把那张表整个换掉，并把 CSV 提交回仓库——
+      # 于是数据的来路从「转录」变成「下载」，可以逐行核对。
+      # ------------------------------------------------------------------
+      - name: 抓各国数据
+        if: inputs.job == 'atlas-fetch'
+        run: node scripts/atlas-fetch.mjs ${{ inputs.write && '--write' || '' }}
+
+      - name: 重新生成并提交
+        if: inputs.job == 'atlas-fetch' && inputs.write
+        run: |
+          node scripts/build-atlas-data.mjs
+          if git diff --quiet -- data/atlas src/lib/atlas; then
+            echo "::notice::抓下来的数据和现在的一样，没有要提交的。"
+            exit 0
+          fi
+          git config user.name  "prism-bot"
+          git config user.email "noreply@github.com"
+          git add data/atlas src/lib/atlas
+          git commit -m "各国数据：从原始来源更新" -m "自动生成，见 .github/workflows/maintain.yml。"
+          git push

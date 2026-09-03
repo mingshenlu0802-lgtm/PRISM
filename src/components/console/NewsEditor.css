@@ -23,7 +23,6 @@
   font-size: 10px; font-weight: 620;
 }
 .nedit__badge--off { background: var(--accent); color: var(--accent-fg); }
-.nedit__badge--lead { background: var(--fg); color: var(--bg); }
 .nedit__badge--edited { background: var(--accent-soft); color: var(--accent); }
 .nedit__linkn { font-size: 10px; color: var(--fg-faint); }
 
@@ -106,7 +105,6 @@
 .nedit__act:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .nedit__act--go { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .nedit__act--danger:hover:not(:disabled) { background: var(--danger); color: #fff; border-color: var(--danger); }
-.nedit__act--lead { border-color: var(--fg); color: var(--fg); font-weight: 640; }
 .nedit__act:disabled { opacity: .5; }
 .nedit__stamp { margin-left: auto; font-size: 10px; color: var(--fg-faint); }
 

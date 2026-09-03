@@ -94,12 +94,22 @@ export function parseList(value) {
     .filter(Boolean)
 }
 
-/** `a, b, c` 形式的枚举。 */
-export function parseEnum(value, allowed) {
-  return String(value ?? '')
-    .split(/[,，、\s]+/)
-    .map((s) => s.trim())
-    .filter((s) => allowed.has(s))
+/**
+ * `a, b, c` 形式的枚举。
+ *
+ * `alias` 用来接住改过名的旧值：分类合并之后，模型偶尔还会写出老名字
+ * （训练语料里那个名字见得多）。不翻译就会被下面这一句直接丢掉，
+ * 结果是一篇台湾的报道变成「没有地区」——错得安静，谁也不会发现。
+ *
+ * 顺手去重：翻译之后 `tw jpkr` 会变成两个一样的值。
+ */
+export function parseEnum(value, allowed, alias = {}) {
+  const out = []
+  for (const raw of String(value ?? '').split(/[,，、\s]+/)) {
+    const key = alias[raw.trim()] ?? raw.trim()
+    if (allowed.has(key) && !out.includes(key)) out.push(key)
+  }
+  return out
 }
 
 /** yes / true / 是 都算真。 */

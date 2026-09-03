@@ -1,0 +1,197 @@
+/*
+ * 冷峻、克制、有冲击力——站长的话。
+ *
+ * 做法上：一个色相的顺序色阶，大量留白，数字用大字号但不加颜色，
+ * 边界说明一律用小字但**不折叠成一个要点两次的抽屉**。
+ * 冲击力来自数字本身和它的密度，不来自装饰。
+ */
+.atlas { display: grid; gap: var(--s-6); padding-bottom: var(--s-9); }
+
+.atlas__head { display: grid; gap: var(--s-2); }
+.atlas__kicker { font-size: var(--fs-2xs); font-weight: 660; letter-spacing: .08em; color: var(--fg-subtle); }
+.atlas__title { font-size: var(--fs-3xl); letter-spacing: -0.02em; }
+.atlas__lede { font-size: var(--fs-sm); line-height: 1.8; color: var(--fg-muted); max-width: 62ch; }
+
+.atlas__warn {
+  display: flex; gap: var(--s-3); align-items: flex-start;
+  margin: 0; padding: var(--s-4);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunk);
+  font-size: var(--fs-xs); line-height: 1.8; color: var(--fg-muted);
+}
+.atlas__warn svg { flex: none; margin-top: 4px; }
+.atlas__warn b { color: var(--fg); font-weight: 640; }
+
+.atlas__h2 {
+  display: flex; align-items: baseline; gap: var(--s-3);
+  font-size: var(--fs-lg); letter-spacing: -0.01em;
+}
+.atlas__listcount { font-size: var(--fs-2xs); font-weight: 500; color: var(--fg-subtle); }
+
+/* ------------------------------ 全球数字 ------------------------------ */
+.atlas__global { display: grid; gap: var(--s-4); }
+/*
+ * 手机上两列。
+ *
+ * 一列一张，五张卡加起来一千九百像素——地图在这之后，读者要划过两屏
+ * 才看得到这一页真正的东西。数字本身在手机上不需要那么大的地方。
+ */
+.atlas__globallist {
+  display: grid; gap: var(--s-3);
+  grid-template-columns: 1fr 1fr;
+  padding: 0; margin: 0; list-style: none;
+}
+@media (min-width: 600px) {
+  .atlas__globallist { gap: var(--s-4); grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .atlas__gitem { padding: var(--s-4); gap: 6px; }
+  .atlas__gval { font-size: var(--fs-2xl); }
+}
+.atlas__gitem {
+  display: grid; gap: 5px; align-content: start;
+  padding: var(--s-3);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+.atlas__gval { font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.02em; }
+.atlas__glabel { font-size: var(--fs-xs); line-height: 1.7; color: var(--fg); }
+.atlas__gone { font-size: var(--fs-2xs); color: var(--fg-subtle); }
+.atlas__gmore { margin-top: var(--s-2); }
+/* 手指按得住：抽屉的把手也是一个可点目标。 */
+.atlas__gmore summary {
+  cursor: pointer; font-size: var(--fs-2xs); color: var(--fg-subtle);
+  padding: 8px 0; min-height: 34px; display: flex; align-items: center;
+}
+@media (pointer: coarse) { .atlas__gmore summary { min-height: 40px; } }
+.atlas__gmore[open] summary { margin-bottom: var(--s-3); color: var(--fg); }
+
+/* ------------------------------ 控制条 ------------------------------ */
+.atlas__controls { display: grid; gap: var(--s-3); }
+.atlas__tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.atlas__tab {
+  padding: 9px 14px; border-radius: var(--r-pill);
+  border: var(--bw) solid var(--line); background: var(--bg-raised);
+  font-size: var(--fs-xs); font-weight: 560; color: var(--fg-muted);
+  min-height: 40px;
+}
+.atlas__tab--on { border-color: var(--accent); color: var(--fg); background: var(--accent-soft, var(--bg-sunk)); font-weight: 660; }
+
+.atlas__caveat {
+  margin: 0; font-size: var(--fs-2xs); line-height: 1.85; color: var(--fg-subtle);
+  max-width: 74ch;
+}
+
+.atlas__field { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.atlas__field > span { font-size: var(--fs-2xs); font-weight: 640; color: var(--fg-subtle); }
+.atlas__field select {
+  flex: 1; min-width: 220px; max-width: 520px;
+  padding: 9px 12px; min-height: 40px;
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-raised); color: var(--fg); font: inherit; font-size: var(--fs-xs);
+}
+
+.atlas__modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.atlas__mode {
+  padding: 9px 14px; min-height: 40px;
+  border: var(--bw) solid var(--line); border-radius: var(--r-pill);
+  background: var(--bg-raised); font-size: var(--fs-xs); color: var(--fg-muted);
+}
+.atlas__mode--on { border-color: var(--accent); color: var(--fg); font-weight: 640; }
+.atlas__modenote { margin: 0; font-size: var(--fs-2xs); color: var(--fg-subtle); }
+
+.atlas__def {
+  margin: 0; padding: var(--s-3) var(--s-4);
+  border-left: 3px solid var(--line-strong, var(--line));
+  font-size: var(--fs-xs); line-height: 1.8; color: var(--fg-muted); max-width: 74ch;
+}
+.atlas__def b { color: var(--fg); font-weight: 640; }
+
+/* ------------------------------ 图例 ------------------------------ */
+.atlas__legend { display: flex; flex-wrap: wrap; gap: var(--s-4); align-items: center; }
+.atlas__legenditem {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-2xs); color: var(--fg-subtle);
+}
+.atlas__swatch { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
+.atlas__swatch--lo { background: #EFE7DC; }
+.atlas__swatch--mid { background: #A79BC4; }
+.atlas__swatch--hi { background: #332C60; }
+.atlas__swatch--none {
+  background:
+    repeating-linear-gradient(45deg, var(--bg-sunk) 0 3px, color-mix(in srgb, var(--fg) 22%, transparent) 3px 4px);
+}
+.atlas__bubble {
+  width: 12px; height: 12px; border-radius: 50%; display: inline-block;
+  background: color-mix(in srgb, var(--accent) 62%, transparent);
+}
+
+/* ------------------------------ 洲导航 ------------------------------ */
+.atlas__conts { display: flex; flex-wrap: wrap; gap: 6px; }
+.atlas__cont {
+  padding: 9px 14px; min-height: 40px; display: inline-flex; align-items: center;
+  border: var(--bw) solid var(--line); border-radius: var(--r-pill);
+  font-size: var(--fs-xs); color: var(--fg-muted); background: var(--bg-raised);
+}
+.atlas__cont--on { border-color: var(--accent); color: var(--fg); font-weight: 640; }
+
+.atlas__empty { margin: 0; font-size: var(--fs-xs); color: var(--fg-subtle); }
+
+/* ------------------------------ 国家列表 ------------------------------ */
+.atlas__list { display: grid; gap: var(--s-4); }
+.atlas__listhead {
+  display: flex; flex-wrap: wrap; gap: var(--s-3);
+  align-items: center; justify-content: space-between;
+}
+.atlas__search {
+  display: inline-flex; align-items: center; gap: var(--s-2);
+  padding: 0 12px; min-height: 40px;
+  border: var(--bw) solid var(--line); border-radius: var(--r-md);
+  background: var(--bg-raised); color: var(--fg-subtle);
+}
+.atlas__search input {
+  border: 0; background: none; font: inherit; font-size: var(--fs-xs);
+  color: var(--fg); min-width: 160px; padding: 10px 0; min-height: 38px;
+}
+@media (pointer: coarse) { .atlas__search input { min-height: 40px; } }
+.atlas__search input:focus { outline: none; }
+.atlas__search:focus-within { border-color: var(--accent); }
+
+.atlas__norank {
+  margin: 0; font-size: var(--fs-2xs); line-height: 1.8; color: var(--fg-subtle); max-width: 74ch;
+}
+
+.atlas__rows { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; }
+.atlas__row {
+  /* 整行是一个链接，所以下划线要关掉——不然百分比和「1 项」也带着线，
+     看上去像三个各自可点的东西。 */
+  text-decoration: none;
+  display: grid; align-items: center; gap: var(--s-3);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 10px var(--s-3); min-height: 44px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs); color: var(--fg);
+}
+.atlas__row:hover { background: var(--bg-sunk); }
+.atlas__rowname { font-weight: 560; }
+.atlas__rowval { font-variant-numeric: tabular-nums; font-weight: 640; }
+.atlas__rowval--none { color: var(--fg-subtle); font-weight: 400; }
+.atlas__rowcover { font-size: var(--fs-2xs); color: var(--fg-subtle); min-width: 3.5em; text-align: right; }
+
+@media (max-width: 560px) {
+  .atlas__rowcover { display: none; }
+  .atlas__row { grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+.atlas__all {
+  justify-self: start;
+  padding: 9px 18px; min-height: 40px;
+  border: var(--bw) solid var(--line); border-radius: var(--r-pill);
+  background: var(--bg-raised); font-size: var(--fs-xs); color: var(--fg);
+}
+.atlas__all:hover { border-color: var(--accent); }
+.atlas__noresult { margin: 0; font-size: var(--fs-xs); color: var(--fg-subtle); }
+
+/* 宽屏上排成两列或三列：一列一百多行，眼睛要走的距离没有必要那么长。 */
+@media (min-width: 720px) { .atlas__rows { grid-template-columns: 1fr 1fr; column-gap: var(--s-5); } }
+@media (min-width: 1080px) { .atlas__rows { grid-template-columns: 1fr 1fr 1fr; } }

@@ -10,6 +10,8 @@ import { backendFailure, getClient, inSandboxFrame, loadConfig } from './backend
 import { fetchAll, watch } from './remote'
 import { completeLinkSignIn, currentWho, onAuthChange } from './session'
 import { mirror } from './sync'
+import { normalizeRegions } from './regions'
+import type { RegionKey } from './regions'
 import { nowIso, uid } from './util'
 
 const STORAGE_KEY = 'prism.site.v3'
@@ -22,6 +24,7 @@ const SCHEMA = 3
 export type Action =
   | { type: 'reset' }
   | { type: 'hydrate'; state: PrismState }
+  | { type: 'demo-clear' }
   /* content */
   | { type: 'news-add'; items: NewsItem[]; who: string; manual?: boolean }
   | { type: 'news-edit'; id: ID; patch: Partial<NewsItem>; who: string }
@@ -71,6 +74,25 @@ export function reducer(state: PrismState, action: Action): PrismState {
   switch (action.type) {
     case 'reset': return buildInitialState()
     case 'hydrate': return action.state
+
+    /*
+     * 一确认是共享模式，就把演示条目扔掉。
+     *
+     * 演示数据的用途只有一个：本地模式下让站长有东西可看可点。共享模式里
+     * 它们是**假新闻**——虚构的机构、虚构的判决，链接指向 .invalid。
+     * 正常情况下第一次取数会把它们整批换掉，所以从来没人注意到这件事；
+     * 可是取数失败的时候不会换，于是读者拿到的是一份排版完好的、
+     * 内容全是编的报纸。这比空白坏得多：空白看得出是坏了，这个看不出来。
+     *
+     * 所以不等取数，认出共享模式当场就清。清完要么是真内容，
+     * 要么是「暂时读不到」——两者都诚实。
+     */
+    case 'demo-clear': {
+      const news = state.news.filter((n) => !n.demo)
+      const studies = state.studies.filter((st) => !st.demo)
+      if (news.length === state.news.length && studies.length === state.studies.length) return state
+      return { ...state, news, studies }
+    }
 
     /* ------------------------------- news ------------------------------- */
 
@@ -363,12 +385,28 @@ function load(): PrismState {
      * 一份日报，日期由读者的缓存决定，是最糟的一种坏法：站长看到的是旧日期，
      * 新读者看到的是对的，谁都不会怀疑是缓存。
      */
+    /*
+     * 存下来的条目要过一遍地区归一。
+     *
+     * 数据库那一路在 remote.ts 里已经翻译过了，本地这一路没有：站长在本地
+     * 模式下写过的稿子，`regions` 里可能还留着 `tw`。那会渲染成一个灰点、
+     * 标签就写着「tw」两个字母——不报错，只是难看又点不开。
+     */
+    const fixRegions = <T extends { regions: RegionKey[] }>(list: T[]): T[] =>
+      list.map((it) => {
+        const next = normalizeRegions(it.regions)
+        return next.length === it.regions.length && next.every((r, i) => r === it.regions[i])
+          ? it : { ...it, regions: next }
+      })
+
     return {
       ...fresh,
       ...parsed,
+      news: fixRegions(parsed.news),
+      studies: fixRegions(parsed.studies),
+      collect: { ...fresh.collect, ...parsed.collect },
       today: fresh.today,
       appearance: { ...fresh.appearance, ...parsed.appearance },
-      collect: { ...fresh.collect, ...parsed.collect },
       auth: { ...fresh.auth, ...parsed.auth },
       github: { ...fresh.github, ...parsed.github },
       copy: { ...fresh.copy, ...parsed.copy },
@@ -486,28 +524,47 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
   /* ---------------- 共享模式：连库、取数、跟着变 ---------------- */
 
   const pull = useCallback(async () => {
-    const db = await getClient()
-    if (!db) return
-    const who = await currentWho()
     /*
-     * **没登录也要读。**
+     * 整个函数包在 try/finally 里，`setReady(true)` 一定会跑到。
      *
-     * 这里曾经在没登录时直接 return，注释写着「RLS 会挡回来，读了也是空的」。
-     * 那句话在「看内容需要先进名单」的旧设计下是对的，但权限规则早就改成了
+     * 原来 try 是从 fetchAll 才开始的，前面那两个 await 掉在外头：
+     * `getClient()` 返回 null 就直接 return，`currentWho()` 抛错就整个函数
+     * 拒绝——两条路都不会走到 finally，于是 ready 永远是 false，
+     * 公众站永远停在「正在打开…」，一个字的解释都没有。
      *
-     *     create policy news_read on public.news for select using (true);
-     *
-     * ——谁都能读。这个 return 没跟着改，于是**没登录的人根本不去数据库取数**，
-     * state 停在初始值上，也就是演示数据。
-     *
-     * 后果正好打在这个网站的核心承诺上：朋友拿着链接打开，看到的不是站长的
-     * 内容，而是一批虚构的演示条目——而整套共享数据库存在的理由就是这件事。
-     *
-     * members 和 changes 确实会被 RLS 挡回来，但 fetchAll 用的 supabase 客户端
-     * 遇到拒绝是把 error 放进返回值、不是抛出，所以那两张表各自变成空数组，
-     * 不影响 news / studies / site。未登录读取本来就是安全的。
+     * 这不是罕见路径。currentWho() 要去 Supabase 的 auth 端点，
+     * 而这个站的读者有很大一部分在墙内：那个域名连不上的时候，
+     * 他们看到的就是一块永远转不完的「正在打开…」。
      */
     try {
+      const db = await getClient()
+      if (!db) throw new Error('连不上数据库。')
+      /*
+       * 认不出身份不影响读内容。
+       *
+       * 内容的 RLS 是 `using (true)`，谁都能读。所以 auth 那一下失败了
+       * 就当没登录继续往下读——为了「不知道你是谁」而让所有人看不到新闻，
+       * 是把优先级颠倒过来了。
+       */
+      const who = await currentWho().catch(() => null)
+      /*
+       * **没登录也要读。**
+       *
+       * 这里曾经在没登录时直接 return，注释写着「RLS 会挡回来，读了也是空的」。
+       * 那句话在「看内容需要先进名单」的旧设计下是对的，但权限规则早就改成了
+       *
+       *     create policy news_read on public.news for select using (true);
+       *
+       * ——谁都能读。这个 return 没跟着改，于是**没登录的人根本不去数据库取数**，
+       * state 停在初始值上，也就是演示数据。
+       *
+       * 后果正好打在这个网站的核心承诺上：朋友拿着链接打开，看到的不是站长的
+       * 内容，而是一批虚构的演示条目——而整套共享数据库存在的理由就是这件事。
+       *
+       * members 和 changes 确实会被 RLS 挡回来，但 fetchAll 用的 supabase 客户端
+       * 遇到拒绝是把 error 放进返回值、不是抛出，所以那两张表各自变成空数组，
+       * 不影响 news / studies / site。未登录读取本来就是安全的。
+       */
       const snap = await fetchAll(db)
       const base = stateRef.current
       rawDispatch({
@@ -544,6 +601,23 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
     let stopAuth: (() => void) | undefined
     let alive = true
 
+    /*
+     * 看门狗：首屏最多停八秒。
+     *
+     * 上面那些 catch 管的是「失败」，管不了「不回」。连不上的域名——
+     * 被墙、被公司防火墙拦、Supabase 项目暂停——TCP 往往不是立刻拒绝，
+     * 而是一直挂着，几十秒才超时。这段时间里 `ready` 是 false，
+     * 读者面对的是一块什么都没有的「正在打开…」，而且不知道要等多久。
+     *
+     * 八秒之后就把首屏放出来：手里有上一次的内容就显示上一次的，
+     * 一条都没有就显示「暂时读不到」。取数要是后来成功了，内容会自己填进来。
+     */
+    const slow = setTimeout(() => {
+      if (!alive) return
+      setSyncError((was) => was || '连接数据库超时，可能是网络被挡住了。')
+      setReady(true)
+    }, 8000)
+
     void (async () => {
       let db = null
       try {
@@ -554,6 +628,7 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
       }
       if (!alive) return
       if (!db) {
+        clearTimeout(slow)
         setMode('local')
         setReady(true)
         // 「配置了却在看演示数据」是最让人困惑的失败——如果确实配了，就说出来。
@@ -566,18 +641,28 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
         return
       }
       setMode('shared')
-      // 先把邮件链接带回来的登录接上，再拉数据——否则第一次拉取是以「没登录」
-      // 的身份去的，站长会先看到一眼空网站。
-      await completeLinkSignIn(db)
+      // 演示条目在共享模式下就是假新闻，别等取数——见 reducer 里的 demo-clear。
+      rawDispatch({ type: 'demo-clear' })
+      /*
+       * 先把邮件链接带回来的登录接上，再拉数据——否则第一次拉取是以「没登录」
+       * 的身份去的，站长会先看到一眼空网站。
+       *
+       * `.catch` 是必须的：这一步要连 Supabase 的 auth 端点。它一抛错，
+       * 下面的 `await pull()` 就永远不会执行，而 ready 只在 pull 里置位——
+       * 于是一次登录接续失败，换来的是整个公众站永远停在「正在打开…」。
+       * 接不上就当没登录，内容照读。
+       */
+      await completeLinkSignIn(db).catch(() => {})
       if (!alive) return
       await pull()
+      clearTimeout(slow)
       if (!alive) return
       // 别人改了东西，这边不用刷新就跟着变。
       stopWatch = watch(db, () => { void pull() })
       stopAuth = await onAuthChange(() => { void pull() })
     })()
 
-    return () => { alive = false; stopWatch?.(); stopAuth?.() }
+    return () => { alive = false; clearTimeout(slow); stopWatch?.(); stopAuth?.() }
   }, [pull])
 
   /**
@@ -609,8 +694,6 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
     el.dataset.theme = state.appearance.theme
     el.dataset.accent = state.appearance.accent
     el.dataset.fs = String(state.appearance.fontScale)
-    el.dataset.roomy = String(state.appearance.roomy)
-    el.dataset.body = state.appearance.bodyFont
   }, [state.appearance])
 
   const reset = useCallback(() => {

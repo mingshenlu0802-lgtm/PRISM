@@ -22,6 +22,63 @@ export function SignInGate(): JSX.Element {
 }
 
 /**
+ * 站长按下了「暂停对外显示」。
+ *
+ * 这个开关原来只画了一条横幅——横幅底下，全部内容照旧摆在那里给所有人看。
+ * 控制端上写的却是「现在别人打开网站看不到内容，只有登录的你能看到」。
+ * 一个说了话不算数的紧急开关，比没有这个开关更危险：站长以为已经关了，
+ * 于是不再采取别的措施，而内容其实一条没少地挂在公网上。
+ *
+ * 这个站报道的是性暴力、跨性别权利这类题目，读者有一部分在墙内。
+ * 「立刻关掉」这件事必须真的发生。
+ */
+export function Paused(): JSX.Element {
+  usePageTitle('暂停更新')
+  return (
+    <div className="gate">
+      <div className="gate__box">
+        <PrismMark size={32} />
+        <h1 className="gate__title">暂停更新</h1>
+        <p className="gate__lede">这个站现在暂停对外显示。内容都还在，过一阵再来。</p>
+        <p className="gate__note gate__note--small">
+          如果你是编辑，<Link to="/signin">登录</Link>之后仍然看得到全部内容。
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 连不上数据库、而且手里一条内容都没有。
+ *
+ * 这一屏存在的理由是：不这么做的话，读者看到的是一张**正常的报纸首页**，
+ * 上面写着「今日 0 条报道」——一句完全可信、而且完全错误的话。他会以为
+ * 今天真的什么都没发生，或者这个站不做了。一份日报最不该说的谎就是这一句。
+ *
+ * 所以宁可说「读不到」。读不到是暂时的，没有新闻不是。
+ *
+ * 只在**一条都没有**的时候顶上来。手里有上一次读到的内容就照常显示——
+ * 旧内容加一句轻提示，比一张白纸诚实得多，也比一屏错误信息有用得多。
+ */
+export function LoadFailed({ onRetry }: { onRetry: () => void }): JSX.Element {
+  usePageTitle('暂时读不到内容')
+  return (
+    <div className="gate">
+      <div className="gate__box">
+        <PrismMark size={32} />
+        <h1 className="gate__title">暂时读不到今天的内容</h1>
+        <p className="gate__lede">
+          不是今天没有新闻——是这台设备现在连不上我们的数据库。
+          可能是网络不稳，也可能是我们这边在维护。
+        </p>
+        <p className="gate__note">稍等一会儿再试；内容都还在。</p>
+        <button type="button" className="gate__go" onClick={onRetry}>重新试一次</button>
+      </div>
+    </div>
+  )
+}
+
+/**
  * 登录。
  *
  * 登录**不是**看内容的条件——它有两个用处：让站长知道你是谁、以后能给你

@@ -164,26 +164,26 @@ export const FEEDS = [
    * 「法庭线」单列出来说一句：它做的是香港法庭的逐日旁听报道，
    * 正好对上这个站最看重的「司法过程」。
    */
-  { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: ['https://hotline.org.tw/feed', 'https://hotline.org.tw/rss', 'https://hotline.org.tw/news/feed', 'https://hotline.org.tw/blog/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'hotline-tw', outlet: '台灣同志諮詢熱線', url: ['https://hotline.org.tw/feed', 'https://hotline.org.tw/rss', 'https://hotline.org.tw/news/feed', 'https://hotline.org.tw/blog/feed'], regions: ['jpkr'], topical: true, lang: 'zh-Hant',
     note: '台湾历史最久的同志权益组织，法案与个案协助的一手记录。' },
-  { id: 'awakening-tw', outlet: '婦女新知基金會', url: ['https://www.awakening.org.tw/feed', 'https://www.awakening.org.tw/rss', 'https://www.awakening.org.tw/?feed=rss2', 'https://www.awakening.org.tw/rss.xml', 'https://www.awakening.org.tw/index.php/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'awakening-tw', outlet: '婦女新知基金會', url: ['https://www.awakening.org.tw/feed', 'https://www.awakening.org.tw/rss', 'https://www.awakening.org.tw/?feed=rss2', 'https://www.awakening.org.tw/rss.xml', 'https://www.awakening.org.tw/index.php/feed'], regions: ['jpkr'], topical: true, lang: 'zh-Hant',
     note: '台湾妇运的老牌团体，长期做修法倡议，法条讨论写得细。' },
-  { id: 'twrf', outlet: '婦女救援基金會', url: ['https://www.twrf.org.tw/feed', 'https://www.twrf.org.tw/rss', 'https://www.twrf.org.tw/?feed=rss2', 'https://www.twrf.org.tw/rss.xml', 'https://www.twrf.org.tw/index.php/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'twrf', outlet: '婦女救援基金會', url: ['https://www.twrf.org.tw/feed', 'https://www.twrf.org.tw/rss', 'https://www.twrf.org.tw/?feed=rss2', 'https://www.twrf.org.tw/rss.xml', 'https://www.twrf.org.tw/index.php/feed'], regions: ['jpkr'], topical: true, lang: 'zh-Hant',
     note: '性暴力与人口贩运的服务机构，个案与统计都出自实务。' },
-  { id: 'mwf-tw', outlet: '現代婦女基金會', url: ['https://www.38.org.tw/feed', 'https://www.38.org.tw/rss', 'https://www.38.org.tw/?feed=rss2', 'https://www.38.org.tw/rss.xml', 'https://www.38.org.tw/index.php/feed'], regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'mwf-tw', outlet: '現代婦女基金會', url: ['https://www.38.org.tw/feed', 'https://www.38.org.tw/rss', 'https://www.38.org.tw/?feed=rss2', 'https://www.38.org.tw/rss.xml', 'https://www.38.org.tw/index.php/feed'], regions: ['jpkr'], topical: true, lang: 'zh-Hant',
     note: '家暴与性侵害防治，台湾相关立法的主要推动者之一。' },
-  { id: 'tgeea', outlet: '台灣性別平等教育協會', url: 'https://www.tgeea.org.tw/feed', regions: ['tw'], topical: true, lang: 'zh-Hant',
+  { id: 'tgeea', outlet: '台灣性別平等教育協會', url: 'https://www.tgeea.org.tw/feed', regions: ['jpkr'], topical: true, lang: 'zh-Hant',
     note: '性别平等教育，校园性侵与性骚扰的处理机制。对应「儿童」议题。' },
   { id: 'witness-hk', outlet: '法庭線', url: 'https://thewitnesshk.com/feed', regions: ['hk'], lang: 'zh-Hant',
     note: '香港法庭的逐日旁听报道。综合源要过关键词，但它写的正是司法过程。' },
   { id: 'inmedia-hk', outlet: '獨立媒體', url: 'https://www.inmediahk.net/rss.xml', regions: ['hk'], lang: 'zh-Hant',
     note: '香港独立媒体，公民社会与性别议题的长期报道。综合源。' },
 
-  { id: 'twreporter', outlet: '报导者', url: 'https://www.twreporter.org/a/rss2.xml', regions: ['tw'], lang: 'zh-Hant',
+  { id: 'twreporter', outlet: '报导者', url: 'https://www.twreporter.org/a/rss2.xml', regions: ['jpkr'], lang: 'zh-Hant',
     note: '台湾非营利调查报道，资金来源公开。综合源。' },
-  { id: 'initium', outlet: '端传媒', url: 'https://theinitium.com/feed', regions: ['hk', 'tw', 'cn'], lang: 'zh-Hant',
+  { id: 'initium', outlet: '端传媒', url: 'https://theinitium.com/feed', regions: ['hk', 'jpkr', 'cn'], lang: 'zh-Hant',
     note: '华语深度报道，有编辑部。部分内容需订阅，链接仍可给读者。' },
-  { id: 'bbc-zh', outlet: 'BBC 中文', url: 'https://feeds.bbci.co.uk/zhongwen/simp/rss.xml', regions: ['cn', 'hk', 'tw'], lang: 'zh-Hans',
+  { id: 'bbc-zh', outlet: 'BBC 中文', url: 'https://feeds.bbci.co.uk/zhongwen/simp/rss.xml', regions: ['cn', 'hk', 'jpkr'], lang: 'zh-Hans',
     note: '公共广播，有独立编辑章程。综合源。' },
   { id: 'dw-zh', outlet: '德国之声中文', url: 'https://rss.dw.com/rdf/rss-chi-all', regions: ['cn', 'eu'], kind: 'state', lang: 'zh-Hans',
     note: '德国公共资金，编辑独立受法律保障——仍按国家资助标注。' },
@@ -464,12 +464,16 @@ export const STUDY_FEEDS = [
 export const REGION_WORDS = {
   cn: ['china', 'chinese', 'beijing', 'shanghai', '中国', '中國', '内地', '大陆', '北京', '上海', '广东'],
   hk: ['hong kong', '香港', '港府'],
-  tw: ['taiwan', 'taiwanese', 'taipei', '台湾', '臺灣', '台北', '臺北'],
-  jpkr: ['japan', 'japanese', 'tokyo', 'korea', 'korean', 'seoul', '日本', '韩国', '首尔', '东京'],
+  // 台湾并进这一格（站长定的），所以台湾的词也在这里。
+  jpkr: ['japan', 'japanese', 'tokyo', 'korea', 'korean', 'seoul', '日本', '韩国', '首尔', '东京',
+    'taiwan', 'taiwanese', 'taipei', '台湾', '臺灣', '台北', '臺北'],
   // 不用裸的 'america'——它会把「Latin America」整片吃成美国。
+  // 'ontario' 不收：那是纽约州和加州都有的地名，光靠它认不出加拿大。
   us: ['united states', 'u.s.', 'american', 'washington', 'supreme court', 'white house',
     'texas', 'florida', 'california', 'colorado', 'new york', 'massachusetts', 'ohio', 'georgia',
-    'congress', 'scotus', '美国', '美國'],
+    'congress', 'scotus', '美国', '美國',
+    'canada', 'canadian', 'ottawa', 'quebec', 'québec', 'toronto', 'british columbia',
+    'saskatchewan', 'manitoba', 'alberta', '加拿大', '渥太华', '渥太華', '多伦多', '多倫多', '魁北克'],
   // 'uk' 太短，词边界也挡不住缩写噪音，用 'united kingdom' 和具体国名。
   eu: ['europe', 'european union', 'united kingdom', 'britain', 'british', 'england', 'scotland',
     'ireland', 'france', 'french', 'germany', 'german', 'poland', 'spain', 'italy', 'hungary',

@@ -26,15 +26,15 @@ const topo = JSON.parse(readFileSync('node_modules/world-atlas/countries-110m.js
  *   - 乌克兰、摩尔多瓦归欧洲；白俄罗斯、外高加索、中亚归「俄罗斯与中亚」。
  *   - 蒙古没有单独的地区，就近并进「俄罗斯与中亚」。
  *   - 土耳其归「中东与北非」——本站关心的性别议题上，它和中东一起读更有意义。
- *   - **加拿大、格陵兰没有对应地区，就让它们留白**，不硬塞进「美国」。
- *     地图上一块灰色是诚实的：这个站现在确实不覆盖那里。
+ *   - 加拿大归「美加」，格陵兰归欧洲，台湾归「日韩台」——站长定的。
+ *     格陵兰是丹麦王国的一部分，跟着丹麦走；加拿大和美国在本站关心的议题上
+ *     （堕胎权、跨性别医疗、原住民女性失踪案）常常是同一条线索的两头。
  */
 const REGION_OF = {
   cn: ['China'],
-  tw: ['Taiwan'],
-  jpkr: ['Japan', 'South Korea', 'North Korea'],
-  us: ['United States of America'],
-  eu: ['Albania', 'Austria', 'Belgium', 'Bosnia and Herz.', 'Bulgaria', 'Croatia', 'Cyprus',
+  jpkr: ['Japan', 'South Korea', 'North Korea', 'Taiwan'],
+  us: ['United States of America', 'Canada'],
+  eu: ['Greenland', 'Albania', 'Austria', 'Belgium', 'Bosnia and Herz.', 'Bulgaria', 'Croatia', 'Cyprus',
     'Czechia', 'Denmark', 'Estonia', 'Finland', 'France', 'Germany', 'Greece', 'Hungary',
     'Iceland', 'Ireland', 'Italy', 'Kosovo', 'Latvia', 'Lithuania', 'Luxembourg', 'Macedonia',
     'Moldova', 'Montenegro', 'N. Cyprus', 'Netherlands', 'Norway', 'Poland', 'Portugal',

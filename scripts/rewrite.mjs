@@ -15,6 +15,7 @@
  */
 import { ask, askText, llmName } from './llm.mjs'
 import { splitBlocks, parseBlock, parseList, parseEnum, parseYes } from './blocks.mjs'
+import { cleanLine, stripSelfVoice } from './voice.mjs'
 import { systemPrompt, triagePrompt } from './editorial.mjs'
 
 /*
@@ -80,7 +81,8 @@ SUMMARY:
 - 不符合方针的写 KEEP: no，其余字段可以留空。
 - SUMMARY 从冒号后**换行开始**，一直写到 ===END 为止。
 - TOPICS 只能从这些里选：domestic sexual children rights lgbtq hate displacement incel movement
-- REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global`.trim()
+- REGIONS 只能从这些里选：cn hk jpkr us eu anz sea sasia mena ru africa latam global
+  （jpkr = 日本、韩国、台湾；us = 美国与加拿大；eu 含格陵兰）`.trim()
 
 /** 把一批候选交给模型。返回和输入等长的结果数组。 */
 /** 这一轮还能搜几条。runBatch 每写一条搜过的就减一。 */
@@ -182,7 +184,13 @@ function matchBack(batch, text) {
 const FIELDS = ['KEEP', 'HEADLINE', 'SUBHEAD', 'TOPICS', 'REGIONS', 'BULLETS', 'SUMMARY']
 
 const TOPICS = new Set(['domestic', 'sexual', 'children', 'rights', 'lgbtq', 'hate', 'displacement', 'incel', 'movement'])
-const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
+/*
+ * 'tw' 不在里面了——台湾并进了 jpkr。但模型偶尔还是会写 'tw'（训练里见得多），
+ * 直接丢掉那一条会让一篇台湾的报道变成「没有地区」。所以先翻译再校验，
+ * 和网站那边 REGION_ALIAS 做的是同一件事。
+ */
+const REGION_ALIAS = { tw: 'jpkr' }
+const REGIONS = new Set(['cn', 'hk', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 'mena', 'ru', 'africa', 'latam', 'global'])
 
 /**
  * 校验模型的产出。
@@ -193,16 +201,26 @@ const REGIONS = new Set(['cn', 'hk', 'tw', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sa
 export function clean(raw, fallback) {
   if (!raw || !parseYes(raw.KEEP)) return null
   const headline = String(raw.HEADLINE ?? '').trim()
-  const summary = String(raw.SUMMARY ?? '').trim()
+  /*
+   * 先把「本站自述」的句子删掉，再量长度。
+   *
+   * 提示词里已经写了不许这么写（见 editorial.mjs 的红线），这里是兜底：
+   * 模型是概率的，而「PRISM 将持续关注该案后续」这种句子一旦漏出去，
+   * 就是一句白纸黑字的假话——这个站不派记者、不打电话、不去旁听。
+   *
+   * 顺序要紧：删完再量。删掉之后不足 400 字的，说明那篇本来就没写多少
+   * 实质内容，正好一起丢掉。
+   */
+  const summary = stripSelfVoice(String(raw.SUMMARY ?? '').trim())
   if (!headline || summary.length < 400) return null // 太短就是没写，宁可不要
 
   const topics = parseEnum(raw.TOPICS, TOPICS)
-  const regions = parseEnum(raw.REGIONS, REGIONS)
+  const regions = parseEnum(raw.REGIONS, REGIONS, REGION_ALIAS)
   return {
     headline,
-    subhead: String(raw.SUBHEAD ?? '').trim() || null,
+    subhead: cleanLine(String(raw.SUBHEAD ?? '').trim()) || null,
     summary,
-    bullets: parseList(raw.BULLETS).slice(0, 6),
+    bullets: parseList(raw.BULLETS).map(cleanLine).filter(Boolean).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
     // 联网搜到、并且真的被读过的那几篇。collect 会把它们挂成额外来源。
@@ -416,7 +434,8 @@ SUMMARY:
 - 每一项都要有一个块，编号是输入里的 i，顺序不变。不属于本站题目的写 KEEP: no。
 - KIND 只能是：peer-reviewed systematic-review official-statistics dataset ngo-report preprint
 - TOPICS 只能从这些里选：domestic sexual children rights lgbtq hate displacement incel movement
-- REGIONS 只能从这些里选：cn hk tw jpkr us eu anz sea sasia mena ru africa latam global
+- REGIONS 只能从这些里选：cn hk jpkr us eu anz sea sasia mena ru africa latam global
+  （jpkr = 日本、韩国、台湾；us = 美国与加拿大；eu 含格陵兰）
 - FIGURES 里只放**原文里真的出现过的数字**，一行一个，三段用 | 隔开。
   原文没给数字就整个留空——编一个数字比没有数字糟糕得多。
   第三段（它没说什么）不能空着：每个数字都要说清它的边界。
@@ -433,7 +452,7 @@ const KINDS = new Set(['peer-reviewed', 'systematic-review', 'official-statistic
 /** 校验一项研究。和新闻一样：模型编出来的字段不该悄悄进站。 */
 export function cleanStudy(raw, fallback) {
   const topics = parseEnum(raw?.TOPICS, TOPICS)
-  const regions = parseEnum(raw?.REGIONS, REGIONS)
+  const regions = parseEnum(raw?.REGIONS, REGIONS, REGION_ALIAS)
   const kind = String(raw?.KIND ?? '').trim()
 
   /*
@@ -447,7 +466,8 @@ export function cleanStudy(raw, fallback) {
     .slice(0, 3)
     .map((p) => ({ label: p[0], value: p[1], note: p.slice(2).join(' | ') }))
 
-  const summary = String(raw?.SUMMARY ?? '').trim()
+  // 研究这一路同样不许出现叙述者——理由见 voice.mjs。
+  const summary = stripSelfVoice(String(raw?.SUMMARY ?? '').trim())
   return {
     ...fallback,
     title: String(raw?.TITLE ?? '').trim() || fallback.title,
@@ -456,7 +476,7 @@ export function cleanStudy(raw, fallback) {
     // 出现一个显示不出可信度提示的空类别。
     kind: KINDS.has(kind) ? kind : fallback.kind,
     summary: summary.length >= 400 ? summary : fallback.summary,
-    limitation: String(raw?.LIMITATION ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
+    limitation: stripSelfVoice(String(raw?.LIMITATION ?? '').trim()) || '原报告未说明方法与抽样，这里不代为推断。',
     figures,
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,

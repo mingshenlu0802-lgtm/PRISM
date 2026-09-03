@@ -83,6 +83,9 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
  *   只放行这个测试用的假域名，真实域名的 WebSocket 报错照样要算。
  */
 const external = (t) => /fonts\.(googleapis|gstatic)\.com|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED/.test(t)
+  // 沙箱的出网代理拒绝时给的是这个，而且报错里不带域名。本地资源永远走不到
+  // 代理，所以这条只可能来自外部资源。
+  || /ERR_TUNNEL_CONNECTION_FAILED|ERR_PROXY_CONNECTION_FAILED/.test(t)
   || /test\.supabase\.co\/realtime/.test(t)
 const errors = []
 /* 第 6 节会故意让数据库拒绝 members / changes，那几条 401 是预期内的。 */
@@ -116,7 +119,8 @@ const manage = async () => {
   await page.goto(`${base}/console/manage`, { waitUntil: 'load' })
   await page.waitForTimeout(700)
   // 回到同一个地址不会重新挂载，标签可能还停在上一次的位置——明确切回「内容」。
-  await page.getByRole('tab', { name: '内容' }).first().click()
+  // 名字写成两种写法：这个 helper 在繁体模式下也会被调用，那时它叫「內容」。
+  await page.getByRole('tab', { name: /[内內]容/ }).first().click()
   await page.waitForTimeout(250)
 }
 
@@ -256,6 +260,59 @@ await nCard.locator('input[id^="h-"]').fill('自己写的一条新闻')
 await nCard.locator('textarea[id^="s-"]').fill('正文。')
 await page.waitForTimeout(250)
 check(!(await crashed()), '给新闻写标题和正文不会把控制端打崩')
+
+/*
+ * 副标题这一栏是后加的，而且加之前它是**只写不读**的：收集会写、
+ * 文章页会显示，站长却改不了也加不了。所以这里从头走一遍——
+ * 在控制端填、保存、上线，再去读者那一侧看它有没有真的出现。
+ */
+await nCard.locator('input[id^="sh-"]').fill('这是副标题，说明案件范围')
+await page.waitForTimeout(200)
+check(!(await crashed()), '填副标题不会把控制端打崩')
+await nCard.getByRole('button', { name: '保存' }).click()
+await page.waitForTimeout(350)
+check(await nCard.locator('input[id^="sh-"]').inputValue() === '这是副标题，说明案件范围',
+  '保存之后副标题还在框里')
+
+// 正文框要够高：稿子现在动辄两三千字，十四行是个舷窗。
+const rows = await nCard.locator('textarea[id^="s-"]').getAttribute('rows')
+check(Number(rows) >= 20, `正文框至少 20 行（现在 ${rows} 行）——稿子有两三千字`)
+
+await nCard.getByRole('button', { name: /重新上线|上线/ }).first().click().catch(() => {})
+await page.waitForTimeout(400)
+})
+
+/* ------------------------------------------------------------------ *
+ * 3.5 繁简开关不能把控制端搅坏
+ *
+ * 这个开关会遍历页面上**每一个**文字节点去改它。站长编辑的时候如果开着繁体，
+ * 最坏的情况是它去动输入框里的内容——那会把他正在打的字改掉，而且是静悄悄地。
+ * 输入框的值不是文字节点，理论上碰不到，但这件事值得当场验一次而不是推理。
+ * ------------------------------------------------------------------ */
+await run('繁简开关：开着的时候控制端照常能用', async () => {
+  await page.goto(`${base}/`, { waitUntil: 'networkidle' })
+  await page.locator('.sct__btn:not([aria-pressed="true"])').click()
+  await page.waitForTimeout(2500)
+
+  await manage()
+  await page.getByRole('button', { name: /新[闻聞]/ }).first().click()
+  await page.waitForTimeout(400)
+
+  const card = page.locator('.nedit').first()
+  const typed = '繁体模式下打的字：简体应当原样留着'
+  await card.locator('textarea[id^="s-"]').fill(typed)
+  await page.waitForTimeout(600)
+  check(await card.locator('textarea[id^="s-"]').inputValue() === typed,
+    '开着繁体时，输入框里的字不能被转换器改掉')
+  check(!(await crashed()), '开着繁体时控制端不会崩')
+
+  // 标签这类界面文字应当跟着转，说明开关在控制端也是生效的。
+  const tabs = await page.locator('.clyt, body').first().innerText()
+  check(/[內數據項與繁]/.test(tabs), '控制端的界面文字也跟着转成繁体')
+
+  await page.goto(`${base}/`, { waitUntil: 'networkidle' })
+  await page.locator('.sct__btn:not([aria-pressed="true"])').click()
+  await page.waitForTimeout(400)
 })
 
 /* ------------------------------------------------------------------ *
@@ -313,9 +370,20 @@ await run('登录回调', async () => {
    * 于是 main.tsx 不再执行，takeAuthFromHash() 根本没机会跑，测出来的就是假的。
    * （这正是这个 PR 在修的那一类问题，写测试时自己也踩了一次。）
    */
+  /*
+   * 等 `domcontentloaded`，不等 `load`。
+   *
+   * `load` 要等页面上每一个外部资源都有结果，包括那张 Google 字体表。
+   * 沙箱里出不了网，那一下要挂十几秒才超时——而这里要验的提示是个
+   * 四秒半自己消失的 toast：应用零点几秒就起来了，toast 弹出来、又消失，
+   * 全都发生在 `load` 之前，等到 `load` 回来再去找，什么都找不到。
+   *
+   * 也就是说，用 `load` 的话，这条测试测的是「字体加载得快不快」，
+   * 而不是「过期链接会不会说明原因」。
+   */
   const land = async (hash) => {
     await page.goto('about:blank')
-    await page.goto(`${base.slice(0, -1)}${hash}`, { waitUntil: 'load' })
+    await page.goto(`${base.slice(0, -1)}${hash}`, { waitUntil: 'domcontentloaded' })
   }
 
   // 过期的链接必须说出来。这条路径是看得见的，所以拿它验「抢在路由前面」这件事：

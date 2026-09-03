@@ -13,6 +13,7 @@ import { build } from 'esbuild'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { stripSelfVoice, isSelfVoice, cleanLine } from './voice.mjs'
 
 const out = join(process.cwd(), 'node_modules', '.cache', 'prism-smoke')
 mkdirSync(out, { recursive: true })
@@ -29,7 +30,7 @@ const { buildInitialState, reducer, accessOf,
         contentSnapshot, PRIORITY_REGIONS, readAddress,
         blankNews, blankStudy, keyProblem, keyDanger, keyTyping, urlProblem, urlTyping,
         parsePasted, friendly, todayISO, TOPICS, weightedShuffle, recencyWeight, Prose,
-        fmtDate, fmtDateTime } = m
+        fmtDate, fmtDateTime, fetchAll } = m
 
 const results = []
 const test = async (name, fn) => {
@@ -346,7 +347,7 @@ await test('同步的是内容，不是代码', () => {
 
 /* ------------------------------ 默认设置 ------------------------------ */
 
-await test('默认就先搜站长点名的六个地区', () => {
+await test('默认就先搜站长点名的那几个地区', () => {
   const s = fresh()
   for (const r of PRIORITY_REGIONS) ok(s.collect.regions.includes(r), `默认没有包含优先地区 ${r}`)
 })
@@ -599,8 +600,10 @@ await test('综合来源要靠关键词筛，不能什么都收', () => {
 
 await test('地区认得出来，认不出来就用来源默认的', () => {
   const feed = { regions: ['global'] }
-  ok(feedparse.regionsOf({ title: 'Ruling in Taiwan', summary: '' }, feed).includes('tw'),
-    '标题里写了台湾就该归到台湾')
+  ok(feedparse.regionsOf({ title: 'Ruling in Taiwan', summary: '' }, feed).includes('jpkr'),
+    '标题里写了台湾就该归到「日韩台」')
+  ok(feedparse.regionsOf({ title: 'Ottawa passes the bill', summary: '' }, feed).includes('us'),
+    '加拿大归到「美加」')
   eq(feedparse.regionsOf({ title: 'A general report', summary: '' }, feed)[0], 'global',
     '认不出来时退回来源本来覆盖的地区，而不是留空')
 })
@@ -1488,9 +1491,20 @@ await test('世界地图：每个地区都在，没有国家被分到两处', ()
   ok(paths.length >= 10, `地图上只有 ${paths.length} 块，太少了`)
   for (const [, k, d] of paths) ok(d.length > 100, `地区「${k}」的路径短得不像真的（${d.length} 个字符）`)
 
-  // 没有对应地区的陆地要画出来，但要画成灰的、点不动的。
-  ok(/MAP_REST\s*=\s*"M/.test(map), '没有对应地区的陆地也要画，否则地图上会缺一块')
+  /*
+   * 没有对应地区的陆地。
+   *
+   * 站长把加拿大并进「美加」、格陵兰划给欧洲之后，地球上每一块陆地都归了队，
+   * MAP_REST 因此是 null——这是对的，不是漏了。要钉住的是另一件事：
+   * 它**要么是一条真路径，要么是 null**，绝不能是空字符串或者 undefined
+   * ——那两种会让组件画出一个没有 d 的 <path>，在某些浏览器上是一个警告，
+   * 在另一些上是一块乱涂。而且画的那一笔必须点不动。
+   */
+  const rest = map.match(/MAP_REST\s*=\s*(null|"[^"]*")/)
+  ok(rest, 'MAP_REST 要么是路径要么是 null')
+  ok(rest[1] === 'null' || rest[1].startsWith('"M'), `MAP_REST 不能是空字符串（现在是 ${rest[1].slice(0, 20)}）`)
   const cmp = readFileSync(join(process.cwd(), 'src/components/site/RegionMap.tsx'), 'utf8')
+  ok(/MAP_REST && <path/.test(cmp), 'MAP_REST 是空的时候不能还画一个没有 d 的 <path>')
   ok(/rmap__rest/.test(cmp) && /pointer-events/.test(readFileSync(join(process.cwd(), 'src/components/site/RegionMap.css'), 'utf8')),
     '灰色那块要点不动——这个站确实不覆盖那里，让它可点是骗人')
 
@@ -1743,8 +1757,22 @@ await test('两场定时收集：时间对得上，研究只在早上收', () =>
    *       只是白花一次钱。这一条就是为了钉住那两处必须一起改。
    */
   const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
-  const crons = [...yml.matchAll(/- cron: '(\d+) (\d+) \* \* \*'/g)].map((m) => ({ min: +m[1], hour: +m[2] }))
-  eq(crons.length, 2, '应当有两场')
+
+  /*
+   * 注释掉的也要检查。
+   *
+   * 站长 2026-09-02 要求先关掉自动收集，所以现在 schedule 那一段是注释。
+   * 但**关着不等于可以写错**：等他说「可以开了」的时候，去掉几个 # 就直接
+   * 生效，那时候没有人会再去核一遍时区。所以这条测试连注释里的 cron 一起看，
+   * 让那两个时间在关着的时候也是对的。
+   */
+  const crons = [...yml.matchAll(/^\s*#?\s*- cron: '(\d+) (\d+) \* \* \*'/gm)]
+    .map((m) => ({ min: +m[1], hour: +m[2] }))
+  eq(crons.length, 2, '应当有两场（注释掉的也算）')
+
+  // 现在应当是关着的。开着的话这里会提醒一句——不是错误，是让人知道状态变了。
+  const live = /^\s*schedule:/m.test(yml)
+  ok(!live || crons.length === 2, '自动收集开着的时候，两场都要在')
 
   // UTC + 8 = 北京时间
   const beijing = crons.map((c) => (c.hour + 8) % 24).sort((a, b) => a - b)
@@ -1764,6 +1792,337 @@ await test('两场定时收集：时间对得上，研究只在早上收', () =>
   const afternoon = crons.find((c) => (c.hour + 8) % 24 === 14)
   eq(m[1], `${afternoon.min} ${afternoon.hour} * * *`,
     `分辨场次的那句话对不上真的 cron：写的是「${m[1]}」`)
+})
+
+await test('联网搜来的来源要有个像样的名字', () => {
+  /*
+   * 搜来的来源只有网址，没有名字。第一版直接把域名当名字用，结果是这样：
+   *
+   *   www.theguardian.com → Theguardian     www.bbc.co.uk → Bbc.co
+   *   news.un.org         → News.un         m.thepaper.cn → M.thepaper
+   *
+   * 这几个字会印在每一条新闻底下。「Theguardian」不是《卫报》的名字。
+   */
+  const F = feeds.FEEDS
+  const name = (u) => feedparse.outletFor(u, F)
+
+  eq(name('https://www.reuters.com/world/x'), '路透社', '大通讯社要用中文名，和站上其余来源一致')
+  eq(name('https://www.bbc.co.uk/news/y'), 'BBC', 'co.uk 是两段后缀，不能切成 Bbc.co')
+  eq(name('https://m.thepaper.cn/z'), '澎湃新闻', 'm. 这类前缀要去掉')
+  eq(name('https://thewitnesshk.com/a'), '法庭線', '我们自己订的源，用清单里的名字')
+
+  /*
+   * un.org 这一条是**先查表再查清单**的理由：我们订的是联合国新闻的
+   * 「妇女」专题，域名同样是 un.org。反过来的话，一条人权或气候的链接
+   * 会被标成「联合国新闻 · 妇女」——域名只到可注册那一层，分不出栏目。
+   */
+  eq(name('https://news.un.org/en/story/human-rights'), '联合国',
+    'un.org 要给中性的名字，不能套上某个专题的名字')
+
+  // 不认得的站也要清理干净，不能留下 www 和后缀。
+  eq(name('https://some-local-paper.example/q'), 'Some Local Paper', '不认得的也要像个名字')
+  eq(name('不是网址'), '来源', '网址坏了不能抛异常')
+
+  // 可注册域名本身
+  eq(feedparse.registrableHost('https://www.abc.net.au/news/x'), 'abc.net.au', 'net.au 也是两段')
+  eq(feedparse.registrableHost('https://apnews.com/a'), 'apnews.com', '普通的两段域名不动它')
+})
+
+await test('数据库读不出来的时候，不能把首页当成「今天没有新闻」', async () => {
+  /*
+   * 这是一份日报最难看的一种坏法：网络抖一下，首页变成「今日 0 条报道」，
+   * 而数据库里十五条好好地存着，界面上没有任何一处说过为什么。
+   *
+   * supabase-js 遇到断网、项目暂停、key 过期，都不抛异常——它把错误放进
+   * 返回值里，`data` 是 null。fetchAll 原来写的是 `news.data ?? []`，
+   * 于是「读失败」和「库是空的」变成同一件事。再往下：pull() 拿着空快照
+   * 照样 hydrate，把内存里的内容清掉，persist 再把这份空的写进 localStorage
+   * ——缓存被写脏，下次打开连旧内容都没有。
+   *
+   * 所以内容表读失败必须抛出去，让 pull() 的 catch 接住、**不要** hydrate。
+   */
+  const table = (data, error = null) => ({ data, error })
+  const db = (over = {}) => ({
+    from: (t) => {
+      const r = { news: table([]), studies: table([]), site: table(null),
+                  changes: table([]), members: table([]), ...over }[t]
+      const chain = {
+        select: () => chain, order: () => chain, eq: () => chain, limit: () => chain,
+        maybeSingle: () => Promise.resolve(r), then: (f, g) => Promise.resolve(r).then(f, g),
+      }
+      return chain
+    },
+  })
+
+  let threw = ''
+  await fetchAll(db({ news: table(null, { message: 'TypeError: Failed to fetch' }) }))
+    .catch((e) => { threw = String(e.message) })
+  ok(threw.includes('Failed to fetch'), '新闻读失败要抛出来，而且带上原因', threw)
+
+  threw = ''
+  await fetchAll(db({ studies: table(null, { message: 'project is paused' }) }))
+    .catch((e) => { threw = String(e.message) })
+  ok(threw.includes('paused'), '研究读失败也一样')
+
+  /*
+   * members 和 changes 被拒绝是**设计如此**：它们的 RLS 只放行编辑。
+   * 把这两条也当故障，等于让每一个没登录的读者都读不到东西
+   * ——同一个 bug 换个方向再犯一次。
+   */
+  const snap = await fetchAll(db({
+    members: table(null, { message: 'permission denied for table members' }),
+    changes: table(null, { message: 'permission denied for table changes' }),
+  }))
+  eq(snap.members.length, 0, '名单被 RLS 挡回来不算故障')
+  eq(snap.changes.length, 0, '日志被 RLS 挡回来不算故障')
+
+  // 库真的是空的（没有 error），那就是空的——这两件事必须分得开。
+  const empty = await fetchAll(db())
+  eq(empty.news.length, 0, '库确实是空的时候，照常返回空')
+})
+
+await test('外部字体不能挡住首屏——这个站有一半读者在墙内', () => {
+  /*
+   * <head> 里一张没下完的样式表，会同时挡住渲染和后面 script 的执行。
+   * 在能连上 Google 的地方那是几十毫秒；在连不上的地方，那是**挂着等超时**。
+   *
+   * 这个站的读者有很大一部分在中国大陆，而 fonts.googleapis.com 在那里连不上。
+   * 实测在一个没有出网的环境里，首屏因此空白了十三秒——十三秒里一个字都没有，
+   * 而内容本来就在本地，随时可以画。为了字形扣住内容，这笔账怎么算都不对。
+   *
+   * `media="print"` + onload 换回 all：照下不误，但不挡路。连不上就一直用
+   * 平台字体栈，那本来就是设计里写好的后备。
+   */
+  const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
+  const sheets = [...html.matchAll(/<link\b[^>]*rel=["']stylesheet["'][^>]*>/gs)]
+  ok(sheets.length > 0, '至少还有那张字体表——没有的话这条测试就白写了')
+  for (const [tag] of sheets) {
+    if (!/https?:/.test(tag)) continue
+    ok(/media=["']print["']/.test(tag) && /onload=/.test(tag),
+      `外部样式表必须写成不挡渲染的那种（media="print" + onload）：${tag.slice(0, 60)}`)
+  }
+})
+
+await test('还没弄清是本地还是共享之前，一条演示新闻都不能露出来', () => {
+  /*
+   * 演示数据在本地模式下是功能，在共享模式下是**假新闻**：虚构的法院、
+   * 虚构的机构，链接指向 .invalid。而 mode 的初值是 'local'，要等读完
+   * prism-config.json 才知道真相。
+   *
+   * 所以公众站那道门不能写成 `mode === 'shared' && !ready`——那段空档里
+   * 门是开的，读者第一眼看到的是一整屏排版精良的虚构新闻。只有两三百毫秒，
+   * 但那正是别人点开分享链接看到的第一眼，截图下来是假的。
+   *
+   * 同样地，一旦认出共享模式就要**立刻**把演示条目扔掉，不能等取数——
+   * 取数要是失败了，就永远等不到那一下。
+   */
+  const layout = readFileSync(join(process.cwd(), 'src/components/site/SiteLayout.tsx'), 'utf8')
+  ok(/if \(!ready\) return <SignInGate \/>/.test(layout),
+    '首屏那道门只看 ready，不能再带上 mode === \'shared\'')
+
+  const store = readFileSync(join(process.cwd(), 'src/lib/store.tsx'), 'utf8')
+  const shared = store.indexOf("setMode('shared')")
+  const clear = store.indexOf("rawDispatch({ type: 'demo-clear' })")
+  ok(shared > 0 && clear > shared && clear - shared < 400,
+    '认出共享模式之后要紧接着清掉演示条目，不能等第一次取数')
+  ok(/case 'demo-clear'/.test(store), 'reducer 里得真有这个 case')
+})
+
+await test('数据库连不上的时候，首屏不能一直停在「正在打开…」', () => {
+  /*
+   * ready 只在 pull() 的 finally 里置位。原来 pull() 的 try 是从 fetchAll
+   * 才开始的，前面 `getClient()` 的早退和 `currentWho()` 的抛错都落在外面
+   * ——两条路都到不了 finally，公众站就永远停在「正在打开…」，
+   * 一个字的解释都没有。这不是罕见路径：currentWho() 要连 Supabase 的
+   * auth 端点，墙内连不上就是这个下场。
+   *
+   * 还有一种更难缠的：不是失败，是**不回**。连不上的域名往往不立刻拒绝，
+   * 而是挂着等 TCP 超时，几十秒。所以除了 try/finally，还要一个看门狗。
+   */
+  const store = readFileSync(join(process.cwd(), 'src/lib/store.tsx'), 'utf8')
+  const pull = store.slice(store.indexOf('const pull = useCallback'),
+    store.indexOf('useEffect(() => {', store.indexOf('const pull = useCallback')))
+  const tryAt = pull.indexOf('try {')
+  ok(tryAt > 0 && tryAt < pull.indexOf('await getClient()'),
+    'getClient() 必须在 try 里面——它早退的时候 finally 才跑得到')
+  ok(/finally \{\s*setReady\(true\)/.test(pull), 'ready 要在 finally 里置位')
+  ok(/currentWho\(\)\.catch/.test(pull), '认不出身份不该挡着读内容')
+  ok(/completeLinkSignIn\(db\)\.catch/.test(store), '登录接续失败不该把取数整个跳过')
+  ok(/setTimeout\(\(\) => \{[\s\S]{0,200}setReady\(true\)/.test(store),
+    '要有看门狗：网络不回的时候也得把首屏放出来')
+})
+
+await test('「暂停对外显示」必须真的把内容挡住，不能只挂一条横幅', () => {
+  /*
+   * 控制端上写着「现在别人打开网站看不到内容，只有登录的你能看到」，
+   * 而代码里只画了一条横幅——横幅底下，全部内容照旧摆给所有人看。
+   *
+   * 一个说话不算数的紧急开关比没有这个开关更危险：站长以为已经关掉了，
+   * 于是不再采取别的处置，内容其实一条没少地挂在公网上。这个站报道的是
+   * 性暴力、跨性别权利这类题目，读者有一部分在墙内，「立刻关掉」必须真的发生。
+   */
+  const layout = readFileSync(join(process.cwd(), 'src/components/site/SiteLayout.tsx'), 'utf8')
+  ok(/if \(state\.publicOffline && !canEdit\) return <Paused \/>/.test(layout),
+    '公众站要在 publicOffline 时对非编辑直接返回「暂停」页')
+
+  // 编辑仍然要看得见——他们得看着内容决定什么时候恢复。
+  ok(/!canEdit/.test(layout), '编辑不受影响')
+
+  const copy = readFileSync(join(process.cwd(), 'src/pages/console/ManagePage.tsx'), 'utf8')
+  ok(/别人打开网站看不到内容/.test(copy), '控制端的说明和实际行为要对得上')
+})
+
+await test('地区改名之后，旧数据和旧链接不能变成死的', async () => {
+  /*
+   * 站长把台湾并进了「日韩台」、美国改成「美加」、格陵兰划给欧洲。
+   *
+   * 前两件事有历史包袱：库里已经有一批标着 `tw` 的条目，别人的聊天记录和
+   * 收藏夹里还躺着 `#/region/tw` 的链接。改分类的时候最容易忘掉的就是这些
+   * ——标签会变成一个点不开、也显示不出中文的空壳，链接会被兜底规则默默
+   * 送回首页。两种坏法都不报错，所以只能靠测试钉住。
+   */
+  const { REGION_MAP, REGION_ALIAS, regionKey, normalizeRegions, PRIORITY_REGIONS } = m
+
+  eq(REGION_MAP.jpkr.zh, '日韩台', '日韩这一格现在包含台湾')
+  eq(REGION_MAP.us.zh, '美加', '美国这一格现在包含加拿大')
+  ok(!REGION_MAP.tw, '台湾不再是单独一个地区')
+  ok(REGION_MAP.us.scope.includes('加拿大'), '说明文字要跟着改，不然读者不知道范围变了')
+
+  eq(regionKey('tw'), 'jpkr', '旧的 tw 要翻译成 jpkr')
+  eq(regionKey('cn'), 'cn', '没改过的原样返回')
+  ok(REGION_ALIAS.tw === 'jpkr', '别名表里得有这一条')
+
+  // 一条同时标着 tw 和 jpkr 的旧数据，翻译之后不能出现两个 jpkr。
+  const same = normalizeRegions(['tw', 'jpkr', 'cn'])
+  eq(same.filter((r) => r === 'jpkr').length, 1, '翻译之后要去重')
+  ok(same.includes('cn'), '别的地区不受影响')
+  ok(!normalizeRegions(['nonsense']).length, '认不出来的直接丢掉，不留空壳')
+
+  ok(!PRIORITY_REGIONS.includes('tw'), '优先扫的名单里也不能再有 tw')
+
+  // 地图那一侧：三块陆地各归各家，而且没有一块被分到两处。
+  const map = readFileSync(join(process.cwd(), 'scripts/build-map.mjs'), 'utf8')
+  const table = map.slice(map.indexOf('const REGION_OF'), map.indexOf('const SKIP'))
+  ok(/jpkr: \[[^\]]*'Taiwan'/.test(table), '台湾画进 jpkr')
+  ok(/us: \[[^\]]*'Canada'/.test(table), '加拿大画进 us')
+  ok(/eu: \[[^\]]*'Greenland'/.test(table), '格陵兰画进 eu')
+  ok(!/^\s*tw:/m.test(table), '地图上不再有单独的 tw 一块')
+
+  // 收集端的关键词要跟着搬，否则台湾和加拿大的报道会归不到任何地区。
+  const feeds = readFileSync(join(process.cwd(), 'scripts/feeds.mjs'), 'utf8')
+  const words = feeds.slice(feeds.indexOf('export const REGION_WORDS'))
+  ok(/jpkr: \[[\s\S]*?taiwan/.test(words), '台湾的关键词搬进 jpkr')
+  ok(/us: \[[\s\S]*?canada/.test(words), '加拿大的关键词进 us')
+  ok(!/^\s*tw: \[/m.test(words), 'REGION_WORDS 里不该再有 tw 这一格')
+})
+
+await test('稿子里不能出现「本站」——这个站不派记者，任何自述都是假话', () => {
+  /*
+   * 站长：「我不喜欢新闻里面的语言是『PRISM 将持续关注该案后续……』
+   * 我们不是媒体，不要再以 PRISM 自述，不要再做第一人称叙述。」
+   *
+   * 「不是媒体」是关键。这个站不打电话、不去旁听、不派人——它读别人的报道
+   * 再写中文总结。所以每一句自述都是一句白纸黑字的假话：
+   *   「PRISM 将持续关注」= 做不到的承诺（没有人在追踪，明天抓到什么算什么）
+   *   「回复本站查询时说」= 没打过的那通电话，而读者没有办法验证它
+   *
+   * 提示词里已经写死了不许这么写，这里测的是**兜底那一层**：模型是概率的，
+   * 规则是确定的。
+   */
+  const withTail = '法院本周开庭，检方指控其六年间实施性侵。\n\n'
+    + '辩方否认全部指控。PRISM 将持续关注该案后续是否进入司法程序。'
+  eq(stripSelfVoice(withTail), '法院本周开庭，检方指控其六年间实施性侵。\n\n辩方否认全部指控。',
+    '结尾那句自述要删掉，前面的报道一个字不动')
+
+  ok(isSelfVoice('市教育局回复本站查询时说，已成立调查组。'), '虚构的采访要认出来')
+  ok(isSelfVoice('我们将继续追踪这项立法的进展。'), '第一人称的承诺要认出来')
+  ok(isSelfVoice('这再次提醒我们，问题任重道远。'), '向读者说话的空话要认出来')
+
+  /*
+   * 引语里的「我们」不能碰——那是受访者说的话，是这条新闻的内容。
+   * 见到「我们」就删，会把新闻本身删掉。
+   */
+  ok(!isSelfVoice('她说：「我们等了三年，没有人回过一次电话。」'), '引语里的我们是别人在说话')
+  ok(!isSelfVoice('工会声明写道：“我们要求公开调查报告。”'), '直角引号和弯引号都要认')
+  ok(!isSelfVoice('检方认为这种相似性具有证据意义。'), '普通句子不能被误删')
+
+  // 小标题不是句子；但一个后面什么都没剩下的小标题要跟着走。
+  const withHead = '第一段。\n\n## 后续\n\nPRISM 会继续追踪。'
+  eq(stripSelfVoice(withHead), '第一段。', '删空的那一节，小标题也不能留下来悬着')
+
+  eq(cleanLine('PRISM 将持续关注'), '', '副标题和要点整条删掉')
+  eq(cleanLine('法院定于下月开庭'), '法院定于下月开庭', '正常的一行不动')
+
+  // 提示词那一侧也要钉住，否则兜底会一直在删同一种句子。
+  const ed = readFileSync(join(process.cwd(), 'scripts/editorial.mjs'), 'utf8')
+  ok(/通篇不出现叙述者/.test(ed), '红线里要写明不许出现叙述者')
+  ok(!/PRISM 会继续追踪什么/.test(ed), '「PRISM 会继续追踪什么」这条指示本身就是问题的来源')
+  ok(!/回复本站查询时说/.test(ed), '范文里不能示范一通没打过的电话')
+
+  // 收集流程真的用上了它。
+  const rw = readFileSync(join(process.cwd(), 'scripts/rewrite.mjs'), 'utf8')
+  ok(/stripSelfVoice\(String\(raw\.SUMMARY/.test(rw), '新闻正文要过这一道')
+  ok(/stripSelfVoice\(String\(raw\?\.SUMMARY/.test(rw), '研究正文也要过这一道')
+  ok(/cleanLine\(String\(raw\.SUBHEAD/.test(rw), '副标题也要过')
+})
+
+await test('各国数据：没有数据永远不能显示成零', () => {
+  /*
+   * 这是这一整页最要紧的一条规矩，而且是最容易在某次重构里悄悄失效的。
+   *
+   * 缺数据和「零个受害者」在地图上长得一模一样——一块浅色。但它们的含义
+   * 正好相反：一个是「这里没人数过」，一个是「这里没有发生」。
+   * 全世界统计能力最弱的地方，恰恰是暴力最严重的地方；把缺口画成浅色，
+   * 等于把最糟的国家画成最好的。
+   */
+  const map = readFileSync(join(process.cwd(), 'src/components/site/AtlasMap.tsx'), 'utf8')
+  ok(/url\(#amap-nodata\)/.test(map), '没有数据要画成斜纹，不是某个浅色')
+  ok(/pattern id="amap-nodata"/.test(map), '斜纹本身要定义出来')
+  ok(!/\?\?\s*0/.test(map), '地图组件里不该有 ?? 0 这种把缺失变成零的写法')
+
+  const query = readFileSync(join(process.cwd(), 'src/lib/atlas/query.ts'), 'utf8')
+  ok(!/#[0-9a-f]{0,2}(f00|0f0|ff0000|00ff00)/i.test(query), '不用红绿——那会把统计能力差读成道德评判')
+  ok(/STOPS\s*=/.test(query), '色阶要写在一个地方，别散在组件里')
+
+  // 便利样本不能推成全国人数——闸门在 build-atlas-data.mjs 里。
+  const gate = readFileSync(join(process.cwd(), 'scripts/build-atlas-data.mjs'), 'utf8')
+  ok(/convenience' && p\.count !== undefined/.test(gate), '便利样本带人数的行要被拒绝')
+  ok(/p\.derived && !p\.denominator/.test(gate), '换算出来的人数没有分母就要被拒绝')
+  ok(/没有出处的数字不要/.test(gate), '没有 sourceUrl 的行要被拒绝')
+  ok(/没写这份数据说不了什么/.test(gate), '没有 limits 的行要被拒绝')
+  ok(/自相矛盾/.test(gate), 'confidence 与 scope 冲突的行要被拒绝')
+})
+
+await test('各国数据：每个数字都带得出它的边界', () => {
+  /*
+   * 这个站整页都在讲「一个数字如果没有它的局限一起给出，就只是一个说法」。
+   * 地图是最容易让人只记住颜色的形式，所以这条规矩在这里格外要守。
+   */
+  const data = readFileSync(join(process.cwd(), 'src/lib/atlas/data.ts'), 'utf8')
+  const points = JSON.parse(data.slice(data.indexOf('POINTS: DataPoint[] = ') + 22, data.indexOf('\n\nexport const FUNNEL')))
+  ok(points.length > 100, `数据点太少（${points.length}），地图会是一片空白`)
+  for (const p of points) {
+    ok(p.sourceUrl && p.sourceName, `${p.country}/${p.indicator} 没有出处`)
+    ok(p.limits, `${p.country}/${p.indicator} 没写说不了什么`)
+    ok(p.method, `${p.country}/${p.indicator} 没写调查方法`)
+    ok(p.published, `${p.country}/${p.indicator} 没写发布日期`)
+    ok(p.percent !== undefined || p.count !== undefined || p.per100k !== undefined,
+      `${p.country}/${p.indicator} 一个数值都没有`)
+    if (p.scope === 'convenience') ok(p.count === undefined, `${p.country}/${p.indicator}：便利样本不能给全国人数`)
+    if (p.derived) ok(p.denominator, `${p.country}/${p.indicator}：换算的人数要有分母`)
+  }
+
+  // 指标目录和数据对得上——写错一个 key，那条数据会永远不显示，而且不报错。
+  const cat = readFileSync(join(process.cwd(), 'src/lib/atlas/indicators.ts'), 'utf8')
+  const known = new Set([...cat.matchAll(/\{ key: '([a-z0-9-]+)', group:/g)].map((m) => m[1]))
+  for (const p of points) ok(known.has(p.indicator), `指标「${p.indicator}」不在目录里`)
+
+  // 不可比的指标不能被排名。
+  ok(/comparable: false/.test(cat), '要有「不可比」这个标记')
+  const page = readFileSync(join(process.cwd(), 'src/pages/site/AtlasPage.tsx'), 'utf8')
+  ok(/isComparable\(indicator\)/.test(page), '排序前要先看这个指标能不能比')
+  ok(/不排名/.test(page), '不可比的时候要告诉读者为什么不排名')
+  ok(/人口多的国家绝对人数自然高/.test(page), '按人数看的时候必须提醒人口规模的影响')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

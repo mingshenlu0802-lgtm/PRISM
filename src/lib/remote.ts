@@ -13,7 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   Account, Appearance, ChangeEntry, NewsItem, Role, SiteCopy, StudyItem,
 } from './types'
-import type { RegionKey } from './regions'
+import { normalizeRegions } from './regions'
 import { TOPIC_ALIAS } from './types'
 import type { TopicKey } from './types'
 
@@ -68,7 +68,7 @@ function toNews(r: Row): NewsItem {
     subhead: (r.subhead ?? null) as string | null,
     summary: str(r.summary),
     bullets: arr<string>(r.bullets),
-    regions: arr<RegionKey>(r.regions),
+    regions: normalizeRegions(arr<string>(r.regions)),
     topics: topicsOf(r.topics),
     links: arr<NewsItem['links'][number]>(r.links),
     image: (r.image ?? undefined) as NewsItem['image'],
@@ -107,7 +107,7 @@ function toStudy(r: Row): StudyItem {
     publisher: str(r.publisher),
     kind: str(r.kind, 'report') as StudyItem['kind'],
     date: str(r.date),
-    regions: arr<RegionKey>(r.regions),
+    regions: normalizeRegions(arr<string>(r.regions)),
     topics: topicsOf(r.topics),
     summary: str(r.summary),
     limitation: str(r.limitation),
@@ -146,7 +146,12 @@ function toMember(r: Row): Member {
  * 读
  * ------------------------------------------------------------------ */
 
-/** 一次把该有的都取回来。读不到的部分留空，不让一张表的问题拖垮整页。 */
+/**
+ * 一次把该有的都取回来。
+ *
+ * 内容读不到就抛错（见下面那段长注释）；members / changes 读不到不算错，
+ * 那两张表本来就只对编辑开放，留空即可。
+ */
 export async function fetchAll(db: SupabaseClient): Promise<RemoteSnapshot> {
   const [news, studies, site, changes, members] = await Promise.all([
     db.from('news').select('*').order('published_at', { ascending: false }),
@@ -155,6 +160,36 @@ export async function fetchAll(db: SupabaseClient): Promise<RemoteSnapshot> {
     db.from('changes').select('*').order('at', { ascending: false }).limit(200),
     db.from('members').select('*').order('added_at', { ascending: true }),
   ])
+
+  /*
+   * 读不到 ≠ 没有。
+   *
+   * 这是站长在沙箱里撞见的：首页写着「今日 0 條報道」，一条新闻都没有，
+   * 而数据库里好好地存着十五条。断网、Supabase 抽风、项目暂停、key 过期——
+   * 任何一种，supabase-js 都把错误放进返回值里，`data` 是 null。
+   * 而下面这行写的是 `news.data ?? []`：**读失败被当成了「数据库是空的」**。
+   *
+   * 后果不是「这次没刷新」，是三层的：
+   *   一、pull() 拿到空快照，照样 hydrate，把内存里原有的内容清掉；
+   *   二、hydrate 之后 persist 把这份空的存进 localStorage——缓存被写脏了，
+   *       下次打开连旧内容都没有；
+   *   三、pull() 的 catch 一次都没进过，syncError 还是空字符串，
+   *       于是界面上没有任何地方说出过一个字。
+   * 一份日报，网络抖一下就变成一张白纸，而且不吭声。
+   *
+   * 所以：news / studies / site 这三张表读失败就抛出去。pull() 的 catch 会接住，
+   * 它**不 hydrate**——读者看到的还是上一次的内容，比空白诚实得多。
+   *
+   * members 和 changes 不算。它们的 RLS 本来就只放行编辑，
+   * 没登录的读者被拒绝是**设计如此**，不是故障。真按故障处理，
+   * 每个访客都会读不到任何东西——正好把上面那个 bug 换个方向再犯一次。
+   */
+  const broke = ([['news', news], ['studies', studies], ['site', site]] as const)
+    .filter(([, r]) => r.error)
+  if (broke.length > 0) {
+    const why = broke.map(([name, r]) => `${name}：${r.error?.message ?? '读取失败'}`).join('；')
+    throw new Error(`没能从数据库读到内容（${why}）。页面上显示的是上一次读到的内容。`)
+  }
 
   return {
     news: (news.data ?? []).map(toNews),

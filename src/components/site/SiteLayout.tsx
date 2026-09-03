@@ -14,7 +14,7 @@ import { Icon, PrismMark, SkipLink, ToastHost, toast } from '../common'
 import { AppearanceMenu } from './AppearanceMenu'
 import { ScriptToggle } from './ScriptToggle'
 import { AccountMenu } from './AccountMenu'
-import { SignInGate } from './SignInGate'
+import { LoadFailed, Paused, SignInGate } from './SignInGate'
 import { SignInInvite } from './SignInInvite'
 import './SiteLayout.css'
 
@@ -25,8 +25,8 @@ import './SiteLayout.css'
  * 各有十几个——把它们平铺在顶部会把导航挤成一堵墙。
  */
 export default function SiteLayout(): JSX.Element {
-  const { state, consoleOpen, mode, ready } = usePrism()
-  const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'kind' | 'mobile'>('none')
+  const { state, consoleOpen, mode, ready, syncError, refresh, canEdit } = usePrism()
+  const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'mobile'>('none')
   const loc = useLocation()
 
   useEffect(() => { setMenu('none') }, [loc.pathname])
@@ -52,9 +52,44 @@ export default function SiteLayout(): JSX.Element {
 
   const liveNews = state.news.filter((n) => n.status === 'live').length
 
-  // 内容谁都能读，不需要登录——有链接就能看。这里只等第一次取数完成，
-  // 免得先闪一下空列表再跳出内容。
-  if (mode === 'shared' && !ready) return <SignInGate />
+  /*
+   * 内容谁都能读，不需要登录——有链接就能看。这里只等「第一次取数完成」，
+   * 免得先闪一下空列表再跳出内容。
+   *
+   * 条件里**不能**带 `mode === 'shared'`。mode 的初值是 'local'，而它要等
+   * 读完 prism-config.json 才知道到底是哪一种；带上这个条件，那段空档里
+   * 门是开着的，读者会看到一整屏演示数据——十二条虚构的判决和机构，
+   * 排版和真新闻一模一样。虽然只有两三百毫秒，但那正是别人点开链接
+   * 看到的第一眼，而且截图下来是假的。
+   *
+   * 本地模式下 ready 也很快：getClient() 认出没有配置就立刻置位，
+   * 代价是一瞬间的「正在打开…」——比一瞬间的假新闻便宜得多。
+   */
+  if (!ready) return <SignInGate />
+
+  /*
+   * 取数失败、而且一条内容都没有——那就明说，别装作今天没有新闻。
+   *
+   * `ready` 在 finally 里置位，成功失败都会放行渲染。于是读不到数据库的时候，
+   * 读者拿到的是一张排版完好的首页，上面写着「今日 0 条报道」。
+   * 这句话读起来完全正常，也完全是假的：内容好好地在库里，只是这台设备
+   * 现在够不着。对一份日报来说，这是最坏的一种坏法——它不像坏了。
+   *
+   * 手里还有上一次的内容就不拦（陈旧胜过空白）；一条都没有才顶上来。
+   */
+  const nothing = state.news.length === 0 && state.studies.length === 0
+  if (mode === 'shared' && syncError && nothing) return <LoadFailed onRetry={refresh} />
+
+  /*
+   * 「暂停对外显示」得真的暂停。
+   *
+   * 这里原来只有下面那条横幅——横幅底下，全部内容照旧给所有人看。而控制端上
+   * 写的是「现在别人打开网站看不到内容」。一个说话不算数的紧急开关比没有更糟：
+   * 站长以为关掉了，于是不再做别的处置，内容其实一条没少地挂在公网上。
+   *
+   * 编辑不受影响——他们要能看着内容决定什么时候恢复，横幅照旧提醒着状态。
+   */
+  if (state.publicOffline && !canEdit) return <Paused />
 
   return (
     <div className="slyt">
@@ -70,7 +105,7 @@ export default function SiteLayout(): JSX.Element {
           <span className="slyt__date">{fmtDate(state.today)}</span>
 
           <nav className="slyt__nav" aria-label="主导航">
-            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/" end>今日</NavLink>
+            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/" end>首页</NavLink>
 
             <div className="slyt__drop">
               <button
@@ -103,7 +138,7 @@ export default function SiteLayout(): JSX.Element {
                 aria-expanded={menu === 'topic'}
                 onClick={() => setMenu((m) => (m === 'topic' ? 'none' : 'topic'))}
               >
-                议题 <Icon name="chevron-down" size={13} />
+                议题与研究 <Icon name="chevron-down" size={13} />
               </button>
               {menu === 'topic' && (
                 <div className="slyt__panel" role="menu">
@@ -118,31 +153,21 @@ export default function SiteLayout(): JSX.Element {
                       </Link>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
 
-            {/*
-              * 研究与数据也给一个下拉。
-              *
-              * 站长：「研究与数据也要有各类分类。」它一直有筛选，但那些筛选
-              * 在页面里、要滚下去才看得到；导航上它是一个光秃秃的链接，
-              * 旁边两个都能展开——读者自然会以为这一栏没有分类。
-              *
-              * 分的是**类型**，不是议题：一份同行评审的论文和一份倡议机构的
-              * 报告，可信的程度不一样，而这正是这一页存在的理由。
-              */}
-            <div className="slyt__drop">
-              <button
-                type="button"
-                className={cx('slyt__link', 'slyt__dropbtn', menu === 'kind' && 'slyt__link--on')}
-                aria-expanded={menu === 'kind'}
-                onClick={() => setMenu((m) => (m === 'kind' ? 'none' : 'kind'))}
-              >
-                研究与数据 <Icon name="chevron-down" size={13} />
-              </button>
-              {menu === 'kind' && (
-                <div className="slyt__panel" role="menu">
+                  {/*
+                    * 研究与数据并进这一个下拉里。
+                    *
+                    * 站长要的。它原来是导航上单独一栏，可是顶栏有五项的时候，
+                    * 「议题」和「研究与数据」看上去像两条平行的路——其实读者
+                    * 想的是同一件事：某个题目下有什么。分开摆，等于让人先决定
+                    * 「我要看新闻还是看研究」，而那个决定在他知道有什么之前
+                    * 是做不出来的。
+                    *
+                    * 底下这一组分的是**类型**，不是议题：一份同行评审的论文和
+                    * 一份倡议机构的报告，可信的程度不一样，而这正是那一页
+                    * 存在的理由。所以它自成一组，不跟议题混在一格里。
+                    */}
+                  <p className="slyt__panelhead">研究与数据</p>
                   <div className="slyt__panelgrid slyt__panelgrid--wide">
                     <Link className="slyt__panelitem" to="/studies" role="menuitem">
                       <span className="slyt__panelgem" style={{ background: 'var(--fg-faint)' }} aria-hidden="true" />
@@ -164,6 +189,8 @@ export default function SiteLayout(): JSX.Element {
                 </div>
               )}
             </div>
+
+            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/data">各国数据</NavLink>
 
             <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/about">关于</NavLink>
           </nav>
@@ -209,6 +236,7 @@ export default function SiteLayout(): JSX.Element {
             <p className="slyt__sheethead">其他</p>
             <div className="slyt__sheetgrid">
               <Link className="slyt__sheetitem" to="/studies">研究与数据</Link>
+              <Link className="slyt__sheetitem" to="/data">各国数据</Link>
               <Link className="slyt__sheetitem" to="/about">关于</Link>
               {consoleOpen && <Link className="slyt__sheetitem" to="/console">控制端</Link>}
             </div>

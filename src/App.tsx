@@ -14,6 +14,8 @@ import { SignInPage } from './components/site/SignInGate'
 
 // 控制端单独打包：读者不该为一个只有站长会打开的界面下载后端 SDK。
 const ConsoleLayout = lazy(() => import('./components/console/ConsoleLayout'))
+const AtlasPage = lazy(() => import('./pages/site/AtlasPage'))
+const CountryPage = lazy(() => import('./pages/site/CountryPage'))
 const SearchPage = lazy(() => import('./pages/console/SearchPage'))
 const ManagePage = lazy(() => import('./pages/console/ManagePage'))
 
@@ -51,6 +53,14 @@ export default function App(): JSX.Element {
           <Route path="/studies/:kind" element={<StudiesPage />} />
           <Route path="/study/:slug" element={<StudyPage />} />
           <Route path="/about" element={<AboutPage />} />
+          {/*
+            * 各国数据。三级下钻：/data 是全球，/data/:continent 是洲，
+            * /country/:iso 是国家专页。地图数据有 300KB，所以整段懒加载——
+            * 只看新闻的读者一个字节都不下载。
+            */}
+          <Route path="/data" element={<Suspense fallback={<Loading />}><AtlasPage /></Suspense>} />
+          <Route path="/data/:continent" element={<Suspense fallback={<Loading />}><AtlasPage /></Suspense>} />
+          <Route path="/country/:iso" element={<Suspense fallback={<Loading />}><CountryPage /></Suspense>} />
         </Route>
 
         {/*

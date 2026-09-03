@@ -16,7 +16,16 @@ import {
   addMember, logChange, removeMember, removeNews, removeStudy,
   saveNews, saveSite, saveStudies, setMemberRole,
 } from './remote'
-import { toast } from '../components/common'
+/*
+ * 直接从 Toast 那个文件拿，不走 components/common 的桶。
+ *
+ * 桶会把二十几个组件和它们的样式一起拖进来，而这里只要一个函数。
+ * 更要紧的是**方向**：lib 依赖 components 是反的，今天还没成环只是因为
+ * common 里恰好没有一个组件 import 过 lib/store——哪天有人加了一个，
+ * 这条 import 就会变成一个只在打包后才炸的循环依赖。指到具体文件，
+ * 那条路就短到不可能绕回来。
+ */
+import { toast } from '../components/common/Toast'
 
 /*
  * 降级只说一次。
@@ -109,6 +118,7 @@ export async function mirror(
     /* 这些只影响本机，不进数据库 */
     case 'reset':
     case 'hydrate':
+    case 'demo-clear':
     case 'signin':
     case 'signout':
     case 'github':

@@ -118,7 +118,6 @@ export function NewsEditor(
           <span className="nedit__headline">{item.headline}</span>
         </button>
         <div className="nedit__badges">
-          {item.featured && <span className="nedit__badge nedit__badge--lead">头条</span>}
           {item.status === 'hidden' && <span className="nedit__badge nedit__badge--off">已下架</span>}
           {item.origin === 'editor' && <span className="nedit__badge nedit__badge--mine">你写的</span>}
           {item.origin === 'auto' && !item.editedByHuman && <span className="nedit__badge">AI 自动</span>}
@@ -308,19 +307,18 @@ export function NewsEditor(
             </button>
           </div>
 
+          {/*
+            * 「设为头条」没有了。
+            *
+            * 站长说首页不需要头条，首页那一块 lead 版式已经拿掉。留着这个按钮
+            * 就成了一个按下去什么都不会发生的开关——比没有这个按钮更糟，
+            * 因为站长会以为自己已经把某条推到了最上面。
+            *
+            * `featured` 这个字段本身留着：数据库里已经有值，删列要迁移，
+            * 而留着一个没人读的布尔值不花任何代价。哪天首页又要头条，
+            * 数据还在。
+            */}
           <div className="nedit__actions">
-            {item.featured ? (
-              <button type="button" className="nedit__act nedit__act--lead" disabled={!canEdit}
-                onClick={() => { dispatch({ type: 'news-feature', id: item.id, on: false, who }); toast('已取消头条。首页会用最新的一条顶上。', 'info') }}>
-                <Icon name="star" size={14} />取消头条
-              </button>
-            ) : (
-              <button type="button" className="nedit__act" disabled={!canEdit || item.status !== 'live'}
-                title={item.status !== 'live' ? '下架的条目不能当头条，先重新上线' : undefined}
-                onClick={() => { dispatch({ type: 'news-feature', id: item.id, on: true, who }); toast('已设为头条，原来的头条自动让位。', 'go') }}>
-                <Icon name="star" size={14} />设为头条
-              </button>
-            )}
             {item.status === 'live' ? (
               <button type="button" className="nedit__act" disabled={!canEdit}
                 onClick={() => { dispatch({ type: 'news-hide', id: item.id, who }); toast('已下架，公众站看不到了。随时可以恢复。', 'info') }}>

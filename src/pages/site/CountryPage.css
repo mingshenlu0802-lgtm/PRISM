@@ -1,0 +1,110 @@
+.cpage { display: grid; gap: var(--s-6); padding-bottom: var(--s-9); }
+
+.cpage__back {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 40px; font-size: var(--fs-xs); color: var(--fg-muted); width: fit-content;
+}
+.cpage__back:hover { color: var(--fg); }
+
+.cpage__head { display: grid; gap: 4px; }
+.cpage__title { font-size: var(--fs-3xl); letter-spacing: -0.02em; }
+.cpage__sub { font-size: var(--fs-xs); color: var(--fg-subtle); }
+
+/* 没有数据的时候，说清楚「没有数据」是什么意思——这是这一页最重要的一句话。 */
+.cpage__none {
+  display: grid; gap: var(--s-2);
+  padding: var(--s-6);
+  border: var(--bw) dashed var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunk);
+}
+.cpage__nonetitle { font-size: var(--fs-md); font-weight: 660; }
+.cpage__nonenote { font-size: var(--fs-xs); line-height: 1.85; color: var(--fg-muted); max-width: 62ch; }
+
+/*
+ * 卡片就是卡片大小。
+ *
+ * 原来写的是 minmax(200px, 1fr)：只有一个数字的国家（现在绝大多数国家
+ * 都只有一个）会得到一张横跨整页、里面只有「20%」三个字符的深色大块，
+ * 看上去像出了错。给一个上限，一张就是一张。
+ */
+.cpage__key {
+  display: grid; gap: var(--s-4); justify-content: start;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 340px));
+}
+.cpage__keyitem {
+  display: grid; gap: 5px; align-content: start;
+  padding: var(--s-5) var(--s-4);
+  border-radius: var(--r-md);
+  background: #14162E; color: #F4F1EA;
+}
+.cpage__keyval { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -0.02em; }
+.cpage__keylabel { font-size: var(--fs-xs); line-height: 1.7; }
+.cpage__keyone { font-size: var(--fs-2xs); opacity: .72; }
+
+.cpage__sec { display: grid; gap: var(--s-3); }
+.cpage__h2 { font-size: var(--fs-lg); letter-spacing: -0.01em; }
+.cpage__caveat {
+  margin: 0; font-size: var(--fs-2xs); line-height: 1.85; color: var(--fg-subtle); max-width: 74ch;
+}
+.cpage__caveat b { color: var(--fg); font-weight: 640; }
+
+.cpage__rows { display: grid; gap: var(--s-2); padding: 0; margin: 0; list-style: none; }
+.cpage__row {
+  padding: var(--s-3) var(--s-4);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-raised);
+}
+.cpage__rowtop { display: flex; gap: var(--s-3); align-items: baseline; justify-content: space-between; }
+.cpage__rowname { font-size: var(--fs-xs); font-weight: 560; }
+.cpage__rowval { font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cpage__more summary {
+  cursor: pointer; font-size: var(--fs-2xs); color: var(--fg-subtle);
+  padding: 8px 0; min-height: 34px; display: flex; align-items: center;
+}
+@media (pointer: coarse) { .cpage__more summary { min-height: 40px; } }
+.cpage__more[open] summary { color: var(--fg); margin-bottom: var(--s-2); }
+
+/* ------------------------------ 司法漏斗 ------------------------------ */
+.cpage__funnel { display: grid; gap: var(--s-3); padding: 0; margin: 0; list-style: none; }
+.cpage__stage { display: grid; gap: 5px; }
+.cpage__stagehead { display: flex; gap: var(--s-3); align-items: baseline; justify-content: space-between; }
+.cpage__stagename { font-size: var(--fs-xs); font-weight: 560; }
+.cpage__stageval { font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cpage__bar {
+  height: 10px; border-radius: 3px;
+  background: linear-gradient(90deg, #332C60, #7C71AE);
+  min-width: 3px;
+}
+.cpage__drop { margin: 0; font-size: var(--fs-2xs); color: var(--fg-subtle); }
+.cpage__stagenote { margin: 0; font-size: var(--fs-2xs); color: var(--fg-subtle); }
+/* 缺一级就断在那里，不插值——补出来的漏斗是假的。 */
+.cpage__stage--gap .cpage__stageval { color: var(--fg-subtle); font-weight: 400; font-size: var(--fs-xs); }
+
+/* ------------------------------ 法律状态 ------------------------------ */
+.cpage__laws { display: grid; gap: 2px; padding: 0; margin: 0; list-style: none; }
+.cpage__laws li {
+  display: flex; gap: var(--s-3); align-items: baseline; justify-content: space-between;
+  padding: 10px var(--s-3); min-height: 42px;
+  border-bottom: var(--bw) solid var(--line);
+  font-size: var(--fs-xs);
+}
+.cpage__laws span { color: var(--fg-muted); }
+.cpage__laws b { font-weight: 660; }
+.cpage__lawsrc { margin: 0; font-size: var(--fs-2xs); color: var(--fg-subtle); }
+.cpage__lawsrc a { color: var(--accent); }
+
+/* ------------------------------ 缺口清单 ------------------------------ */
+.cpage__missgroup { display: grid; gap: var(--s-2); margin-top: var(--s-3); }
+.cpage__misshead { font-size: var(--fs-2xs); font-weight: 660; color: var(--fg-subtle); }
+.cpage__miss {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 0; margin: 0; list-style: none;
+}
+.cpage__miss li {
+  padding: 5px 11px;
+  border: var(--bw) dashed var(--line);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); color: var(--fg-subtle);
+}
