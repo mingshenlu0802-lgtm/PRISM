@@ -172,13 +172,13 @@ export async function ask(system, user, opts = {}) {
 const timeoutFor = (maxTokens) => Math.max(180000, maxTokens * 30)
 
 async function raw(system, user, opts = {}) {
-  const { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens), search = false, model, effort } = opts
+  const { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens), search = false, model, effort, maxSearches } = opts
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
 
   // Claude 那条路走官方 SDK；联网搜索是它的服务端工具，只有这条路有。
   if (cfg.kind === 'anthropic') {
-    return anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, model, effort })
+    return anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, model, effort, maxSearches })
   }
 
   const ctl = new AbortController()
@@ -259,11 +259,19 @@ const anthropic = (cfg) => new Anthropic({
  * 域名黑名单挡掉聚合站和内容农场——它们会把同一条通讯社稿子复制十遍，
  * 让「五个来源」变成一个来源的五个影子。
  */
-const SEARCH_TOOLS = [
+/**
+ * `maxSearches` 让调用方就这一次多搜几轮。
+ *
+ * 日常写稿只要三次：那时候故事已经找到了，搜索是去补来源。
+ * 而**按题目找选题**是另一回事——一个题目往往要换三四种说法才问得出东西，
+ * 中文一遍、英文一遍，三次根本不够。所以那一路自己开大一点，
+ * 不影响每天那两场的开销。
+ */
+const searchTools = (maxSearches) => [
   {
     type: 'web_search_20260209',
     name: 'web_search',
-    max_uses: Number(process.env.LLM_MAX_SEARCHES ?? 3),
+    max_uses: Number(maxSearches ?? process.env.LLM_MAX_SEARCHES ?? 3),
     blocked_domains: [
       'news.google.com', 'msn.com', 'yahoo.com', 'flipboard.com',
       'newsbreak.com', 'headtopics.com', 'newsnow.co.uk', 'pressreader.com',
@@ -299,7 +307,7 @@ const SEARCH_TOOLS = [
  * 带上搜索工具时还要处理 `pause_turn`——服务端工具跑久了会先把回合还给你，
  * 把它原样接回去再发一次就能续上。不接的话稿子就断在半截。
  */
-async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, model, effort }) {
+async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, model, effort, maxSearches }) {
   const messages = [{ role: 'user', content: user }]
   const found = []
   let text = ''
@@ -335,7 +343,7 @@ async function anthropicCall(cfg, system, user, { maxTokens, timeoutMs, search, 
       thinking: { type: 'adaptive' },
       output_config: { effort: effort ?? process.env.LLM_EFFORT ?? 'high' },
     }
-    if (search) req.tools = SEARCH_TOOLS
+    if (search) req.tools = searchTools(maxSearches)
 
     const res = await withTimeout(
       anthropic(cfg).messages.stream(req).finalMessage(),

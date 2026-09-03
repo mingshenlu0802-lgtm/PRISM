@@ -74,6 +74,10 @@ on:
         description: '这一轮的临时指示（留空则用控制端里那句长期方针）'
         type: string
         default: ''
+      seek:
+        description: '按题目联网找选题（填一段中文题目；订阅里没有的地区靠它补）'
+        type: string
+        default: ''
 
 # 同时只跑一个，免得两次收集互相写重复条目。
 concurrency:
@@ -167,4 +171,7 @@ jobs:
           # 这一轮的临时指示。留空的话脚本会去读控制端里那句长期方针。
           # 分开是为了不让一次性的要求（「这轮只要中国大陆」）变成永久方针。
           COLLECT_NOTE: ${{ inputs.note }}
+          # 按题目主动搜。订阅覆盖不到的地区（比如中国内地）只能靠它补，
+          # 但它花钱，所以留空就不跑。
+          COLLECT_SEEK: ${{ inputs.seek }}
         run: node scripts/collect-feeds.mjs ${{ steps.mode.outputs.dry }}

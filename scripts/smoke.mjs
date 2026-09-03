@@ -2137,11 +2137,18 @@ await test('「什么时候更新」不能和实际状态对不上', () => {
   const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
   const live = /^\s*schedule:/m.test(yml)
   const about = readFileSync(join(process.cwd(), 'src/pages/site/AboutPage.tsx'), 'utf8')
-  const saysPaused = /自动收集[^<]*暂时停着|暂停/.test(about)
+  const search = readFileSync(join(process.cwd(), 'src/pages/console/SearchPage.tsx'), 'utf8')
+  const paused = (src) => /暂时停着/.test(src)
   if (live) {
-    ok(!saysPaused, '自动收集开着，「关于」页却写着暂停——去掉那句')
+    ok(!paused(about), '自动收集开着，「关于」页却写着暂停——去掉那句')
+    ok(!paused(search), '自动收集开着，控制端「找新闻」却写着暂停——去掉那句')
   } else {
-    ok(saysPaused, '自动收集关着，「关于」页必须说清楚，不能还承诺每天两次')
+    ok(paused(about), '自动收集关着，「关于」页必须说清楚，不能还承诺每天两次')
+    /*
+     * 控制端这一页比公众站更要命：站长会以为新闻在自己进来，
+     * 于是不去手动跑，然后奇怪为什么站上一直没有新东西。
+     */
+    ok(paused(search), '自动收集关着，控制端「找新闻」也必须说清楚')
   }
 })
 
@@ -2166,6 +2173,39 @@ await test('公众站的文案里不出现第一人称', () => {
     const hit = stripped.match(/[^\n]*我们[^\n]*/g)
     ok(!hit, `${f} 的界面文案里还有第一人称：${(hit ?? []).slice(0, 2).join(' / ')}`)
   }
+})
+
+await test('订阅覆盖不到的地区，要能按题目主动去搜', () => {
+  /*
+   * 站长要「20 条关于中国大陆的新闻」，靠订阅跑出来是 0 条。
+   * 日志说得很清楚：80 条候选，初筛留 0 条——指示没问题，问题在供给。
+   * 63 个源里只有 4 个覆盖中国内地，其中两个是综合新闻源，
+   * 那一轮它们各自贡献 0 条。
+   *
+   * 这不是那天运气差，是结构性的：内地做性别报道的媒体要么没有 RSS，
+   * 要么在墙内取不到。只靠订阅，这个站永远补不上内地这一块——
+   * 而内地恰恰是站长排在第一位的地区。
+   */
+  const seek = readFileSync(join(process.cwd(), 'scripts/seek.mjs'), 'utf8')
+  ok(/search: true/.test(seek), '找选题必须联网搜，不能靠模型凭记忆写')
+  ok(/只写你真的在搜索结果里看到的报道/.test(seek), '提示词里要写死「不许编」')
+  ok(/不要凑数/.test(seek), '找不到那么多就少写几条——凑数比少几条糟糕得多')
+  ok(/URL 必须是那篇报道本身的地址/.test(seek), '要的是报道本身，不是首页或搜索结果页')
+
+  const collect = readFileSync(join(process.cwd(), 'scripts/collect-feeds.mjs'), 'utf8')
+  ok(/COLLECT_SEEK/.test(collect), '要有一个开关，日常那两场不跑它（它花钱）')
+  ok(/seekCandidates\(SEEK/.test(collect), '搜到的候选要真的进流水线')
+  ok(/have\.has\(it\.link\)/.test(collect), '订阅里已经有的网址不能重复加一遍')
+  ok(/联网找选题失败/.test(collect), '搜不到不该让整轮收集失败——订阅那一半照常走')
+
+  // workflow 上要出得来，否则站长按不到。
+  const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
+  ok(/seek:/.test(yml) && /COLLECT_SEEK: \$\{\{ inputs\.seek \}\}/.test(yml),
+    'workflow 上要有 seek 这个输入，并且传进去')
+
+  // 找选题要比写稿多搜几轮：一个题目往往要换三四种说法才问得出东西。
+  const llm = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
+  ok(/searchTools = \(maxSearches\)/.test(llm), '搜索次数要能按调用方来，不能只有一个全局值')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

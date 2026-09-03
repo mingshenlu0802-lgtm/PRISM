@@ -39,9 +39,20 @@ export default function SearchPage(): JSX.Element {
     <div className="srch">
       <header className="srch__head">
         <h1 className="srch__title">找新闻</h1>
+        {/*
+          * 自动收集现在是**关着的**，这一页必须先说这件事。
+          *
+          * 站长要求关掉，而这里原来写着「每天跑两次」。对站长来说，这句话
+          * 比在公众站上更要命：他会以为新闻在自己进来，于是不去手动跑，
+          * 然后奇怪为什么站上一直没有新东西。
+          *
+          * scripts/smoke.mjs 里那条测试同时盯着这一页和「关于」页——
+          * 重新打开收集的时候，两处都会被提醒改回来。
+          */}
         <p className="srch__lede">
-          搜集<strong>每天跑两次</strong>（北京时间早上 6:00 和下午 2:00），
-          抓到就直接上线。这一页是给它下指示的地方，不是一个要你按的按钮。
+          自动搜集<strong>暂时停着</strong>（站长要求，网站还在开发）。
+          要跑一轮就去 GitHub 仓库的 <strong>Actions → 找新闻 → Run workflow</strong>。
+          这一页是给它下指示的地方，不是一个要你按的按钮。
         </p>
       </header>
 
@@ -57,11 +68,11 @@ export default function SearchPage(): JSX.Element {
         * 下面这些设置留着，因为它们是真的：每天那一次会读它们。
         */}
       <section className="srch__block">
-        <h2 className="srch__blocktitle">它什么时候跑</h2>
+        <h2 className="srch__blocktitle">恢复之后它怎么跑</h2>
         <ul className="srch__facts">
           <li><strong>早上 6:00</strong> — 15 条新闻 + 3 项研究</li>
           <li><strong>下午 2:00</strong> — 15 条新闻（研究一天收一次就够）</li>
-          <li>每条按编辑方针筛过、翻成中文，总结写到 <strong>1000 字左右</strong></li>
+          <li>每条按编辑方针筛过、写成中文报道，<strong>一千五到三千字</strong></li>
           <li>和站上已有内容讲同一件事的会<strong>合并</strong>，不重复占位</li>
           <li>抓到<strong>直接上线</strong>，不满意随时在「编辑 → 内容」里下架或删除</li>
         </ul>
