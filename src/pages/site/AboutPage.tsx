@@ -24,7 +24,7 @@ export default function AboutPage(): JSX.Element {
         <ol className="about__steps">
           <li><span className="about__stepn">1</span><div><strong>一篇中文报道</strong>一千五到三千字。先说发生了什么，再交代人物是谁、手里有什么权力，然后是经过、制度在哪一环失效，以及接下来会发生什么。</div></li>
           <li><span className="about__stepn">2</span><div><strong>几个要点</strong>把最容易被忽略的细节单独列出来。</div></li>
-          <li><span className="about__stepn">3</span><div><strong>媒体链接</strong>我们读过的来源列在下面，原始文件排在最前。你可以自己去核对。</div></li>
+          <li><span className="about__stepn">3</span><div><strong>媒体链接</strong>读过的来源列在下面，原始文件排在最前。你可以自己去核对。</div></li>
         </ol>
       </section>
 
@@ -35,9 +35,21 @@ export default function AboutPage(): JSX.Element {
         */}
       <section className="about__how" aria-labelledby="about-when">
         <h2 className="about__h2" id="about-when">什么时候更新</h2>
+        {/*
+          * 这一句必须和 collect.yml 里的真实状态一致。
+          *
+          * 站长 2026-09-02 让先关掉自动收集，而这一节还写着「每天两次」——
+          * 一个每天更新的承诺，写在一个已经停下来的站上，是这个站最不该
+          * 说的那种话。它不像坏了：读者会以为今天真的没有新闻。
+          *
+          * scripts/smoke.mjs 里有一条测试把这句话和 workflow 里的 schedule
+          * 绑在一起：schedule 开着而这里写「暂停」，或者 schedule 关着而
+          * 这里写「每天两次」，两种都会让测试失败。重新打开收集的时候，
+          * 那条测试会提醒改这里。
+          */}
         <p className="about__note">
-          每天两次，北京时间早上 6:00 和下午 2:00。
-          早上那一场同时收三项公开研究与数据。
+          自动收集<strong>暂时停着</strong>，网站还在开发。恢复之后是每天两次，
+          北京时间早上 6:00 和下午 2:00；早上那一场同时收三项公开研究与数据。
         </p>
       </section>
 

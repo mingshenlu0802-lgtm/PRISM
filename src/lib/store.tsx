@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react'
 import type {
   Account, Appearance, ChangeEntry, ChangeKind, CollectConfig,
-  GitHubConfig, ID, MediaLink, NewsItem, PrismState, Role, SiteCopy, StudyItem,
+  GitHubConfig, ID, MediaLink, NewsItem, PrismState, Role, SiteCopy, StudyItem, TopicKey,
 } from './types'
 
 import { buildInitialState } from './demo'
@@ -11,6 +11,7 @@ import { fetchAll, watch } from './remote'
 import { completeLinkSignIn, currentWho, onAuthChange } from './session'
 import { mirror } from './sync'
 import { normalizeRegions } from './regions'
+import { normalizeTopics } from './types'
 import type { RegionKey } from './regions'
 import { nowIso, uid } from './util'
 
@@ -386,24 +387,26 @@ function load(): PrismState {
      * 新读者看到的是对的，谁都不会怀疑是缓存。
      */
     /*
-     * 存下来的条目要过一遍地区归一。
+     * 存下来的条目要过一遍地区和议题的归一。
      *
      * 数据库那一路在 remote.ts 里已经翻译过了，本地这一路没有：站长在本地
-     * 模式下写过的稿子，`regions` 里可能还留着 `tw`。那会渲染成一个灰点、
-     * 标签就写着「tw」两个字母——不报错，只是难看又点不开。
+     * 模式下写过的稿子，`regions` 里可能还留着 `tw`，`topics` 里可能同时有
+     * `repro` 和 `rights`。前者渲染成一个灰点、标签写着「tw」两个字母；
+     * 后者会并排出现两个一模一样的「女性权益」。都不报错，只是看着像坏了。
      */
-    const fixRegions = <T extends { regions: RegionKey[] }>(list: T[]): T[] =>
+    const fixTags = <T extends { regions: RegionKey[]; topics: TopicKey[] }>(list: T[]): T[] =>
       list.map((it) => {
-        const next = normalizeRegions(it.regions)
-        return next.length === it.regions.length && next.every((r, i) => r === it.regions[i])
-          ? it : { ...it, regions: next }
+        const regions = normalizeRegions(it.regions)
+        const topics = normalizeTopics(it.topics)
+        const same = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
+        return same(regions, it.regions) && same(topics, it.topics) ? it : { ...it, regions, topics }
       })
 
     return {
       ...fresh,
       ...parsed,
-      news: fixRegions(parsed.news),
-      studies: fixRegions(parsed.studies),
+      news: fixTags(parsed.news),
+      studies: fixTags(parsed.studies),
       collect: { ...fresh.collect, ...parsed.collect },
       today: fresh.today,
       appearance: { ...fresh.appearance, ...parsed.appearance },

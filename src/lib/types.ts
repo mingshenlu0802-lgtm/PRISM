@@ -58,6 +58,24 @@ export const TOPIC_ALIAS: Record<string, TopicKey> = {
   equality: 'rights',
 }
 
+/**
+ * 把议题名归一：翻译旧名字，然后去重。
+ *
+ * 去重不是可有可无的。分类合并过（生育权 → 女性权利，平等 → 女性权利），
+ * 一条同时标着 `repro` 和 `rights` 的旧条目，翻译之后就有两个 `rights`——
+ * 卡片上会并排出现两个一模一样的「女性权益」标签。这不报错，只是看着像
+ * 出了什么毛病；而它已经真的发生了（demo/studies.ts 里有一条
+ * `topics: ['rights', 'rights']`，是上一次改名时原地替换留下的）。
+ *
+ * 数据库那一路（remote.ts 的 topicsOf）本来就用 Set 去了重，
+ * 本地缓存和内置数据这两路没有。三条路共用这一个函数，就不会再分叉。
+ */
+export function normalizeTopics(raw: readonly string[]): TopicKey[] {
+  const seen = new Set<TopicKey>()
+  for (const t of raw) seen.add((TOPIC_ALIAS[t] ?? t) as TopicKey)
+  return [...seen]
+}
+
 export interface Topic {
   key: TopicKey
   zh: string

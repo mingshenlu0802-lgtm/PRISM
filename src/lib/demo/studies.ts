@@ -20,7 +20,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'peer-reviewed',
     date: '2026-08-20',
     regions: ['cn'],
-    topics: ['rights', 'rights'],
+    topics: ['rights'],
     summary:
       '研究使用两轮时间利用调查的微观数据，估计城镇家庭中无偿照护时间的性别差距，并按有无学龄前子女、是否与父母同住分层。结果显示差距在有学龄前子女的家庭中最大，且与女性劳动参与率呈负相关。',
     limitation:
@@ -136,7 +136,7 @@ export const STUDIES: StudyItem[] = [
     kind: 'systematic-review',
     date: '2026-05-28',
     regions: ['global', 'sasia', 'africa'],
-    topics: ['rights', 'rights'],
+    topics: ['rights'],
     summary:
       '汇总多个队列研究，估计行程距离与首次产检时间之间的关联，并按收入与户籍状态分层。分层分析让「距离」与「贫困」的效应可以部分分离。',
     limitation:

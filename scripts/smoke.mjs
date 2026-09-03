@@ -2125,6 +2125,49 @@ await test('各国数据：每个数字都带得出它的边界', () => {
   ok(/人口多的国家绝对人数自然高/.test(page), '按人数看的时候必须提醒人口规模的影响')
 })
 
+await test('「什么时候更新」不能和实际状态对不上', () => {
+  /*
+   * 站长让先关掉自动收集，而「关于」页上还写着「每天两次，早上 6:00 和
+   * 下午 2:00」。一个每天更新的承诺，写在一个已经停下来的站上，是这个站
+   * 最不该说的那种话——它不像坏了，读者只会以为今天真的没有新闻。
+   *
+   * 反过来也一样：等站长说「可以开了」，去掉几个 # 就生效，那时候没有人
+   * 会记得回来改这一句。所以把两处绑在一起，哪一边先动都会被这条测试拦住。
+   */
+  const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
+  const live = /^\s*schedule:/m.test(yml)
+  const about = readFileSync(join(process.cwd(), 'src/pages/site/AboutPage.tsx'), 'utf8')
+  const saysPaused = /自动收集[^<]*暂时停着|暂停/.test(about)
+  if (live) {
+    ok(!saysPaused, '自动收集开着，「关于」页却写着暂停——去掉那句')
+  } else {
+    ok(saysPaused, '自动收集关着，「关于」页必须说清楚，不能还承诺每天两次')
+  }
+})
+
+await test('公众站的文案里不出现第一人称', () => {
+  /*
+   * 站长：「我们不是媒体，不要再以 PRISM 自述，不要再做第一人称叙述。」
+   * 稿子那一侧有 voice.mjs 兜着，写死在代码里的文案要靠这条测试。
+   *
+   * 「关于」页是最容易漏的：它讲的就是这个站自己，第一人称写起来最顺手。
+   */
+  const files = [
+    'src/lib/constants.ts',
+    'src/pages/site/AboutPage.tsx',
+    'src/pages/site/HomePage.tsx',
+    'src/components/site/SiteLayout.tsx',
+    'src/components/site/Toll.tsx',
+  ]
+  for (const f of files) {
+    const src = readFileSync(join(process.cwd(), f), 'utf8')
+    // 只看真正会显示出来的字符串和 JSX 文本，注释里讨论「我们」不算。
+    const stripped = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+    const hit = stripped.match(/[^\n]*我们[^\n]*/g)
+    ok(!hit, `${f} 的界面文案里还有第一人称：${(hit ?? []).slice(0, 2).join(' / ')}`)
+  }
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

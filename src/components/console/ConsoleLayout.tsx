@@ -15,7 +15,7 @@ import './ConsoleLayout.css'
  * 不是管理员的人到这里看到的是一扇门，不是一个处处按不动的控制端。
  */
 export default function ConsoleLayout(): JSX.Element {
-  const { state, isAdmin, isOwner, consoleOpen, mode, syncError, ready } = usePrism()
+  const { state, isAdmin, isOwner, consoleOpen, syncError, ready } = usePrism()
   const email = state.auth.email
 
   /*
@@ -80,9 +80,17 @@ export default function ConsoleLayout(): JSX.Element {
           ) : (
             <>
               <Icon name="users" size={15} />
+              {/*
+                * 本地模式只说一次。
+                *
+                * 这句话原来在页面上出现两遍：这里一条，下面还有一条黄色横幅，
+                * 内容几乎一样。两条一模一样的提示叠在一起，读者第一反应是
+                * 「是不是出错了」，第二反应是两条都不看。所以合成一条，
+                * 把下面那条里真正多出来的信息（别人看不到）搬进来。
+                */}
               <span className="clyt__hint">
-                <strong>本地模式</strong>：内容只存在这台浏览器里，所以不需要登录。
-                想让朋友也能看，去「编辑 → 账号与同步 → 让朋友也能看」。
+                <strong>本地模式</strong>：内容只存在这台浏览器里，不需要登录，别人也看不到。
+                想让朋友看到同一份，去「编辑 → 账号与同步」。
               </span>
             </>
           )}
@@ -96,20 +104,10 @@ export default function ConsoleLayout(): JSX.Element {
         </div>
       )}
 
-      {mode === 'local' && (
-        <div className="clyt__unlocked" role="status">
-          <Icon name="unlock" size={15} />
-          <span>
-            本地模式：内容只存在这台浏览器里，别人打开你的网址看到的是演示数据。
-            接上共享数据库之后，你和朋友才看得到同一份——见「编辑 → 账号与同步」。
-          </span>
-        </div>
-      )}
-
       {state.publicOffline && (
         <div className="clyt__offline" role="status">
           <Icon name="alert" size={15} />
-          <span>公众站正处于「暂停对外显示」。别人打开网站会看到空白提示，只有你能看到内容。</span>
+          <span>公众站正处于「暂停对外显示」。别人打开网站会看到一页「暂停更新」，只有登录的编辑还看得到内容。</span>
         </div>
       )}
 

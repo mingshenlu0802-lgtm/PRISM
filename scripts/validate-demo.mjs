@@ -159,6 +159,22 @@ if (leak) err(`初始状态里出现了邮箱地址：${leak[0]}`)
 if (s.auth.admins.length > 0) err('成员名单不该预置——共享模式下它来自数据库')
 if (s.github.owner) err(`GitHub 用户名不该写在代码里：${s.github.owner}`)
 
+/*
+ * 同一个标签不能出现两次。
+ *
+ * 这已经真的发生过：分类合并的时候原地把 `repro` 替换成 `rights`，
+ * 而那一条本来就有 `rights`，于是变成 ['rights', 'rights']——
+ * 卡片上并排印出两个一模一样的「女性权益」。不报错，只是看着像坏了。
+ */
+for (const list of [s.news, s.studies]) {
+  for (const it of list) {
+    const t = it.topics ?? []
+    const r = it.regions ?? []
+    if (new Set(t).size !== t.length) err(`「${it.headline ?? it.title}」的议题里有重复：${t.join(', ')}`)
+    if (new Set(r).size !== r.length) err(`「${it.headline ?? it.title}」的地区里有重复：${r.join(', ')}`)
+  }
+}
+
 for (const r of s.collect.regions) if (!REGIONS.has(r)) err(`搜集设置里的地区「${r}」不存在`)
 for (const t of s.collect.topics) if (!TOPICS.has(t)) err(`搜集设置里的议题「${t}」不存在`)
 for (const r of PRIORITY) {

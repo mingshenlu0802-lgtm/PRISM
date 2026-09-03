@@ -9,10 +9,9 @@
 
 /* 固定比例，图还没加载完也不会把下面的文字顶来顶去。 */
 .cover--feed { aspect-ratio: 16 / 9; }
-.cover--lead { aspect-ratio: 21 / 9; }
 .cover--full { aspect-ratio: 2 / 1; }
 @media (max-width: 640px) {
-  .cover--lead, .cover--full { aspect-ratio: 16 / 9; }
+  .cover--full { aspect-ratio: 16 / 9; }
 }
 
 .cover__img { width: 100%; height: 100%; object-fit: cover; display: block; }
