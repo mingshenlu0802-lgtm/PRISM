@@ -1,17 +1,16 @@
 /**
  * 地区分类。
  *
- * Ordered by search priority: the collector works down this list, so the first
- * six are the ones it sweeps first and most often. A story can carry more than
+ * Ordered by search priority: the collector works down this list, so the
+ * priority-1 ones are swept first and most often. A story can carry more than
  * one region — a Beijing ruling reported from Hong Kong belongs to both.
  */
 
 export type RegionKey =
   | 'cn'        // 中国内地
   | 'hk'        // 香港
-  | 'tw'        // 台湾
-  | 'jpkr'      // 日韩
-  | 'us'        // 美国
+  | 'jpkr'      // 日韩台
+  | 'us'        // 美加
   | 'eu'        // 欧洲
   | 'anz'       // 澳新
   | 'ru'        // 俄罗斯
@@ -36,9 +35,8 @@ export interface Region {
 export const REGIONS: Region[] = [
   { key: 'cn', zh: '中国内地', en: 'Mainland China', priority: 1, hue: 'var(--r-cn)', scope: '中国内地各省市，含中央与地方立法、司法与政策文件。' },
   { key: 'hk', zh: '香港', en: 'Hong Kong', priority: 1, hue: 'var(--r-hk)', scope: '香港特别行政区，含本地立法会、法院与公营机构材料。' },
-  { key: 'tw', zh: '台湾', en: 'Taiwan', priority: 1, hue: 'var(--r-tw)', scope: '台湾地区，含立法与司法机关公开文件。' },
-  { key: 'jpkr', zh: '日韩', en: 'Japan & Korea', priority: 1, hue: 'var(--r-jpkr)', scope: '日本与韩国。' },
-  { key: 'us', zh: '美国', en: 'United States', priority: 1, hue: 'var(--r-us)', scope: '美国联邦与各州。' },
+  { key: 'jpkr', zh: '日韩台', en: 'Japan, Korea & Taiwan', priority: 1, hue: 'var(--r-jpkr)', scope: '日本、韩国与台湾地区，含各自的立法与司法机关公开文件。' },
+  { key: 'us', zh: '美加', en: 'United States & Canada', priority: 1, hue: 'var(--r-us)', scope: '美国联邦与各州，以及加拿大联邦与各省。' },
   { key: 'eu', zh: '欧洲', en: 'Europe', priority: 1, hue: 'var(--r-eu)', scope: '欧盟成员国、英国及欧洲其他国家。' },
   { key: 'anz', zh: '澳新', en: 'Australia & NZ', priority: 2, hue: 'var(--r-anz)', scope: '澳大利亚与新西兰。' },
   { key: 'sea', zh: '东南亚', en: 'Southeast Asia', priority: 2, hue: 'var(--r-sea)', scope: '东盟十国及周边。' },
@@ -54,10 +52,38 @@ export const REGION_MAP: Record<RegionKey, Region> = Object.fromEntries(
   REGIONS.map((r) => [r.key, r]),
 ) as Record<RegionKey, Region>
 
-/** The six the collector sweeps first, in order. */
+/** The ones the collector sweeps first, in order. */
 export const PRIORITY_REGIONS: RegionKey[] = REGIONS
   .filter((r) => r.priority === 1)
   .map((r) => r.key)
+
+/**
+ * 旧的地区名 → 现在的。
+ *
+ * 台湾原来是单独一个地区，现在并进「日韩台」。可是库里已经有一批标着 `tw`
+ * 的条目，转发出去的 `#/region/tw` 链接也还在别人的聊天记录和收藏夹里。
+ * 不翻译的话，那些条目的地区标签会变成一个点不开、也显示不出中文的空壳，
+ * 那些链接会被兜底规则默默送回首页。
+ *
+ * 翻译一次，就不必为了改分类去改历史数据——议题那边（TOPIC_ALIAS）
+ * 用的是同一个办法。
+ */
+export const REGION_ALIAS: Record<string, RegionKey> = { tw: 'jpkr' }
+
+/** 把一个可能是旧名字的 key 归一。认不出来的原样返回，由调用方决定怎么办。 */
+export function regionKey(raw: string): RegionKey {
+  return (REGION_ALIAS[raw] ?? raw) as RegionKey
+}
+
+/** 一串 key 归一并去重，顺序按 REGIONS。 */
+export function normalizeRegions(raw: string[]): RegionKey[] {
+  const seen = new Set<RegionKey>()
+  for (const r of raw) {
+    const key = regionKey(r)
+    if (REGION_MAP[key]) seen.add(key)
+  }
+  return sortRegions([...seen])
+}
 
 export function regionLabel(key: RegionKey): string {
   return REGION_MAP[key]?.zh ?? key

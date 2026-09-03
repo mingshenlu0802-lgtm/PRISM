@@ -10,6 +10,8 @@ import { backendFailure, getClient, inSandboxFrame, loadConfig } from './backend
 import { fetchAll, watch } from './remote'
 import { completeLinkSignIn, currentWho, onAuthChange } from './session'
 import { mirror } from './sync'
+import { normalizeRegions } from './regions'
+import type { RegionKey } from './regions'
 import { nowIso, uid } from './util'
 
 const STORAGE_KEY = 'prism.site.v3'
@@ -383,12 +385,28 @@ function load(): PrismState {
      * 一份日报，日期由读者的缓存决定，是最糟的一种坏法：站长看到的是旧日期，
      * 新读者看到的是对的，谁都不会怀疑是缓存。
      */
+    /*
+     * 存下来的条目要过一遍地区归一。
+     *
+     * 数据库那一路在 remote.ts 里已经翻译过了，本地这一路没有：站长在本地
+     * 模式下写过的稿子，`regions` 里可能还留着 `tw`。那会渲染成一个灰点、
+     * 标签就写着「tw」两个字母——不报错，只是难看又点不开。
+     */
+    const fixRegions = <T extends { regions: RegionKey[] }>(list: T[]): T[] =>
+      list.map((it) => {
+        const next = normalizeRegions(it.regions)
+        return next.length === it.regions.length && next.every((r, i) => r === it.regions[i])
+          ? it : { ...it, regions: next }
+      })
+
     return {
       ...fresh,
       ...parsed,
+      news: fixRegions(parsed.news),
+      studies: fixRegions(parsed.studies),
+      collect: { ...fresh.collect, ...parsed.collect },
       today: fresh.today,
       appearance: { ...fresh.appearance, ...parsed.appearance },
-      collect: { ...fresh.collect, ...parsed.collect },
       auth: { ...fresh.auth, ...parsed.auth },
       github: { ...fresh.github, ...parsed.github },
       copy: { ...fresh.copy, ...parsed.copy },

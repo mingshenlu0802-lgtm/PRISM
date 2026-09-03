@@ -13,7 +13,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type {
   Account, Appearance, ChangeEntry, NewsItem, Role, SiteCopy, StudyItem,
 } from './types'
-import type { RegionKey } from './regions'
+import { normalizeRegions } from './regions'
 import { TOPIC_ALIAS } from './types'
 import type { TopicKey } from './types'
 
@@ -68,7 +68,7 @@ function toNews(r: Row): NewsItem {
     subhead: (r.subhead ?? null) as string | null,
     summary: str(r.summary),
     bullets: arr<string>(r.bullets),
-    regions: arr<RegionKey>(r.regions),
+    regions: normalizeRegions(arr<string>(r.regions)),
     topics: topicsOf(r.topics),
     links: arr<NewsItem['links'][number]>(r.links),
     image: (r.image ?? undefined) as NewsItem['image'],
@@ -107,7 +107,7 @@ function toStudy(r: Row): StudyItem {
     publisher: str(r.publisher),
     kind: str(r.kind, 'report') as StudyItem['kind'],
     date: str(r.date),
-    regions: arr<RegionKey>(r.regions),
+    regions: normalizeRegions(arr<string>(r.regions)),
     topics: topicsOf(r.topics),
     summary: str(r.summary),
     limitation: str(r.limitation),

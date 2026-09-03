@@ -2,7 +2,7 @@
 export { buildInitialState } from '../src/lib/demo/index'
 export { reducer, accessOf } from '../src/lib/store'
 export { contentSnapshot, downloadSnapshot } from '../src/lib/github'
-export { PRIORITY_REGIONS } from '../src/lib/regions'
+export { PRIORITY_REGIONS, REGION_MAP, REGION_ALIAS, regionKey, normalizeRegions } from '../src/lib/regions'
 export { paragraphs, todayISO, weightedShuffle, recencyWeight, fmtDate, fmtDateTime } from '../src/lib/util'
 export { TOPICS } from '../src/lib/constants'
 export { readAddress } from '../src/lib/address'

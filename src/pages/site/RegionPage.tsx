@@ -1,6 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { REGION_MAP } from '../../lib/regions'
-import type { RegionKey } from '../../lib/regions'
+import { REGION_MAP, regionKey } from '../../lib/regions'
 import { usePrism } from '../../lib/store'
 import { usePageTitle } from '../../lib/title'
 import { byNewest } from '../../lib/util'
@@ -12,7 +11,12 @@ import './ListPage.css'
 export default function RegionPage(): JSX.Element {
   const { key } = useParams()
   const { state } = usePrism()
-  const region = key ? REGION_MAP[key as RegionKey] : undefined
+  /*
+   * 先过一遍 regionKey：台湾并进「日韩台」之后，别人聊天记录和收藏夹里
+   * 那些 `#/region/tw` 的链接还在。不翻译的话，它们会撞上下面那句
+   * 「没有这个地区」——一条曾经好好的链接，某天突然变成一个死页面。
+   */
+  const region = key ? REGION_MAP[regionKey(key)] : undefined
   usePageTitle(region?.zh)
 
   if (!region) {

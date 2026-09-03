@@ -43,7 +43,7 @@ export const STUDIES: StudyItem[] = [
     publisher: '某大学法律与社会研究中心',
     kind: 'official-statistics',
     date: '2026-08-14',
-    regions: ['hk', 'tw', 'jpkr', 'cn'],
+    regions: ['hk', 'jpkr', 'cn'],
     topics: ['lgbtq', 'rights'],
     summary:
       '研究按统一编码规则，统计八个东亚法域完成法律性别变更所需的法定步骤数，并与实际完成率对照。编码规则与逐法域的条文引用一并公开，任何人都可以重新编码一遍。',
@@ -157,7 +157,7 @@ export const STUDIES: StudyItem[] = [
     publisher: '教育主管机关统计处',
     kind: 'official-statistics',
     date: '2026-05-10',
-    regions: ['tw'],
+    regions: ['jpkr'],
     topics: ['rights'],
     summary:
       '按县市与性别分列的中等教育入学、在学与辍学统计，附学籍登记规则与转学处理方式。以开放资料格式发布，可直接下载。',

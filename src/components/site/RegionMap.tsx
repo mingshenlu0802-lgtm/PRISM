@@ -19,7 +19,7 @@ import './RegionMap.css'
  * **无障碍：图形归图形，语义归底下那一行。**
  * SVG 整块 aria-hidden，它是给鼠标和手指用的；每个地区真正的入口是地图
  * 下面那一排链接——它们是真的 <a>，键盘走得到、读屏念得出、手指按得准。
- * 台湾和香港在这个比例尺上只有几个像素，指望人用手指点中是不诚实的。
+ * 香港在这个比例尺上只有几个像素，指望人用手指点中是不诚实的。
  */
 export function RegionMap({ counts }: { counts?: Partial<Record<RegionKey, number>> }): JSX.Element {
   const navigate = useNavigate()
@@ -43,8 +43,10 @@ export function RegionMap({ counts }: { counts?: Partial<Record<RegionKey, numbe
         focusable="false"
       >
         {/* 没有对应地区的陆地。画出来是为了让地图还像地图，但点不动——
-            这个站现在确实不覆盖那里，灰着比假装能点进去诚实。 */}
-        <path className="rmap__rest" d={MAP_REST} />
+            这个站现在确实不覆盖那里，灰着比假装能点进去诚实。
+            现在每一块陆地都归到了某个地区，MAP_REST 是空的；
+            留着这一笔，是因为将来拆分或新增地区时它随时会再有内容。 */}
+        {MAP_REST && <path className="rmap__rest" d={MAP_REST} />}
 
         {(Object.keys(MAP_PATHS) as RegionKey[]).map((k) => (
           byKey.has(k) ? <path key={k} d={MAP_PATHS[k]} {...shapeProps(k)}>

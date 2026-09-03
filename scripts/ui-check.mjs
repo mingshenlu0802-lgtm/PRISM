@@ -70,7 +70,7 @@ const ROUTES = [
   ['home', '/'],
   ['news', '/news/cn-workplace-harassment-guideline'],
   ['region-cn', '/region/cn'],
-  ['region-tw', '/region/tw'],
+  ['region-jpkr', '/region/jpkr'],
   ['topic', '/topic/sexual'],
   // 旧议题名也要能打开：分类改过，而已经转发出去的链接不该变成空页。
   ['topic-alias', '/topic/violence'],

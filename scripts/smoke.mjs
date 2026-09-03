@@ -346,7 +346,7 @@ await test('同步的是内容，不是代码', () => {
 
 /* ------------------------------ 默认设置 ------------------------------ */
 
-await test('默认就先搜站长点名的六个地区', () => {
+await test('默认就先搜站长点名的那几个地区', () => {
   const s = fresh()
   for (const r of PRIORITY_REGIONS) ok(s.collect.regions.includes(r), `默认没有包含优先地区 ${r}`)
 })
@@ -599,8 +599,10 @@ await test('综合来源要靠关键词筛，不能什么都收', () => {
 
 await test('地区认得出来，认不出来就用来源默认的', () => {
   const feed = { regions: ['global'] }
-  ok(feedparse.regionsOf({ title: 'Ruling in Taiwan', summary: '' }, feed).includes('tw'),
-    '标题里写了台湾就该归到台湾')
+  ok(feedparse.regionsOf({ title: 'Ruling in Taiwan', summary: '' }, feed).includes('jpkr'),
+    '标题里写了台湾就该归到「日韩台」')
+  ok(feedparse.regionsOf({ title: 'Ottawa passes the bill', summary: '' }, feed).includes('us'),
+    '加拿大归到「美加」')
   eq(feedparse.regionsOf({ title: 'A general report', summary: '' }, feed)[0], 'global',
     '认不出来时退回来源本来覆盖的地区，而不是留空')
 })
@@ -1488,9 +1490,20 @@ await test('世界地图：每个地区都在，没有国家被分到两处', ()
   ok(paths.length >= 10, `地图上只有 ${paths.length} 块，太少了`)
   for (const [, k, d] of paths) ok(d.length > 100, `地区「${k}」的路径短得不像真的（${d.length} 个字符）`)
 
-  // 没有对应地区的陆地要画出来，但要画成灰的、点不动的。
-  ok(/MAP_REST\s*=\s*"M/.test(map), '没有对应地区的陆地也要画，否则地图上会缺一块')
+  /*
+   * 没有对应地区的陆地。
+   *
+   * 站长把加拿大并进「美加」、格陵兰划给欧洲之后，地球上每一块陆地都归了队，
+   * MAP_REST 因此是 null——这是对的，不是漏了。要钉住的是另一件事：
+   * 它**要么是一条真路径，要么是 null**，绝不能是空字符串或者 undefined
+   * ——那两种会让组件画出一个没有 d 的 <path>，在某些浏览器上是一个警告，
+   * 在另一些上是一块乱涂。而且画的那一笔必须点不动。
+   */
+  const rest = map.match(/MAP_REST\s*=\s*(null|"[^"]*")/)
+  ok(rest, 'MAP_REST 要么是路径要么是 null')
+  ok(rest[1] === 'null' || rest[1].startsWith('"M'), `MAP_REST 不能是空字符串（现在是 ${rest[1].slice(0, 20)}）`)
   const cmp = readFileSync(join(process.cwd(), 'src/components/site/RegionMap.tsx'), 'utf8')
+  ok(/MAP_REST && <path/.test(cmp), 'MAP_REST 是空的时候不能还画一个没有 d 的 <path>')
   ok(/rmap__rest/.test(cmp) && /pointer-events/.test(readFileSync(join(process.cwd(), 'src/components/site/RegionMap.css'), 'utf8')),
     '灰色那块要点不动——这个站确实不覆盖那里，让它可点是骗人')
 
@@ -1956,6 +1969,50 @@ await test('「暂停对外显示」必须真的把内容挡住，不能只挂�
 
   const copy = readFileSync(join(process.cwd(), 'src/pages/console/ManagePage.tsx'), 'utf8')
   ok(/别人打开网站看不到内容/.test(copy), '控制端的说明和实际行为要对得上')
+})
+
+await test('地区改名之后，旧数据和旧链接不能变成死的', async () => {
+  /*
+   * 站长把台湾并进了「日韩台」、美国改成「美加」、格陵兰划给欧洲。
+   *
+   * 前两件事有历史包袱：库里已经有一批标着 `tw` 的条目，别人的聊天记录和
+   * 收藏夹里还躺着 `#/region/tw` 的链接。改分类的时候最容易忘掉的就是这些
+   * ——标签会变成一个点不开、也显示不出中文的空壳，链接会被兜底规则默默
+   * 送回首页。两种坏法都不报错，所以只能靠测试钉住。
+   */
+  const { REGION_MAP, REGION_ALIAS, regionKey, normalizeRegions, PRIORITY_REGIONS } = m
+
+  eq(REGION_MAP.jpkr.zh, '日韩台', '日韩这一格现在包含台湾')
+  eq(REGION_MAP.us.zh, '美加', '美国这一格现在包含加拿大')
+  ok(!REGION_MAP.tw, '台湾不再是单独一个地区')
+  ok(REGION_MAP.us.scope.includes('加拿大'), '说明文字要跟着改，不然读者不知道范围变了')
+
+  eq(regionKey('tw'), 'jpkr', '旧的 tw 要翻译成 jpkr')
+  eq(regionKey('cn'), 'cn', '没改过的原样返回')
+  ok(REGION_ALIAS.tw === 'jpkr', '别名表里得有这一条')
+
+  // 一条同时标着 tw 和 jpkr 的旧数据，翻译之后不能出现两个 jpkr。
+  const same = normalizeRegions(['tw', 'jpkr', 'cn'])
+  eq(same.filter((r) => r === 'jpkr').length, 1, '翻译之后要去重')
+  ok(same.includes('cn'), '别的地区不受影响')
+  ok(!normalizeRegions(['nonsense']).length, '认不出来的直接丢掉，不留空壳')
+
+  ok(!PRIORITY_REGIONS.includes('tw'), '优先扫的名单里也不能再有 tw')
+
+  // 地图那一侧：三块陆地各归各家，而且没有一块被分到两处。
+  const map = readFileSync(join(process.cwd(), 'scripts/build-map.mjs'), 'utf8')
+  const table = map.slice(map.indexOf('const REGION_OF'), map.indexOf('const SKIP'))
+  ok(/jpkr: \[[^\]]*'Taiwan'/.test(table), '台湾画进 jpkr')
+  ok(/us: \[[^\]]*'Canada'/.test(table), '加拿大画进 us')
+  ok(/eu: \[[^\]]*'Greenland'/.test(table), '格陵兰画进 eu')
+  ok(!/^\s*tw:/m.test(table), '地图上不再有单独的 tw 一块')
+
+  // 收集端的关键词要跟着搬，否则台湾和加拿大的报道会归不到任何地区。
+  const feeds = readFileSync(join(process.cwd(), 'scripts/feeds.mjs'), 'utf8')
+  const words = feeds.slice(feeds.indexOf('export const REGION_WORDS'))
+  ok(/jpkr: \[[\s\S]*?taiwan/.test(words), '台湾的关键词搬进 jpkr')
+  ok(/us: \[[\s\S]*?canada/.test(words), '加拿大的关键词进 us')
+  ok(!/^\s*tw: \[/m.test(words), 'REGION_WORDS 里不该再有 tw 这一格')
 })
 
 /* ------------------------------ 结果 ------------------------------ */
