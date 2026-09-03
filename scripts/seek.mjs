@@ -68,6 +68,12 @@ ${brief}
     search: true,
     // 找选题要多搜几轮：一个题目往往要换三四种说法才问得出东西。
     maxSearches: Number(process.env.SEEK_SEARCHES ?? 8),
+    /*
+     * 八轮搜索在一次调用里跑完，十分钟的地板（见 llm.mjs 的 timeoutFor）
+     * 通常够。这里再放宽一点：找选题一轮只跑一次，多等几分钟不影响什么，
+     * 而被超时掐掉的代价是搜索费用照付、一条也拿不到。
+     */
+    timeoutMs: Number(process.env.SEEK_TIMEOUT_MS ?? 900000),
   })
 
   return { items: parseSeek(text, feeds), found: Array.isArray(found) ? found : [] }

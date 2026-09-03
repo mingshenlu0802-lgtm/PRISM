@@ -169,10 +169,25 @@ export async function ask(system, user, opts = {}) {
  * 比实际慢，留足余量），并且不低于原来的三分钟。24000 token 就是 12 分钟。
  * 这是上限不是等待时间——正常几十秒就回来了。
  */
-const timeoutFor = (maxTokens) => Math.max(180000, maxTokens * 30)
+/*
+ * **开着联网搜索的时候，时间不由字数决定。**
+ *
+ * 上面那个公式只看要写多少字。对写稿那一路是对的：两条三千字的稿子，
+ * 输出量本来就是主要成本。但「按题目找选题」那一路输出很短
+ * （二十条，每条五行，maxTokens 4000 → 按公式只有三分钟），
+ * 而它要在**一次 API 调用里面**搜八轮——服务端工具的每一轮都是一个完整
+ * 的模型回合，八轮下来五到十分钟是正常的。
+ *
+ * 结果就是：搜索真的跑完了、钱真的花了（0.42 美元），
+ * 然后在第 180 秒被自己的超时掐掉。日志里只有一行「失败」。
+ *
+ * 所以搜索开着的时候给一个十分钟的地板。这是上限，不是等待时间。
+ */
+const timeoutFor = (maxTokens, search = false) =>
+  Math.max(search ? 600000 : 180000, maxTokens * 30)
 
 async function raw(system, user, opts = {}) {
-  const { maxTokens = 8000, timeoutMs = timeoutFor(maxTokens), search = false, model, effort, maxSearches } = opts
+  const { maxTokens = 8000, search = false, timeoutMs = timeoutFor(maxTokens, search), model, effort, maxSearches } = opts
   const cfg = resolveLlm()
   if (!cfg) throw new Error('没有可用的模型配置')
 

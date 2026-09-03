@@ -1416,7 +1416,7 @@ await test('等模型的时间要跟着要写的字数走', async () => {
    * 所以这里盯住两件事：上限确实跟着 maxTokens 走，以及超时说的是人话。
    */
   const src = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
-  ok(/timeoutFor\s*=\s*\(maxTokens\)/.test(src), '超时应当由 maxTokens 算出来，不是一个定数')
+  ok(/timeoutFor\s*=\s*\(maxTokens,/.test(src), '超时应当由 maxTokens 算出来，不是一个定数')
   ok(!/timeoutMs = 180000, maxTokens/.test(src), '不该再把 180 秒写死在参数默认值上')
 
   // 真的发一次请求，对着一台永不回话的服务器，确认它会中断并说清楚。
@@ -2254,6 +2254,25 @@ await test('搜来的选题要解析得出来——这个错只在花过钱之�
   // 空回复不能炸。
   eq(parseSeek('').length, 0, '空的就是空的')
   eq(parseSeek('模型什么都没找到。').length, 0, '不成块的文字也不能炸')
+})
+
+await test('开着联网搜索的时候，超时不能按字数算', () => {
+  /*
+   * 这一条是花了两次钱才学到的。
+   *
+   * 超时原来只看 maxTokens：`max(180 秒, maxTokens × 30ms)`。对写稿那一路
+   * 是对的——两条三千字的稿子，输出量就是主要成本。但「按题目找选题」
+   * 输出很短（二十条、每条五行，maxTokens 4000 → 只有三分钟），
+   * 而它要在**一次 API 调用里面**搜八轮，每一轮都是一个完整的模型回合。
+   *
+   * 于是：搜索真的跑完了、0.42 美元真的花了，然后在第 180 秒被自己的
+   * 超时掐掉，日志里只留一行「失败」。
+   */
+  const llm = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
+  ok(/timeoutFor = \(maxTokens, search/.test(llm), '超时要知道这一次开没开搜索')
+  ok(/search \? 600000 : 180000/.test(llm), '开着搜索的时候要有一个十分钟的地板')
+  ok(/const \{ maxTokens = 8000, search = false, timeoutMs = timeoutFor\(maxTokens, search\)/.test(llm),
+    'search 要在 timeoutMs 之前解构，否则默认值算的时候它还是 undefined')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

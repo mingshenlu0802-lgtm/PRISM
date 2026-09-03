@@ -212,13 +212,29 @@ export default function AtlasPage(): JSX.Element {
         onPick={(iso) => navigate(`/country/${iso}`)}
       />
 
-      <div className="atlas__legend">
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--lo" />低</span>
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--mid" /></span>
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--hi" />高</span>
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--none" />暂无数据</span>
-        {mode === 'count' && <span className="atlas__legenditem"><i className="atlas__bubble" />圆点大小 = 受影响人数</span>}
-      </div>
+      {/*
+        * 一个国家都没有数据的时候，不摆色阶。
+        *
+        * 切到「男性施害」或「幻想、态度与实施倾向」，现在整张图是全灰的——
+        * 那时候还印一条「低 ▨▨▨ 高」的刻度，是在给一张没有任何颜色的图
+        * 配图例。读者会以为自己哪里没点对。直接说这个指标还没有数据，
+        * 并且说清楚那意味着什么：没人测过，不是没发生。
+        */}
+      {withData === 0 ? (
+        <p className="atlas__nodata">
+          这个指标目前还没有任何国家的数据。
+          <b>这不代表没有发生</b>——它代表没有人做过、或者没有公开过可比的调查。
+          男性自陈施害、幻想与实施倾向这两类，全世界做过全国代表性调查的国家都极少。
+        </p>
+      ) : (
+        <div className="atlas__legend">
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--lo" />低</span>
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--mid" /></span>
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--hi" />高</span>
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--none" />暂无数据</span>
+          {mode === 'count' && <span className="atlas__legenditem"><i className="atlas__bubble" />圆点大小 = 受影响人数</span>}
+        </div>
+      )}
 
       </>
       )}
