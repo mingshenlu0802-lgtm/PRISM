@@ -90,26 +90,53 @@ export default function AtlasPage(): JSX.Element {
         <h1 className="atlas__title">
           {here ? CONTINENTS.find((c) => c.key === here)?.zh : '全球'}
         </h1>
-        <p className="atlas__lede">
-          按国家看女性遭受性暴力的规模与风险、男性自陈施害、社会态度、法律保护与司法流失。
-          点开一个国家看它的全部数据和出处。
-        </p>
+        {/* 南极洲没有国家，这句话在那一层是假的。 */}
+        {here !== 'antarctica' && (
+          <p className="atlas__lede">
+            按国家看女性遭受性暴力的规模与风险、男性自陈施害、社会态度、法律保护与司法流失。
+            点开一个国家看它的全部数据和出处。
+          </p>
+        )}
       </section>
 
       {/*
         * 这一条不能藏起来。地图看上去像结论，其实是一层薄薄的、
         * 高度不均匀的证据——说清楚它是什么，读者才用得对。
+        * 南极洲那一层没有地图，这条也就没有对象。
         */}
-      <p className="atlas__warn">
-        <Icon name="alert" size={14} />
-        <span>
-          这张图仍在建设中：底层用的是世界卫生组织的国家模型估计，其余指标多数国家还没有数据。
-          <b>灰色斜纹代表「没有数据」，不代表零。</b>
-          每个数字都附来源与边界，引用前请打开原始来源核对。
-        </span>
-      </p>
+      {here !== 'antarctica' && (
+        <p className="atlas__warn">
+          <Icon name="alert" size={14} />
+          <span>
+            这张图仍在建设中：底层用的是世界卫生组织的国家模型估计，其余指标多数国家还没有数据。
+            <b>灰色斜纹代表「没有数据」，不代表零。</b>
+            每个数字都附来源与边界，引用前请打开原始来源核对。
+          </span>
+        </p>
+      )}
 
-      {world.length > 0 && (
+      {/*
+        * 南极洲到此为止。
+        *
+        * 那里没有主权国家，也没有可比的人口数据——给它一个指标下拉、
+        * 一个「按人数/按比例」的切换、一张空地图和一份空国家列表，
+        * 是把一整套界面摆出来假装还有东西可看。说清楚就结束。
+        */}
+      {here === 'antarctica' ? (
+        <p className="atlas__empty">
+          南极洲无主权国家及可比人口数据，因此这一层没有内容。
+        </p>
+      ) : (
+        <>
+
+      {/*
+        * 全球那几个数字只在全球视图上出现。
+        *
+        * 它原来每一层都跟着，于是七个洲的页面顶上印着同样五张卡片——
+        * 读者点进「亚洲」，先看到的还是全球的数字，要划过一屏才到亚洲。
+        * 点进一个洲就是想看那个洲。
+        */}
+      {!here && world.length > 0 && (
         <section className="atlas__global" aria-label="全球数字">
           <h2 className="atlas__h2">全球</h2>
           <ul className="atlas__globallist">
@@ -185,13 +212,32 @@ export default function AtlasPage(): JSX.Element {
         onPick={(iso) => navigate(`/country/${iso}`)}
       />
 
-      <div className="atlas__legend">
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--lo" />低</span>
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--mid" /></span>
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--hi" />高</span>
-        <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--none" />暂无数据</span>
-        {mode === 'count' && <span className="atlas__legenditem"><i className="atlas__bubble" />圆点大小 = 受影响人数</span>}
-      </div>
+      {/*
+        * 一个国家都没有数据的时候，不摆色阶。
+        *
+        * 切到「男性施害」或「幻想、态度与实施倾向」，现在整张图是全灰的——
+        * 那时候还印一条「低 ▨▨▨ 高」的刻度，是在给一张没有任何颜色的图
+        * 配图例。读者会以为自己哪里没点对。直接说这个指标还没有数据，
+        * 并且说清楚那意味着什么：没人测过，不是没发生。
+        */}
+      {withData === 0 ? (
+        <p className="atlas__nodata">
+          这个指标目前还没有任何国家的数据。
+          <b>这不代表没有发生</b>——它代表没有人做过、或者没有公开过可比的调查。
+          男性自陈施害、幻想与实施倾向这两类，全世界做过全国代表性调查的国家都极少。
+        </p>
+      ) : (
+        <div className="atlas__legend">
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--lo" />低</span>
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--mid" /></span>
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--hi" />高</span>
+          <span className="atlas__legenditem"><i className="atlas__swatch atlas__swatch--none" />暂无数据</span>
+          {mode === 'count' && <span className="atlas__legenditem"><i className="atlas__bubble" />圆点大小 = 受影响人数</span>}
+        </div>
+      )}
+
+      </>
+      )}
 
       <nav className="atlas__conts" aria-label="按洲看">
         <Link className={cx('atlas__cont', !here && 'atlas__cont--on')} to="/data">全球</Link>
@@ -202,10 +248,7 @@ export default function AtlasPage(): JSX.Element {
         ))}
       </nav>
 
-      {here === 'antarctica' && (
-        <p className="atlas__empty">南极洲无主权国家及可比人口数据。</p>
-      )}
-
+      {here !== 'antarctica' && (
       <section className="atlas__list" aria-labelledby="atlas-list">
         <div className="atlas__listhead">
           <h2 className="atlas__h2" id="atlas-list">
@@ -260,6 +303,7 @@ export default function AtlasPage(): JSX.Element {
           <p className="atlas__noresult">没有匹配「{q.trim()}」的国家。</p>
         )}
       </section>
+      )}
     </div>
   )
 }

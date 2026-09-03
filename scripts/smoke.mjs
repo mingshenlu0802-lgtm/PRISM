@@ -14,6 +14,7 @@ import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { stripSelfVoice, isSelfVoice, cleanLine } from './voice.mjs'
+import { parseSeek } from './seek.mjs'
 
 const out = join(process.cwd(), 'node_modules', '.cache', 'prism-smoke')
 mkdirSync(out, { recursive: true })
@@ -1415,7 +1416,7 @@ await test('等模型的时间要跟着要写的字数走', async () => {
    * 所以这里盯住两件事：上限确实跟着 maxTokens 走，以及超时说的是人话。
    */
   const src = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
-  ok(/timeoutFor\s*=\s*\(maxTokens\)/.test(src), '超时应当由 maxTokens 算出来，不是一个定数')
+  ok(/timeoutFor\s*=\s*\(maxTokens,/.test(src), '超时应当由 maxTokens 算出来，不是一个定数')
   ok(!/timeoutMs = 180000, maxTokens/.test(src), '不该再把 180 秒写死在参数默认值上')
 
   // 真的发一次请求，对着一台永不回话的服务器，确认它会中断并说清楚。
@@ -2137,11 +2138,18 @@ await test('「什么时候更新」不能和实际状态对不上', () => {
   const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
   const live = /^\s*schedule:/m.test(yml)
   const about = readFileSync(join(process.cwd(), 'src/pages/site/AboutPage.tsx'), 'utf8')
-  const saysPaused = /自动收集[^<]*暂时停着|暂停/.test(about)
+  const search = readFileSync(join(process.cwd(), 'src/pages/console/SearchPage.tsx'), 'utf8')
+  const paused = (src) => /暂时停着/.test(src)
   if (live) {
-    ok(!saysPaused, '自动收集开着，「关于」页却写着暂停——去掉那句')
+    ok(!paused(about), '自动收集开着，「关于」页却写着暂停——去掉那句')
+    ok(!paused(search), '自动收集开着，控制端「找新闻」却写着暂停——去掉那句')
   } else {
-    ok(saysPaused, '自动收集关着，「关于」页必须说清楚，不能还承诺每天两次')
+    ok(paused(about), '自动收集关着，「关于」页必须说清楚，不能还承诺每天两次')
+    /*
+     * 控制端这一页比公众站更要命：站长会以为新闻在自己进来，
+     * 于是不去手动跑，然后奇怪为什么站上一直没有新东西。
+     */
+    ok(paused(search), '自动收集关着，控制端「找新闻」也必须说清楚')
   }
 })
 
@@ -2166,6 +2174,105 @@ await test('公众站的文案里不出现第一人称', () => {
     const hit = stripped.match(/[^\n]*我们[^\n]*/g)
     ok(!hit, `${f} 的界面文案里还有第一人称：${(hit ?? []).slice(0, 2).join(' / ')}`)
   }
+})
+
+await test('订阅覆盖不到的地区，要能按题目主动去搜', () => {
+  /*
+   * 站长要「20 条关于中国大陆的新闻」，靠订阅跑出来是 0 条。
+   * 日志说得很清楚：80 条候选，初筛留 0 条——指示没问题，问题在供给。
+   * 63 个源里只有 4 个覆盖中国内地，其中两个是综合新闻源，
+   * 那一轮它们各自贡献 0 条。
+   *
+   * 这不是那天运气差，是结构性的：内地做性别报道的媒体要么没有 RSS，
+   * 要么在墙内取不到。只靠订阅，这个站永远补不上内地这一块——
+   * 而内地恰恰是站长排在第一位的地区。
+   */
+  const seek = readFileSync(join(process.cwd(), 'scripts/seek.mjs'), 'utf8')
+  ok(/search: true/.test(seek), '找选题必须联网搜，不能靠模型凭记忆写')
+  ok(/只写你真的在搜索结果里看到的报道/.test(seek), '提示词里要写死「不许编」')
+  ok(/不要凑数/.test(seek), '找不到那么多就少写几条——凑数比少几条糟糕得多')
+  ok(/URL 必须是那篇报道本身的地址/.test(seek), '要的是报道本身，不是首页或搜索结果页')
+
+  const collect = readFileSync(join(process.cwd(), 'scripts/collect-feeds.mjs'), 'utf8')
+  ok(/COLLECT_SEEK/.test(collect), '要有一个开关，日常那两场不跑它（它花钱）')
+  ok(/seekCandidates\(SEEK/.test(collect), '搜到的候选要真的进流水线')
+  ok(/have\.has\(it\.link\)/.test(collect), '订阅里已经有的网址不能重复加一遍')
+  ok(/联网找选题失败/.test(collect), '搜不到不该让整轮收集失败——订阅那一半照常走')
+
+  // workflow 上要出得来，否则站长按不到。
+  const yml = readFileSync(join(process.cwd(), '.github/workflows/collect.yml'), 'utf8')
+  ok(/seek:/.test(yml) && /COLLECT_SEEK: \$\{\{ inputs\.seek \}\}/.test(yml),
+    'workflow 上要有 seek 这个输入，并且传进去')
+
+  // 找选题要比写稿多搜几轮：一个题目往往要换三四种说法才问得出东西。
+  const llm = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
+  ok(/searchTools = \(maxSearches\)/.test(llm), '搜索次数要能按调用方来，不能只有一个全局值')
+})
+
+await test('搜来的选题要解析得出来——这个错只在花过钱之后才暴露', () => {
+  /*
+   * 第一版把 splitBlocks 返回的 `{i, body}` 整个传给了 parseBlock，
+   * 而它要的是正文字符串。跑起来必然抛 `body.split is not a function`，
+   * 但调用方 catch 掉了它，日志里只有一行「联网找选题失败」——
+   * 那一轮八次搜索照付了 0.42 美元，一条也没进来。
+   *
+   * 一个只在真的联网、真的花钱之后才会暴露的错误，必须有一条不花钱的
+   * 测试盯着。所以解析那一段单独拿出来，在这里喂它一段假的回复。
+   */
+  const text = [
+    '===ITEM 0===',
+    'TITLE: 某地法院就一起职场性骚扰案作出一审判决',
+    'URL: https://www.thepaper.cn/newsDetail_forward_123',
+    'OUTLET: 澎湃新闻',
+    'DATE: 2026-08-30',
+    'WHY: 内地法院的性骚扰判决',
+    '===END 0===',
+    '===ITEM 1===',
+    'TITLE: 没有网址的一条',
+    'OUTLET: 某报',
+    '===END 1===',
+    '===ITEM 2===',
+    'TITLE: 网址重复的一条',
+    'URL: https://www.thepaper.cn/newsDetail_forward_123',
+    'OUTLET: 澎湃新闻',
+    '===END 2===',
+    '===ITEM 3===',
+    'TITLE: 网址不是 http 的',
+    'URL: 见搜索结果',
+    'OUTLET: 某报',
+    '===END 3===',
+  ].join('\n')
+
+  const out = parseSeek(text)
+  eq(out.length, 1, '只有第一条是完整可用的')
+  eq(out[0].feed.outlet, '澎湃新闻', '媒体名要取到')
+  eq(out[0].link, 'https://www.thepaper.cn/newsDetail_forward_123', '网址要取到')
+  eq(out[0].at.slice(0, 10), '2026-08-30', '日期要解析成 ISO')
+  ok(out[0].seeked, '要标出「这条是搜来的」，日志里才分得清来路')
+  ok(out[0].feed.topical, '按题目搜来的已经过了一次筛，不该再被关键词那一关刷掉')
+
+  // 空回复不能炸。
+  eq(parseSeek('').length, 0, '空的就是空的')
+  eq(parseSeek('模型什么都没找到。').length, 0, '不成块的文字也不能炸')
+})
+
+await test('开着联网搜索的时候，超时不能按字数算', () => {
+  /*
+   * 这一条是花了两次钱才学到的。
+   *
+   * 超时原来只看 maxTokens：`max(180 秒, maxTokens × 30ms)`。对写稿那一路
+   * 是对的——两条三千字的稿子，输出量就是主要成本。但「按题目找选题」
+   * 输出很短（二十条、每条五行，maxTokens 4000 → 只有三分钟），
+   * 而它要在**一次 API 调用里面**搜八轮，每一轮都是一个完整的模型回合。
+   *
+   * 于是：搜索真的跑完了、0.42 美元真的花了，然后在第 180 秒被自己的
+   * 超时掐掉，日志里只留一行「失败」。
+   */
+  const llm = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
+  ok(/timeoutFor = \(maxTokens, search/.test(llm), '超时要知道这一次开没开搜索')
+  ok(/search \? 600000 : 180000/.test(llm), '开着搜索的时候要有一个十分钟的地板')
+  ok(/const \{ maxTokens = 8000, search = false, timeoutMs = timeoutFor\(maxTokens, search\)/.test(llm),
+    'search 要在 timeoutMs 之前解构，否则默认值算的时候它还是 undefined')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

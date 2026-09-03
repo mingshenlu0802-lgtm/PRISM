@@ -195,3 +195,12 @@
 /* 宽屏上排成两列或三列：一列一百多行，眼睛要走的距离没有必要那么长。 */
 @media (min-width: 720px) { .atlas__rows { grid-template-columns: 1fr 1fr; column-gap: var(--s-5); } }
 @media (min-width: 1080px) { .atlas__rows { grid-template-columns: 1fr 1fr 1fr; } }
+
+.atlas__nodata {
+  margin: 0; padding: var(--s-4);
+  border: var(--bw) dashed var(--line);
+  border-radius: var(--r-md);
+  background: var(--bg-sunk);
+  font-size: var(--fs-xs); line-height: 1.85; color: var(--fg-muted); max-width: 74ch;
+}
+.atlas__nodata b { color: var(--fg); font-weight: 640; }

@@ -23,6 +23,7 @@ import { FEEDS, STUDY_FEEDS } from './feeds.mjs'
 import { parseFeed, topicsOf, matchedWords, outletFor, regionsOf, slugify, summaryOf, tokens, sameStory, normUrl, ogImage, articleText } from './feedparse.mjs'
 import { llmConfigured, spendReport } from './llm.mjs'
 import { rewriteAll, rewriteStudies } from './rewrite.mjs'
+import { seekCandidates } from './seek.mjs'
 
 const DRY = process.argv.includes('--dry')
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? '').replace(/\/$/, '')
@@ -335,8 +336,19 @@ if (DRY) {
  * 以为方针生效了其实没有。
  * ------------------------------------------------------------------ */
 
-/** 站长在控制端写下的本次指示。存在 site.copy.collectNote 里。 */
+/**
+ * 站长在控制端写下的本次指示。存在 site.copy.collectNote 里。
+ *
+ * `COLLECT_NOTE` 环境变量可以就这一轮盖过它。
+ *
+ * 加这个口子是因为：控制端里那句指示是**长期**方针，站长写一次管很久；
+ * 而有时候要的是一次性的（「这一轮只要中国大陆」）。让他为了跑一轮
+ * 特殊的收集去改一句长期方针、跑完再改回来，迟早会忘记改回来，
+ * 于是那句临时的话变成了永久的方针。所以临时的走临时的路。
+ */
 async function ownerNote() {
+  const once = String(process.env.COLLECT_NOTE ?? '').trim()
+  if (once) return once
   try {
     const res = await db('site?select=copy&id=eq.site')
     if (!res.ok) return ''
@@ -357,6 +369,51 @@ async function ownerNote() {
  * 现在先合并，再把这一组的**每一篇原文**都取回来交给模型。
  * 路透社写了法庭文件，卫报采访到了当事人，两边的细节都能落进同一篇稿子。
  * ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ *
+ * 搜索优先：按题目主动去找，而不只是等 RSS 送上门。
+ *
+ * 站长要「20 条关于中国大陆的新闻」，靠订阅跑出来是 0 条。原因不是那天
+ * 运气差，是结构性的：63 个源里只有 4 个覆盖中国内地，其中两个是综合
+ * 新闻源，性别题目本来就少。内地做性别报道的媒体要么没有 RSS，
+ * 要么在墙内取不到——**只靠订阅，这个站永远补不上内地这一块**，
+ * 而内地恰恰是站长排在第一位的地区。
+ *
+ * 所以：给定 COLLECT_SEEK（或 workflow 上的 seek），先让模型联网按题目
+ * 找一批，搜到的候选和订阅来的合在一起，往下走同一条流水线。
+ *
+ * 只在被明确要求时跑，因为它花钱；日常那两场靠订阅就够。
+ * ------------------------------------------------------------------ */
+const SEEK = String(process.env.COLLECT_SEEK ?? '').trim()
+if (SEEK && !DRY) {
+  const want = Math.max(MAX_ITEMS, 10)
+  console.log(`\n按题目联网找选题（要 ${want} 条）：${SEEK}`)
+  try {
+    const { items } = await seekCandidates(SEEK, want, FEEDS)
+    // 已经在订阅里出现过的网址不重复加。
+    const have = new Set(picked.map((p) => p.link))
+    const fresh = items.filter((it) => !have.has(it.link))
+    for (const it of fresh) {
+      it.topics = topicsOf({ title: it.title, summary: it.summary })
+      if (it.topics.length === 0) it.topics = ['rights']
+      it.regions = regionsOf({ title: it.title, summary: it.summary }, it.feed)
+    }
+    console.log(`  搜到 ${items.length} 条，其中 ${fresh.length} 条订阅里没有`)
+    for (const it of fresh.slice(0, 8)) console.log(`    · ${it.feed.outlet}：${it.title.slice(0, 40)}`)
+    picked.unshift(...fresh)
+  } catch (e) {
+    /*
+     * 搜不到不该让整轮收集失败——订阅那一半照常往下走。
+     *
+     * 但要**喊得响一点**。第一版这里只打一行「联网找选题失败」，
+     * 而那一轮的八次搜索已经花掉 0.42 美元。一个吞掉钱又不显眼的错误，
+     * 会一直跑下去没有人发现。::error:: 让它在 Actions 的摘要上就能看到。
+     */
+    const why = e instanceof Error ? e.message : String(e)
+    console.log(`::error::联网找选题失败（这一轮的搜索费用已经花掉了）：${why}`)
+    if (e instanceof Error && e.stack) console.log(e.stack.split('\n').slice(0, 4).join('\n'))
+  }
+}
 
 const groups = []
 for (const p of picked) {
