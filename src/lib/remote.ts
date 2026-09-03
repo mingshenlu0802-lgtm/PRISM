@@ -14,7 +14,7 @@ import type {
   Account, Appearance, ChangeEntry, NewsItem, Role, SiteCopy, StudyItem,
 } from './types'
 import { normalizeRegions } from './regions'
-import { TOPIC_ALIAS } from './types'
+import { normalizeTopics } from './types'
 import type { TopicKey } from './types'
 
 export type { Role }
@@ -49,14 +49,7 @@ const str = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : 
  * 而数据库里还留着旧名字的条目。不翻译的话，它们的标签会变成一个点不开、
  * 也显示不出中文的空壳。翻译一次，就不用为了改分类去改历史数据。
  */
-function topicsOf(raw: unknown): TopicKey[] {
-  const seen = new Set<TopicKey>()
-  for (const t of arr<string>(raw)) {
-    const key = (TOPIC_ALIAS[t] ?? t) as TopicKey
-    seen.add(key)
-  }
-  return [...seen]
-}
+const topicsOf = (raw: unknown): TopicKey[] => normalizeTopics(arr<string>(raw))
 
 function toNews(r: Row): NewsItem {
   return {

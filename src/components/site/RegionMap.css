@@ -45,30 +45,42 @@
  */
 .rmap__list {
   list-style: none;
-  display: flex; flex-wrap: wrap; gap: 6px;
+  display: flex; flex-wrap: wrap; gap: 2px var(--s-2);
+  align-items: center;
 }
+/*
+ * 这一排是**图例**，不是第二个筛选器。
+ *
+ * 它原来长得和下面那条筛选栏里的地区行一模一样：同样的胶囊、同样的圆点、
+ * 同样的计数，中间只隔一百来像素。两排几乎相同的东西叠在一起，读者第一反应
+ * 是「这里出了什么问题」，第二反应是不知道该点哪一排。
+ *
+ * 两者做的事其实不同：这一排**跳转**到那个地区的页面，下面那排是就地**筛选**。
+ * 所以不能删——手指和读屏都靠它进地图上那些几个像素大的地区。
+ * 改的是长相：去掉边框和底色，只留圆点和名字，一行小字。
+ * 它就退回成一张图的图例，而不是一排按钮。
+ */
 .rmap__chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  min-height: 36px;
-  padding: 6px var(--s-3);
-  border-radius: var(--r-pill);
-  border: var(--bw) solid var(--line);
-  background: var(--bg);
-  font-size: var(--fs-xs); font-weight: 560;
-  color: var(--fg); text-decoration: none;
-  transition: border-color .12s ease, background .12s ease;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-2xs); font-weight: 500;
+  color: var(--fg-muted); text-decoration: none;
+  transition: color .12s ease, background .12s ease;
 }
-.rmap__chip:hover { border-color: var(--accent); background: var(--bg-sunken); }
+.rmap__chip:hover { color: var(--fg); background: var(--bg-sunk); }
 .rmap__chip--bare { color: var(--fg-faint); }
 .rmap__chip--bare:hover { color: var(--fg-muted); }
 
-.rmap__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.rmap__dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .rmap__n {
   font-size: var(--fs-2xs); font-weight: 700;
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
 }
 
+/* 手指仍然要按得住——图例的字小了，可按区域不能跟着小。 */
 @media (pointer: coarse) {
-  .rmap__chip { min-height: 40px; padding-inline: var(--s-4); }
+  .rmap__chip { min-height: 40px; padding-inline: var(--s-3); }
 }

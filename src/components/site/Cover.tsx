@@ -25,7 +25,7 @@ export interface CoverProps {
   seed: string
   regions: RegionKey[]
   topics: TopicKey[]
-  variant?: 'feed' | 'full' | 'lead'
+  variant?: 'feed' | 'full'
 }
 
 export function Cover({ image, seed, regions, topics, variant = 'feed' }: CoverProps): JSX.Element {
