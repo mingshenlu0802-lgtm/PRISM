@@ -1,0 +1,29 @@
+.prov { display: grid; gap: var(--s-3); font-size: var(--fs-xs); line-height: 1.75; }
+
+.prov__facts {
+  display: grid; gap: var(--s-2) var(--s-5);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  padding: 0; margin: 0; list-style: none;
+}
+.prov__facts li { display: flex; gap: var(--s-2); align-items: baseline; justify-content: space-between; }
+.prov__facts span { color: var(--fg-subtle); }
+.prov__facts b { font-weight: 620; color: var(--fg); text-align: right; }
+
+.prov__def, .prov__limits { margin: 0; color: var(--fg-muted); }
+.prov__def b, .prov__limits b { color: var(--fg); font-weight: 620; }
+
+.prov__derived {
+  display: flex; gap: var(--s-2); align-items: flex-start;
+  margin: 0; padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--bg-sunk); color: var(--fg-muted);
+}
+.prov__derived svg { flex: none; margin-top: 3px; }
+
+.prov__src { margin: 0; color: var(--fg-subtle); }
+/* 出处那一行是要点开的，手指得按得住。 */
+.prov__src a {
+  color: var(--accent);
+  display: inline-block; padding: 6px 0;
+}
+@media (pointer: coarse) { .prov__src a { padding: 10px 0; } }

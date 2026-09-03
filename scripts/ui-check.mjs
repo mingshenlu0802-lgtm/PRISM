@@ -71,6 +71,9 @@ const ROUTES = [
   ['news', '/news/cn-workplace-harassment-guideline'],
   ['region-cn', '/region/cn'],
   ['region-jpkr', '/region/jpkr'],
+  ['atlas', '/data'],
+  ['atlas-asia', '/data/asia'],
+  ['country', '/country/CHN'],
   ['topic', '/topic/sexual'],
   // 旧议题名也要能打开：分类改过，而已经转发出去的链接不该变成空页。
   ['topic-alias', '/topic/violence'],
@@ -167,6 +170,17 @@ for (const [vpName, w, h] of VIEWPORTS) {
           const r = el.getBoundingClientRect()
           if (r.width === 0 || r.height === 0) continue          // 收起来的菜单不算
           if (el.closest('[hidden], [aria-hidden="true"]')) continue
+          /*
+           * 收起来的 <details> 里面的东西不算。
+           *
+           * Chromium 现在给收起的 details 内容用的是 content-visibility: hidden，
+           * 而不是 display: none——它的后代**还有布局盒子**，
+           * getBoundingClientRect() 返回的是一个非零的矩形。于是「来源与边界」
+           * 抽屉里那几个链接会被报成「点击目标过小」，而读者根本看不到它们。
+           * 假警报会让人开始无视整份报告，所以这一条要挡掉。
+           */
+          const det = el.closest('details')
+          if (det && !det.open && !el.closest('summary')) continue
           /*
            * 视觉上隐藏的原生控件不算。
            *

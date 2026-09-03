@@ -190,6 +190,8 @@ export default function SiteLayout(): JSX.Element {
               )}
             </div>
 
+            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/data">各国数据</NavLink>
+
             <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/about">关于</NavLink>
           </nav>
 
@@ -234,6 +236,7 @@ export default function SiteLayout(): JSX.Element {
             <p className="slyt__sheethead">其他</p>
             <div className="slyt__sheetgrid">
               <Link className="slyt__sheetitem" to="/studies">研究与数据</Link>
+              <Link className="slyt__sheetitem" to="/data">各国数据</Link>
               <Link className="slyt__sheetitem" to="/about">关于</Link>
               {consoleOpen && <Link className="slyt__sheetitem" to="/console">控制端</Link>}
             </div>

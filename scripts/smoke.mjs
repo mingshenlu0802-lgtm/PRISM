@@ -2066,6 +2066,65 @@ await test('稿子里不能出现「本站」——这个站不派记者，任�
   ok(/cleanLine\(String\(raw\.SUBHEAD/.test(rw), '副标题也要过')
 })
 
+await test('各国数据：没有数据永远不能显示成零', () => {
+  /*
+   * 这是这一整页最要紧的一条规矩，而且是最容易在某次重构里悄悄失效的。
+   *
+   * 缺数据和「零个受害者」在地图上长得一模一样——一块浅色。但它们的含义
+   * 正好相反：一个是「这里没人数过」，一个是「这里没有发生」。
+   * 全世界统计能力最弱的地方，恰恰是暴力最严重的地方；把缺口画成浅色，
+   * 等于把最糟的国家画成最好的。
+   */
+  const map = readFileSync(join(process.cwd(), 'src/components/site/AtlasMap.tsx'), 'utf8')
+  ok(/url\(#amap-nodata\)/.test(map), '没有数据要画成斜纹，不是某个浅色')
+  ok(/pattern id="amap-nodata"/.test(map), '斜纹本身要定义出来')
+  ok(!/\?\?\s*0/.test(map), '地图组件里不该有 ?? 0 这种把缺失变成零的写法')
+
+  const query = readFileSync(join(process.cwd(), 'src/lib/atlas/query.ts'), 'utf8')
+  ok(!/#[0-9a-f]{0,2}(f00|0f0|ff0000|00ff00)/i.test(query), '不用红绿——那会把统计能力差读成道德评判')
+  ok(/STOPS\s*=/.test(query), '色阶要写在一个地方，别散在组件里')
+
+  // 便利样本不能推成全国人数——闸门在 build-atlas-data.mjs 里。
+  const gate = readFileSync(join(process.cwd(), 'scripts/build-atlas-data.mjs'), 'utf8')
+  ok(/convenience' && p\.count !== undefined/.test(gate), '便利样本带人数的行要被拒绝')
+  ok(/p\.derived && !p\.denominator/.test(gate), '换算出来的人数没有分母就要被拒绝')
+  ok(/没有出处的数字不要/.test(gate), '没有 sourceUrl 的行要被拒绝')
+  ok(/没写这份数据说不了什么/.test(gate), '没有 limits 的行要被拒绝')
+  ok(/自相矛盾/.test(gate), 'confidence 与 scope 冲突的行要被拒绝')
+})
+
+await test('各国数据：每个数字都带得出它的边界', () => {
+  /*
+   * 这个站整页都在讲「一个数字如果没有它的局限一起给出，就只是一个说法」。
+   * 地图是最容易让人只记住颜色的形式，所以这条规矩在这里格外要守。
+   */
+  const data = readFileSync(join(process.cwd(), 'src/lib/atlas/data.ts'), 'utf8')
+  const points = JSON.parse(data.slice(data.indexOf('POINTS: DataPoint[] = ') + 22, data.indexOf('\n\nexport const FUNNEL')))
+  ok(points.length > 100, `数据点太少（${points.length}），地图会是一片空白`)
+  for (const p of points) {
+    ok(p.sourceUrl && p.sourceName, `${p.country}/${p.indicator} 没有出处`)
+    ok(p.limits, `${p.country}/${p.indicator} 没写说不了什么`)
+    ok(p.method, `${p.country}/${p.indicator} 没写调查方法`)
+    ok(p.published, `${p.country}/${p.indicator} 没写发布日期`)
+    ok(p.percent !== undefined || p.count !== undefined || p.per100k !== undefined,
+      `${p.country}/${p.indicator} 一个数值都没有`)
+    if (p.scope === 'convenience') ok(p.count === undefined, `${p.country}/${p.indicator}：便利样本不能给全国人数`)
+    if (p.derived) ok(p.denominator, `${p.country}/${p.indicator}：换算的人数要有分母`)
+  }
+
+  // 指标目录和数据对得上——写错一个 key，那条数据会永远不显示，而且不报错。
+  const cat = readFileSync(join(process.cwd(), 'src/lib/atlas/indicators.ts'), 'utf8')
+  const known = new Set([...cat.matchAll(/\{ key: '([a-z0-9-]+)', group:/g)].map((m) => m[1]))
+  for (const p of points) ok(known.has(p.indicator), `指标「${p.indicator}」不在目录里`)
+
+  // 不可比的指标不能被排名。
+  ok(/comparable: false/.test(cat), '要有「不可比」这个标记')
+  const page = readFileSync(join(process.cwd(), 'src/pages/site/AtlasPage.tsx'), 'utf8')
+  ok(/isComparable\(indicator\)/.test(page), '排序前要先看这个指标能不能比')
+  ok(/不排名/.test(page), '不可比的时候要告诉读者为什么不排名')
+  ok(/人口多的国家绝对人数自然高/.test(page), '按人数看的时候必须提醒人口规模的影响')
+})
+
 /* ------------------------------ 结果 ------------------------------ */
 
 const failed = results.filter(([passed]) => !passed)

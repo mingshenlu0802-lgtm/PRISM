@@ -1,0 +1,42 @@
+/*
+ * 冷峻、克制。站长的话。
+ *
+ * 一个色相，从浅砂到深靛，明度单调下降——色盲也读得出顺序。
+ * 没有红绿：红绿会把「这个国家很糟」变成一句价值判断，
+ * 而这张图上的深色往往只说明那个国家做过一次认真的全国调查。
+ */
+.amap {
+  --amap-blank: var(--bg-sunk, #EDE8DF);
+  --amap-hatch: color-mix(in srgb, var(--fg) 18%, transparent);
+  border: var(--bw) solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--bg-raised);
+  padding: var(--s-3);
+  overflow: hidden;
+}
+:root[data-theme="dark"] .amap, :root[data-theme="night"] .amap {
+  --amap-blank: #1A1D33;
+  --amap-hatch: color-mix(in srgb, #F4F1EA 16%, transparent);
+}
+
+.amap__svg { display: block; width: 100%; height: auto; }
+
+.amap__land {
+  stroke: var(--bg-raised);
+  stroke-width: 0.4;
+  cursor: pointer;
+  transition: opacity .12s ease;
+}
+.amap__land:hover { opacity: .78; }
+.amap__land--on { stroke: var(--accent); stroke-width: 1.6; }
+
+.amap__bubble {
+  fill: color-mix(in srgb, var(--accent) 62%, transparent);
+  stroke: var(--bg-raised);
+  stroke-width: 0.8;
+  pointer-events: none;
+}
+
+/* 触屏上不做 hover 变化——手指按下去那一瞬间的闪动只会让人以为点错了。 */
+@media (pointer: coarse) { .amap__land:hover { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .amap__land { transition: none; } }
