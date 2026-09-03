@@ -90,24 +90,30 @@ export default function AtlasPage(): JSX.Element {
         <h1 className="atlas__title">
           {here ? CONTINENTS.find((c) => c.key === here)?.zh : '全球'}
         </h1>
-        <p className="atlas__lede">
-          按国家看女性遭受性暴力的规模与风险、男性自陈施害、社会态度、法律保护与司法流失。
-          点开一个国家看它的全部数据和出处。
-        </p>
+        {/* 南极洲没有国家，这句话在那一层是假的。 */}
+        {here !== 'antarctica' && (
+          <p className="atlas__lede">
+            按国家看女性遭受性暴力的规模与风险、男性自陈施害、社会态度、法律保护与司法流失。
+            点开一个国家看它的全部数据和出处。
+          </p>
+        )}
       </section>
 
       {/*
         * 这一条不能藏起来。地图看上去像结论，其实是一层薄薄的、
         * 高度不均匀的证据——说清楚它是什么，读者才用得对。
+        * 南极洲那一层没有地图，这条也就没有对象。
         */}
-      <p className="atlas__warn">
-        <Icon name="alert" size={14} />
-        <span>
-          这张图仍在建设中：底层用的是世界卫生组织的国家模型估计，其余指标多数国家还没有数据。
-          <b>灰色斜纹代表「没有数据」，不代表零。</b>
-          每个数字都附来源与边界，引用前请打开原始来源核对。
-        </span>
-      </p>
+      {here !== 'antarctica' && (
+        <p className="atlas__warn">
+          <Icon name="alert" size={14} />
+          <span>
+            这张图仍在建设中：底层用的是世界卫生组织的国家模型估计，其余指标多数国家还没有数据。
+            <b>灰色斜纹代表「没有数据」，不代表零。</b>
+            每个数字都附来源与边界，引用前请打开原始来源核对。
+          </span>
+        </p>
+      )}
 
       {/*
         * 南极洲到此为止。
