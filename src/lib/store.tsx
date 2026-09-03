@@ -694,8 +694,6 @@ export function PrismProvider({ children }: { children: React.ReactNode }) {
     el.dataset.theme = state.appearance.theme
     el.dataset.accent = state.appearance.accent
     el.dataset.fs = String(state.appearance.fontScale)
-    el.dataset.roomy = String(state.appearance.roomy)
-    el.dataset.body = state.appearance.bodyFont
   }, [state.appearance])
 
   const reset = useCallback(() => {

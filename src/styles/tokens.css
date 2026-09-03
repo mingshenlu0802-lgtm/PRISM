@@ -84,7 +84,6 @@
 :root[data-fs="1.3"]  { --fs: 1.3; }
 :root[data-fs="1.45"] { --fs: 1.45; }
 
-:root[data-roomy="true"] { --lh-normal: 1.85; --lh-prose: 2.05; }
 
 /* --------------------------------------------------------------------------
    Themes. Every surface reads only the semantic tokens below, so a theme is

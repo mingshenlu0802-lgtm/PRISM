@@ -12,7 +12,6 @@
 .scard__title { font-size: var(--fs-lg); line-height: 1.45; font-weight: 640; }
 
 .scard__summary { font-size: var(--fs-sm); line-height: var(--lh-prose); color: var(--fg-muted); }
-:root[data-body="serif"] .scard__summary { font-family: var(--font-serif); font-size: var(--fs-md); }
 
 .scard__figures { list-style: none; display: grid; gap: var(--s-3); }
 @media (min-width: 640px) { .scard__figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

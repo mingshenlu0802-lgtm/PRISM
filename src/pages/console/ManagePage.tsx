@@ -272,18 +272,6 @@ function LookTab(): JSX.Element {
             ))}
           </div>
         </div>
-
-        <div className="mng__lookgroup">
-          <p className="mng__looklabel">正文字体与行距</p>
-          <div className="mng__lookchips">
-            <button type="button" className={cx('mng__lookchip', a.bodyFont === 'sans' && 'mng__lookchip--on')}
-              onClick={() => dispatch({ type: 'appearance', patch: { bodyFont: 'sans' }, who })}>黑体</button>
-            <button type="button" className={cx('mng__lookchip', a.bodyFont === 'serif' && 'mng__lookchip--on')}
-              onClick={() => dispatch({ type: 'appearance', patch: { bodyFont: 'serif' }, who })}>宋体</button>
-            <button type="button" className={cx('mng__lookchip', a.roomy && 'mng__lookchip--on')}
-              onClick={() => dispatch({ type: 'appearance', patch: { roomy: !a.roomy }, who })}>宽行距</button>
-          </div>
-        </div>
       </div>
 
       <h3 className="mng__subtitle">网站上写的字</h3>

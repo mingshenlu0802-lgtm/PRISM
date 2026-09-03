@@ -17,6 +17,19 @@ export function AppearanceMenu({ compact }: { compact?: boolean }): JSX.Element 
   const ref = useRef<HTMLDivElement | null>(null)
   const a = state.appearance
 
+  /*
+   * 滑杆认的是「第几格」，存下来的是倍率。存的时候要是碰上一个不在表里的
+   * 旧值（改过刻度表，或者别人手改过数据库），indexOf 会给 -1——那会让
+   * 滑杆跳到最左边，看上去像是设置被清空了。取最接近的一格，不猜。
+   */
+  const fsIndex = (() => {
+    let best = 0
+    for (let i = 1; i < FONT_STEPS.length; i++) {
+      if (Math.abs(FONT_STEPS[i].value - a.fontScale) < Math.abs(FONT_STEPS[best].value - a.fontScale)) best = i
+    }
+    return best
+  })()
+
   useEffect(() => {
     if (!open) return undefined
     const onDown = (e: MouseEvent) => {
@@ -51,20 +64,36 @@ export function AppearanceMenu({ compact }: { compact?: boolean }): JSX.Element 
 
       {open && (
         <div className="apm__panel" role="dialog" aria-label="外观设置">
-          <p className="apm__title">字号</p>
-          <div className="apm__row apm__row--fs">
-            {FONT_STEPS.map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                className={cx('apm__chip', a.fontScale === f.value && 'apm__chip--on')}
-                aria-pressed={a.fontScale === f.value}
-                onClick={() => set({ fontScale: f.value })}
-              >
-                <span style={{ fontSize: `${0.72 + (f.value - 0.9) * 0.7}rem` }}>字</span>
-                {f.zh}
-              </button>
-            ))}
+          {/*
+            * 字号是一根滑杆，五格。
+            *
+            * 原来是五个并排的按钮，每个上面还写着一个大小不一的「字」。
+            * 面板只有那么宽，五个按钮排不下，折成两行——第五格「特大」
+            * 孤零零掉在下一行，看上去像是另一组设置。而且五个「选项」
+            * 本来就不是五件事，是同一件事的五个刻度。
+            *
+            * 滑杆把这层关系直接画出来了：一根轴，从小到大，当前在哪一格
+            * 一眼看得到。键盘的左右箭头本来就能用，读屏也认得 slider——
+            * 比五个 aria-pressed 的按钮更好懂。
+            */}
+          <div className="apm__fshead">
+            <p className="apm__title" id="apm-fs">字号</p>
+            <span className="apm__fsnow">{FONT_STEPS[fsIndex]?.zh}</span>
+          </div>
+          <div className="apm__fs">
+            <span className="apm__fsend" aria-hidden="true">小</span>
+            <input
+              className="apm__range"
+              type="range"
+              min={0}
+              max={FONT_STEPS.length - 1}
+              step={1}
+              value={fsIndex}
+              aria-labelledby="apm-fs"
+              aria-valuetext={FONT_STEPS[fsIndex]?.zh}
+              onChange={(e) => set({ fontScale: FONT_STEPS[Number(e.target.value)].value })}
+            />
+            <span className="apm__fsend apm__fsend--big" aria-hidden="true">大</span>
           </div>
 
           <p className="apm__title">主题</p>
@@ -98,28 +127,6 @@ export function AppearanceMenu({ compact }: { compact?: boolean }): JSX.Element 
                 <span style={{ background: c.swatch }} />
               </button>
             ))}
-          </div>
-
-          <p className="apm__title">正文</p>
-          <div className="apm__row">
-            <button
-              type="button"
-              className={cx('apm__chip', a.bodyFont === 'sans' && 'apm__chip--on')}
-              aria-pressed={a.bodyFont === 'sans'}
-              onClick={() => set({ bodyFont: 'sans' })}
-            >黑体</button>
-            <button
-              type="button"
-              className={cx('apm__chip', a.bodyFont === 'serif' && 'apm__chip--on')}
-              aria-pressed={a.bodyFont === 'serif'}
-              onClick={() => set({ bodyFont: 'serif' })}
-            >宋体</button>
-            <button
-              type="button"
-              className={cx('apm__chip', a.roomy && 'apm__chip--on')}
-              aria-pressed={a.roomy}
-              onClick={() => set({ roomy: !a.roomy })}
-            >宽行距</button>
           </div>
         </div>
       )}

@@ -255,12 +255,14 @@ export type AccentKey = 'coral' | 'indigo' | 'teal' | 'plum' | 'amber'
 export interface Appearance {
   theme: ThemeKey
   accent: AccentKey
-  /** 0.9 – 1.4, multiplies every type size on the site. */
+  /**
+   * 0.9 – 1.45，整站每一个字号都乘这个值。
+   *
+   * 正文字体和行距原来也能调（黑体/宋体、宽行距）。站长要求去掉：
+   * 正文统一黑体，行距固定。多一个开关就多一种版式要照顾，而其中一种
+   * 永远是没人看过的那一种——真正需要的是把一种做对。
+   */
   fontScale: number
-  /** Body face for the summaries. */
-  bodyFont: 'sans' | 'serif'
-  /** Wider line spacing for easier reading. */
-  roomy: boolean
 }
 
 /* ------------------------------------------------------------------ *

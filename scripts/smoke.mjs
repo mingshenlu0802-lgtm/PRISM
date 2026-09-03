@@ -13,6 +13,7 @@ import { build } from 'esbuild'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { stripSelfVoice, isSelfVoice, cleanLine } from './voice.mjs'
 
 const out = join(process.cwd(), 'node_modules', '.cache', 'prism-smoke')
 mkdirSync(out, { recursive: true })
@@ -2013,6 +2014,56 @@ await test('地区改名之后，旧数据和旧链接不能变成死的', async
   ok(/jpkr: \[[\s\S]*?taiwan/.test(words), '台湾的关键词搬进 jpkr')
   ok(/us: \[[\s\S]*?canada/.test(words), '加拿大的关键词进 us')
   ok(!/^\s*tw: \[/m.test(words), 'REGION_WORDS 里不该再有 tw 这一格')
+})
+
+await test('稿子里不能出现「本站」——这个站不派记者，任何自述都是假话', () => {
+  /*
+   * 站长：「我不喜欢新闻里面的语言是『PRISM 将持续关注该案后续……』
+   * 我们不是媒体，不要再以 PRISM 自述，不要再做第一人称叙述。」
+   *
+   * 「不是媒体」是关键。这个站不打电话、不去旁听、不派人——它读别人的报道
+   * 再写中文总结。所以每一句自述都是一句白纸黑字的假话：
+   *   「PRISM 将持续关注」= 做不到的承诺（没有人在追踪，明天抓到什么算什么）
+   *   「回复本站查询时说」= 没打过的那通电话，而读者没有办法验证它
+   *
+   * 提示词里已经写死了不许这么写，这里测的是**兜底那一层**：模型是概率的，
+   * 规则是确定的。
+   */
+  const withTail = '法院本周开庭，检方指控其六年间实施性侵。\n\n'
+    + '辩方否认全部指控。PRISM 将持续关注该案后续是否进入司法程序。'
+  eq(stripSelfVoice(withTail), '法院本周开庭，检方指控其六年间实施性侵。\n\n辩方否认全部指控。',
+    '结尾那句自述要删掉，前面的报道一个字不动')
+
+  ok(isSelfVoice('市教育局回复本站查询时说，已成立调查组。'), '虚构的采访要认出来')
+  ok(isSelfVoice('我们将继续追踪这项立法的进展。'), '第一人称的承诺要认出来')
+  ok(isSelfVoice('这再次提醒我们，问题任重道远。'), '向读者说话的空话要认出来')
+
+  /*
+   * 引语里的「我们」不能碰——那是受访者说的话，是这条新闻的内容。
+   * 见到「我们」就删，会把新闻本身删掉。
+   */
+  ok(!isSelfVoice('她说：「我们等了三年，没有人回过一次电话。」'), '引语里的我们是别人在说话')
+  ok(!isSelfVoice('工会声明写道：“我们要求公开调查报告。”'), '直角引号和弯引号都要认')
+  ok(!isSelfVoice('检方认为这种相似性具有证据意义。'), '普通句子不能被误删')
+
+  // 小标题不是句子；但一个后面什么都没剩下的小标题要跟着走。
+  const withHead = '第一段。\n\n## 后续\n\nPRISM 会继续追踪。'
+  eq(stripSelfVoice(withHead), '第一段。', '删空的那一节，小标题也不能留下来悬着')
+
+  eq(cleanLine('PRISM 将持续关注'), '', '副标题和要点整条删掉')
+  eq(cleanLine('法院定于下月开庭'), '法院定于下月开庭', '正常的一行不动')
+
+  // 提示词那一侧也要钉住，否则兜底会一直在删同一种句子。
+  const ed = readFileSync(join(process.cwd(), 'scripts/editorial.mjs'), 'utf8')
+  ok(/通篇不出现叙述者/.test(ed), '红线里要写明不许出现叙述者')
+  ok(!/PRISM 会继续追踪什么/.test(ed), '「PRISM 会继续追踪什么」这条指示本身就是问题的来源')
+  ok(!/回复本站查询时说/.test(ed), '范文里不能示范一通没打过的电话')
+
+  // 收集流程真的用上了它。
+  const rw = readFileSync(join(process.cwd(), 'scripts/rewrite.mjs'), 'utf8')
+  ok(/stripSelfVoice\(String\(raw\.SUMMARY/.test(rw), '新闻正文要过这一道')
+  ok(/stripSelfVoice\(String\(raw\?\.SUMMARY/.test(rw), '研究正文也要过这一道')
+  ok(/cleanLine\(String\(raw\.SUBHEAD/.test(rw), '副标题也要过')
 })
 
 /* ------------------------------ 结果 ------------------------------ */

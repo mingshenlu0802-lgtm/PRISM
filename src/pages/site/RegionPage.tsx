@@ -23,7 +23,7 @@ export default function RegionPage(): JSX.Element {
     return (
       <div className="lpage u-shell">
         <EmptyState title="没有这个地区" hint="从顶部的「地区」菜单里选一个。" icon="globe"
-          action={<Link className="lpage__back" to="/">回到今日</Link>} />
+          action={<Link className="lpage__back" to="/">回到首页</Link>} />
       </div>
     )
   }

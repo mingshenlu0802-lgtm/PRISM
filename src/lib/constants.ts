@@ -82,8 +82,6 @@ export const DEFAULT_APPEARANCE: Appearance = {
   theme: 'warm',
   accent: 'coral',
   fontScale: 1,
-  bodyFont: 'sans',
-  roomy: false,
 }
 
 /* ------------------------------------------------------------------ *
@@ -133,5 +131,5 @@ export const DEFAULT_COPY = {
   intro: '每天两次，把各地、各语种与女性主义和 LGBTQIA+ 相关的新闻找出来，写成中文报道，并附上原始来源。',
   aboutLead: 'PRISM 棱镜每天两次，把散落在各语种里的性别相关新闻，写成中文报道。',
   aboutBody: '我们优先关注真实伤害、权力失衡、制度责任和司法过程——性犯罪案件，以及针对儿童与未成年人的侵害，排在最前面。每条都是完整的报道：交代人物和背景，讲清事情的经过和制度在哪一环失效，最后附上我们读过的媒体链接，你可以自己去核对。',
-  footerNote: '内容由自动搜集与撰写，由站长复核与管理。',
+  footerNote: '内容由 AI 自动搜集生成。',
 }

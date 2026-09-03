@@ -15,6 +15,7 @@
  */
 import { ask, askText, llmName } from './llm.mjs'
 import { splitBlocks, parseBlock, parseList, parseEnum, parseYes } from './blocks.mjs'
+import { cleanLine, stripSelfVoice } from './voice.mjs'
 import { systemPrompt, triagePrompt } from './editorial.mjs'
 
 /*
@@ -200,16 +201,26 @@ const REGIONS = new Set(['cn', 'hk', 'jpkr', 'us', 'eu', 'anz', 'sea', 'sasia', 
 export function clean(raw, fallback) {
   if (!raw || !parseYes(raw.KEEP)) return null
   const headline = String(raw.HEADLINE ?? '').trim()
-  const summary = String(raw.SUMMARY ?? '').trim()
+  /*
+   * 先把「本站自述」的句子删掉，再量长度。
+   *
+   * 提示词里已经写了不许这么写（见 editorial.mjs 的红线），这里是兜底：
+   * 模型是概率的，而「PRISM 将持续关注该案后续」这种句子一旦漏出去，
+   * 就是一句白纸黑字的假话——这个站不派记者、不打电话、不去旁听。
+   *
+   * 顺序要紧：删完再量。删掉之后不足 400 字的，说明那篇本来就没写多少
+   * 实质内容，正好一起丢掉。
+   */
+  const summary = stripSelfVoice(String(raw.SUMMARY ?? '').trim())
   if (!headline || summary.length < 400) return null // 太短就是没写，宁可不要
 
   const topics = parseEnum(raw.TOPICS, TOPICS)
   const regions = parseEnum(raw.REGIONS, REGIONS, REGION_ALIAS)
   return {
     headline,
-    subhead: String(raw.SUBHEAD ?? '').trim() || null,
+    subhead: cleanLine(String(raw.SUBHEAD ?? '').trim()) || null,
     summary,
-    bullets: parseList(raw.BULLETS).slice(0, 6),
+    bullets: parseList(raw.BULLETS).map(cleanLine).filter(Boolean).slice(0, 6),
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,
     // 联网搜到、并且真的被读过的那几篇。collect 会把它们挂成额外来源。
@@ -455,7 +466,8 @@ export function cleanStudy(raw, fallback) {
     .slice(0, 3)
     .map((p) => ({ label: p[0], value: p[1], note: p.slice(2).join(' | ') }))
 
-  const summary = String(raw?.SUMMARY ?? '').trim()
+  // 研究这一路同样不许出现叙述者——理由见 voice.mjs。
+  const summary = stripSelfVoice(String(raw?.SUMMARY ?? '').trim())
   return {
     ...fallback,
     title: String(raw?.TITLE ?? '').trim() || fallback.title,
@@ -464,7 +476,7 @@ export function cleanStudy(raw, fallback) {
     // 出现一个显示不出可信度提示的空类别。
     kind: KINDS.has(kind) ? kind : fallback.kind,
     summary: summary.length >= 400 ? summary : fallback.summary,
-    limitation: String(raw?.LIMITATION ?? '').trim() || '原报告未说明方法与抽样，这里不代为推断。',
+    limitation: stripSelfVoice(String(raw?.LIMITATION ?? '').trim()) || '原报告未说明方法与抽样，这里不代为推断。',
     figures,
     topics: topics.length ? topics : fallback.topics,
     regions: regions.length ? regions : fallback.regions,

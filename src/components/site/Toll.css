@@ -16,11 +16,6 @@
 }
 @media (min-width: 700px) { .toll { padding: var(--s-7) var(--s-6); } }
 
-.toll__h {
-  font-size: var(--fs-md); font-weight: 700; letter-spacing: .01em;
-  color: #F4F1EA;
-}
-
 /*
  * 手机上分两列，第一条通栏。
  *

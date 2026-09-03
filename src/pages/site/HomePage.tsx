@@ -14,11 +14,15 @@ import { RegionMap } from '../../components/site/RegionMap'
 import './HomePage.css'
 
 /**
- * 今日。最上面是站长指定的头条，下面是一条一条的短总结。
+ * 首页。一块数据，一张地图，一排标签，然后是一条一条的短总结。
  *
- * 头条由站长在编辑页指定，不是算法挑的。没有指定时用最新的一条顶上，
- * 这样首页永远不会开着一个空位。筛选之后就不再显示头条——那时读者要的是
- * 「香港的全部」，把一条不属于这个筛选的新闻架在最上面只会碍事。
+ * **没有头条。** 原来最上面有一条站长钉的头条，用 lead 版式占掉大半屏。
+ * 站长说不需要。他是对的：这个站一天出十几条，每一条都是挑过写过的，
+ * 把其中一条架大三倍，等于替读者决定今天什么最重要——而这个站的立场
+ * 恰恰是「这些事都在发生」，不是「今天最该看这一件」。
+ *
+ * 顺序也是站长定的：数据 → 地图 → 标签 → 新闻。地图和标签都是入口，
+ * 挨在一起；读者从「哪里」和「什么题目」进去，或者直接往下读。
  */
 export default function HomePage(): JSX.Element {
   const { state, canEdit } = usePrism()
@@ -62,13 +66,6 @@ export default function HomePage(): JSX.Element {
     return okR && okT
   }), [live, regions, topics])
 
-  /*
-   * 头条：站长钉过的永远优先——那是他的编辑判断，不该被随机顺序盖掉。
-   * 没钉过就取加权抽样的第一条，于是每次打开的头条也不一样。
-   */
-  const lead = filtering ? undefined : (live.find((n) => n.featured) ?? live[0])
-  const rest = lead ? shown.filter((n) => n.id !== lead.id) : shown
-
   const coveredRegions = unique(live.flatMap((n) => n.regions))
 
   return (
@@ -100,22 +97,12 @@ export default function HomePage(): JSX.Element {
         */}
       {!filtering && <Toll />}
 
-      {lead && (
-        <section className="home__lead" aria-label="头条">
-          <NewsCard item={lead} variant="lead" />
-        </section>
-      )}
-
       {/*
-        * 地图排在头条**后面**。
+        * 数据块下面紧接着地图，地图下面紧接着标签——站长定的顺序。
         *
-        * 站长要的是「一开始有一个醒目的图片……下面加一个地图」，两样都在，
-        * 顺序也还是数据在上、地图在下。改的是中间：原来两块叠在一起，
-        * 手机上要划过 1300px 才看得到今天的第一条新闻——一个每天更新的
-        * 新闻站，首页开头一屏半没有新闻。
-        *
-        * 现在数据块之后直接是头条，地图接在头条下面、信息流之前。
-        * 它本来就是「看完头条，再按地区往下找」的那一步。
+        * 这三块是同一件事的三种入口：先让人看见规模，再让人看见分布，
+        * 最后给他一排能按的题目。中间不插别的东西，否则「按地区看」和
+        * 下面那排标签会被一条新闻隔开，读者不会把它们当成一组。
         */}
       {!filtering && (
         <section className="home__map" aria-labelledby="home-map">
@@ -162,10 +149,9 @@ export default function HomePage(): JSX.Element {
         )
       )}
 
-      {/* 只有一条时它已经在头条位上了，下面不再开一个空列表。 */}
-      {rest.length > 0 && (
+      {shown.length > 0 && (
         <div className="home__feed">
-          {rest.map((n) => <NewsCard key={n.id} item={n} />)}
+          {shown.map((n) => <NewsCard key={n.id} item={n} />)}
         </div>
       )}
 

@@ -26,7 +26,7 @@ import './SiteLayout.css'
  */
 export default function SiteLayout(): JSX.Element {
   const { state, consoleOpen, mode, ready, syncError, refresh, canEdit } = usePrism()
-  const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'kind' | 'mobile'>('none')
+  const [menu, setMenu] = useState<'none' | 'region' | 'topic' | 'mobile'>('none')
   const loc = useLocation()
 
   useEffect(() => { setMenu('none') }, [loc.pathname])
@@ -105,7 +105,7 @@ export default function SiteLayout(): JSX.Element {
           <span className="slyt__date">{fmtDate(state.today)}</span>
 
           <nav className="slyt__nav" aria-label="主导航">
-            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/" end>今日</NavLink>
+            <NavLink className={({ isActive }) => cx('slyt__link', isActive && 'slyt__link--on')} to="/" end>首页</NavLink>
 
             <div className="slyt__drop">
               <button
@@ -138,7 +138,7 @@ export default function SiteLayout(): JSX.Element {
                 aria-expanded={menu === 'topic'}
                 onClick={() => setMenu((m) => (m === 'topic' ? 'none' : 'topic'))}
               >
-                议题 <Icon name="chevron-down" size={13} />
+                议题与研究 <Icon name="chevron-down" size={13} />
               </button>
               {menu === 'topic' && (
                 <div className="slyt__panel" role="menu">
@@ -153,31 +153,21 @@ export default function SiteLayout(): JSX.Element {
                       </Link>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
 
-            {/*
-              * 研究与数据也给一个下拉。
-              *
-              * 站长：「研究与数据也要有各类分类。」它一直有筛选，但那些筛选
-              * 在页面里、要滚下去才看得到；导航上它是一个光秃秃的链接，
-              * 旁边两个都能展开——读者自然会以为这一栏没有分类。
-              *
-              * 分的是**类型**，不是议题：一份同行评审的论文和一份倡议机构的
-              * 报告，可信的程度不一样，而这正是这一页存在的理由。
-              */}
-            <div className="slyt__drop">
-              <button
-                type="button"
-                className={cx('slyt__link', 'slyt__dropbtn', menu === 'kind' && 'slyt__link--on')}
-                aria-expanded={menu === 'kind'}
-                onClick={() => setMenu((m) => (m === 'kind' ? 'none' : 'kind'))}
-              >
-                研究与数据 <Icon name="chevron-down" size={13} />
-              </button>
-              {menu === 'kind' && (
-                <div className="slyt__panel" role="menu">
+                  {/*
+                    * 研究与数据并进这一个下拉里。
+                    *
+                    * 站长要的。它原来是导航上单独一栏，可是顶栏有五项的时候，
+                    * 「议题」和「研究与数据」看上去像两条平行的路——其实读者
+                    * 想的是同一件事：某个题目下有什么。分开摆，等于让人先决定
+                    * 「我要看新闻还是看研究」，而那个决定在他知道有什么之前
+                    * 是做不出来的。
+                    *
+                    * 底下这一组分的是**类型**，不是议题：一份同行评审的论文和
+                    * 一份倡议机构的报告，可信的程度不一样，而这正是那一页
+                    * 存在的理由。所以它自成一组，不跟议题混在一格里。
+                    */}
+                  <p className="slyt__panelhead">研究与数据</p>
                   <div className="slyt__panelgrid slyt__panelgrid--wide">
                     <Link className="slyt__panelitem" to="/studies" role="menuitem">
                       <span className="slyt__panelgem" style={{ background: 'var(--fg-faint)' }} aria-hidden="true" />

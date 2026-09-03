@@ -53,7 +53,6 @@
   color: var(--fg);
   display: grid; gap: .85em;
 }
-:root[data-body="serif"] .ncard__summary { font-family: var(--font-serif); }
 .ncard--full .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
 .ncard--lead .ncard__summary { font-size: var(--fs-lg); max-width: var(--measure); }
 
@@ -142,7 +141,6 @@
   font-size: var(--fs-md); line-height: 1.45; color: var(--fg-muted);
   font-weight: 500;
 }
-:root[data-body="serif"] .ncard__subhead { font-family: var(--font-serif); }
 
 /*
  * 长文的行宽。

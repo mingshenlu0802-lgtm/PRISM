@@ -28,7 +28,7 @@ export default function TopicPage(): JSX.Element {
     return (
       <div className="lpage u-shell">
         <EmptyState title="没有这个议题" hint="从顶部的「议题」菜单里选一个。" icon="grid"
-          action={<Link className="lpage__back" to="/">回到今日</Link>} />
+          action={<Link className="lpage__back" to="/">回到首页</Link>} />
       </div>
     )
   }
