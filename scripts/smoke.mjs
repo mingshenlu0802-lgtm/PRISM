@@ -2207,6 +2207,13 @@ await test('订阅覆盖不到的地区，要能按题目主动去搜', () => {
   // 找选题要比写稿多搜几轮：一个题目往往要换三四种说法才问得出东西。
   const llm = readFileSync(join(process.cwd(), 'scripts/llm.mjs'), 'utf8')
   ok(/searchTools = \(maxSearches\)/.test(llm), '搜索次数要能按调用方来，不能只有一个全局值')
+
+  /*
+   * 搜索轮数要跟着「要几条」走。实测八轮只搜回 6 条候选，而那一轮要 20 条——
+   * 不是模型偷懒，是八轮问不出二十件不同的事。
+   */
+  ok(/Math\.ceil\(want/.test(seek), '搜索轮数要按目标条数算，不是一个定数')
+  ok(/Math\.min\(24/.test(seek), '但要有上限——每次搜索都花钱')
 })
 
 await test('搜来的选题要解析得出来——这个错只在花过钱之后才暴露', () => {

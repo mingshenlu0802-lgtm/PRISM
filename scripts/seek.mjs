@@ -66,8 +66,19 @@ ${brief}
   const { text, found } = await askText(system, user, {
     maxTokens: 4000,
     search: true,
-    // 找选题要多搜几轮：一个题目往往要换三四种说法才问得出东西。
-    maxSearches: Number(process.env.SEEK_SEARCHES ?? 8),
+    /*
+     * 搜索轮数按**要几条**来，不是一个定数。
+     *
+     * 实测：八轮搜回 6 条候选，而那一轮要的是 20 条。不是模型偷懒——
+     * 提示词里写着「找不到那么多就少写几条，不要凑数」，它在照做。
+     * 八轮问不出二十件不同的事，尤其是这种要换中英文、换媒体、
+     * 换说法才问得出来的题目。
+     *
+     * 所以按目标条数给：大约每两条一轮，下限 8、上限 24。
+     * 上限是钱：每次搜索一美分，而真正贵的是搜回来的内容在后面每一轮
+     * 都要重读一遍。
+     */
+    maxSearches: Number(process.env.SEEK_SEARCHES ?? Math.min(24, Math.max(8, Math.ceil(want / 1.5)))),
     /*
      * 八轮搜索在一次调用里跑完，十分钟的地板（见 llm.mjs 的 timeoutFor）
      * 通常够。这里再放宽一点：找选题一轮只跑一次，多等几分钟不影响什么，
